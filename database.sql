@@ -73,3 +73,34 @@ CREATE TABLE IF NOT EXISTS `genealogy` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   FOREIGN KEY (`parent_id`) REFERENCES `users`(`id`)
 );
+
+-- Initial Data Seed
+
+-- Default Packages
+INSERT INTO `packages` (`name`, `amount`) VALUES
+('Package $25', 25), ('Package $50', 50), ('Package $100', 100),
+('Package $250', 250), ('Package $500', 500), ('Package $1000', 1000),
+('Package $2500', 2500), ('Package $5000', 5000), ('Package $10000', 10000),
+('Package $25000', 25000), ('Package $50000', 50000), ('Package $100000', 100000),
+('Package $250000', 250000), ('Package $500000', 500000), ('Package $1000000', 1000000);
+
+-- Default Ranks
+INSERT INTO `ranks` (`name`, `matching_business`, `daily_income`, `duration_days`, `total_cap_multiplier`) VALUES
+('Mentor', 500, 2.00, 100, 3.0),
+('Pioneer', 1000, 4.00, 100, 3.0),
+('Elite', 2500, 10.00, 100, 3.0),
+('Titan', 5000, 20.00, 100, 3.0),
+('Master', 10000, 40.00, 100, 3.0),
+('Grand Master', 25000, 100.00, 100, 3.0),
+('Icon', 50000, 200.00, 100, 3.0),
+('Legend', 100000, 400.00, 100, 3.0),
+('Director', 250000, 1000.00, 100, 3.0),
+('Ambassador', 500000, 2000.00, 100, 3.0),
+('Chairman', 1000000, 4000.00, 100, 3.0),
+('President', 2500000, 10000.00, 100, 3.0);
+
+-- Default Sample User
+-- Username: admin
+-- Password: password123 (hashed)
+INSERT INTO `users` (`username`, `email`, `password`) VALUES
+('admin', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC');
