@@ -40,6 +40,10 @@ Go to `register.php` to create a new user. You can optionally provide a `Sponsor
 ### 2. Login
 Use the credentials created during registration at `login.php`.
 
+**Default Credentials (after seeding):**
+- **Username:** `admin`
+- **Password:** `password123`
+
 ### 3. Investment
 In the dashboard (or via a direct script call to `MLMEngine::createInvestment`), a user can purchase a package. This triggers:
 - Upline level commissions (12 levels).
