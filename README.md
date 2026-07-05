@@ -32,3 +32,19 @@ All business variables are stored in `includes/config.php`.
    $engine->processDailyROI();
    $engine->processRankIncome();
    ```
+
+## Usage
+### 1. Registration
+Go to `register.php` to create a new user. You can optionally provide a `Sponsor ID` and `Placement ID` to build the genealogy tree.
+
+### 2. Login
+Use the credentials created during registration at `login.php`.
+
+### 3. Investment
+In the dashboard (or via a direct script call to `MLMEngine::createInvestment`), a user can purchase a package. This triggers:
+- Upline level commissions (12 levels).
+- Binary business volume updates for the placement tree.
+
+### 4. Wallet & Withdrawals
+- Users can deposit USDT via the E-Wallet section.
+- Withdrawals require a minimum of $25 and incur a $10 flat fee.
