@@ -25,15 +25,10 @@ if (!$user) {
 $stmt = $db->prepare("SELECT
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND DATE(created_at) = CURDATE()) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME' AND DATE(created_at) = CURDATE()) as today_level_income,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME' AND DATE(created_at) = CURDATE()) as today_rank_income,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME') as total_level_income,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME') as total_rank_income,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI') as total_roi,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ?) as wallet_balance,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn
 ");
-$stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId]);
+$stmt->execute([$userId, $userId, $userId, $userId]);
 $stats = $stmt->fetch();
 
 // Team Stats
@@ -53,97 +48,77 @@ $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
 $ceilingBalance = max(0, $maxCap - $stats['total_earning']);
 $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
 
+$pageTitle = 'Dashboard';
+include __DIR__ . '/includes/header.php';
 ?>
-<!doctype html>
-<html lang="en" data-bs-theme="light">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>App Dashboard</title>
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/core/libs.min.css">
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/coinex.min.css?v=4.1.0">
-  <style>
-    body { background: #fff; }
-    .overview-box { background: #3f2259; color: #fff; padding: 20px; border-radius: 12px; text-align: center; flex: 1; margin: 5px; }
-    .overview-row { display: flex; justify-content: space-between; margin-bottom: 15px; }
-    .text-primary { color: #cca354 !important; }
-  </style>
-</head>
-<body>
-  <div class="container-fluid p-4">
-    <div class="row">
-        <div class="col-md-12">
-            <h2>Welcome, <?php echo htmlspecialchars($user['username']); ?> (<?php echo $rankName; ?>)</h2>
-            <hr>
-        </div>
-    </div>
 
-    <div class="account-overview">
-        <div class="overview-row">
-            <div class="overview-box">
-                <h3>TODAY ROI $</h3>
-                <p class="text-primary"><?php echo number_format($stats['today_roi'], 2); ?></p>
+<div class="container-fluid content-inner dashboard-inner pb-5 p-3">
+    <div class="row p-0">
+        <div class="account-overview">
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>TODAY ROI $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($stats['today_roi'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>TODAY %</h3>
+                    <p class="text-primary mt-2">0.5%</p>
+                </div>
+                <div class="overview-box">
+                    <h3>TOTAL EARNING $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($stats['total_earning'], 2); ?></p>
+                </div>
             </div>
-            <div class="overview-box">
-                <h3>TODAY %</h3>
-                <p class="text-primary">0.5%</p>
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>TEAM INVESTMENT $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($team_inv['team_investment'] ?? 0, 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>MY INVESTMENT</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
+                </div>
             </div>
-            <div class="overview-box">
-                <h3>TOTAL EARNING $</h3>
-                <p class="text-primary"><?php echo number_format($stats['total_earning'], 2); ?></p>
-            </div>
-        </div>
-        <div class="overview-row">
-            <div class="overview-box">
-                <h3>TEAM INVESTMENT $</h3>
-                <p class="text-primary"><?php echo number_format($team_inv['team_investment'] ?? 0, 2); ?></p>
-            </div>
-            <div class="overview-box">
-                <h3>MY INVESTMENT</h3>
-                <p class="text-primary"><?php echo number_format($user['total_investment'], 2); ?></p>
-            </div>
-        </div>
-        <div class="overview-row">
-            <div class="overview-box">
-                <h3 class="text-upercase">CURRENT POWER LEG</h3>
-                <p class="text-primary"><?php echo number_format(max($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
-            </div>
-            <div class="overview-box">
-                <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
-                <p class="text-primary"><?php echo number_format(min($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3 class="text-upercase">CURRENT POWER LEG</h3>
+                    <p class="text-primary mt-2"><?php echo number_format(max($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
+                    <p class="text-primary mt-2"><?php echo number_format(min($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="container-fluid mt-4">
-        <div class="card bg-dark p-4 text-center">
-            <h3 style="color: #cca354 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
-            <div class="progress" style="height: 30px">
-                <div class="progress-bar bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
+    <div class="container-fluid">
+        <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
+            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #cca354 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
+            <div class="progress" style="height: 50px">
+                <div class="progress-bar text-bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
             </div>
-        </div>
+        </button>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-md-4">
-            <div class="overview-box">
-                <h3>WITHDRAWAL WALLET</h3>
-                <p class="text-primary">$<?php echo number_format($stats['wallet_balance'], 2); ?></p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="overview-box">
-                <h3>TOTAL WITHDRAWN</h3>
-                <p class="text-primary">$<?php echo number_format($stats['total_withdrawn'], 2); ?></p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="overview-box">
-                <h3>TEAM MEMBERS</h3>
-                <p class="text-primary"><?php echo $team['team_count']; ?></p>
+    <div class="row p-0 mt-4">
+        <div class="account-overview">
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>WITHDRAWAL WALLET $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($stats['wallet_balance'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>TOTAL WITHDRAWN $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($stats['total_withdrawn'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>MY TEAM MEMBERS</h3>
+                    <p class="text-primary mt-2"><?php echo $team['team_count']; ?></p>
+                </div>
             </div>
         </div>
     </div>
-  </div>
-</body>
-</html>
+</div>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>
