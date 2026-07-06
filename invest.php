@@ -37,6 +37,17 @@ include __DIR__ . '/includes/header.php';
 <div class="container-fluid content-inner pb-0">
     <div class="row">
       <div class="col-lg-12">
+        <?php if(isset($_GET['error'])): ?>
+            <div class="alert alert-danger">
+                <?php
+                    if($_GET['error'] == 'insufficient_balance') echo "Insufficient balance in E-Wallet.";
+                    else echo htmlspecialchars($_GET['error']);
+                ?>
+            </div>
+        <?php endif; ?>
+        <?php if(isset($_GET['success'])): ?>
+            <div class="alert alert-success">Investment successful.</div>
+        <?php endif; ?>
         <div class="card">
           <div class="card-header"><h4 class="card-title mb-0">Invest</h4></div>
           <div class="card-body">
@@ -50,6 +61,9 @@ include __DIR__ . '/includes/header.php';
                       </div>
                     </div>
                     <h4 class="text-primary mt-2">$<?php echo number_format($wallet['wallet_balance'], 2); ?></h4>
+                    <div class="mt-2">
+                        <a href="e_wallet.php" class="btn btn-sm btn-outline-warning text-white">Add Funds</a>
+                    </div>
                   </div>
                 </div>
 

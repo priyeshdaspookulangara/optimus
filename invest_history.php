@@ -35,6 +35,11 @@ include __DIR__ . '/includes/header.php';
 
 <div class="container-fluid content-inner pb-0">
     <div class="row">
+      <div class="col-lg-12">
+        <?php if(isset($_GET['success'])): ?>
+            <div class="alert alert-success">Investment successful.</div>
+        <?php endif; ?>
+      </div>
       <div class="col-lg-12 DT-col">
         <div class="card">
           <div class="card-header">
@@ -47,7 +52,10 @@ include __DIR__ . '/includes/header.php';
                   <tr>
                     <th>#</th>
                     <th>Date</th>
-                    <th>Investment$</th>
+                    <th>Package</th>
+                    <th>Amount ($)</th>
+                    <th>ROI Earned</th>
+                    <th>Status</th>
                     <th>View</th>
                   </tr>
                 </thead>
@@ -56,7 +64,14 @@ include __DIR__ . '/includes/header.php';
                     <tr>
                       <td><?php echo $index + 1; ?></td>
                       <td><?php echo date('d M, Y h:i:s a', strtotime($inv['created_at'])); ?></td>
-                      <td><?php echo number_format($inv['amount'], 3); ?></td>
+                      <td><?php echo htmlspecialchars($inv['package_name']); ?></td>
+                      <td>$<?php echo number_format($inv['amount'], 2); ?></td>
+                      <td>$<?php echo number_format($inv['roi_earned'], 2); ?></td>
+                      <td>
+                          <span class="badge <?php echo ($inv['status'] == 'active') ? 'bg-success' : 'bg-secondary'; ?>">
+                              <?php echo strtoupper($inv['status']); ?>
+                          </span>
+                      </td>
                       <td><a href="roi_view.php?id=<?php echo $inv['id']; ?>" class="btn btn-primary btn-sm text-white">View</a></td>
                     </tr>
                   <?php endforeach; ?>

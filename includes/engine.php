@@ -38,13 +38,14 @@ class MLMEngine {
             // Record Investment
             $stmt = $this->db->prepare("INSERT INTO investments (user_id, package_id, amount, status) VALUES (?, ?, ?, 'active')");
             $stmt->execute([$userId, $packageId, $packageAmount]);
+            $investmentId = $this->db->lastInsertId();
 
             // Update user total investment
             $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
             $stmt->execute([$packageAmount, $userId]);
 
             // Log Transaction
-            $this->logTransaction($userId, 'INVESTMENT', $packageAmount, 0, "Purchased package \${$packageAmount}", null, $this->db->lastInsertId());
+            $this->logTransaction($userId, 'INVESTMENT', $packageAmount, 0, "Purchased package \${$packageAmount}", null, $investmentId);
 
             // Distribute Level Income (Recursive up to 12 levels)
             $this->distributeLevelIncome($userId, $packageAmount);
