@@ -52,3 +52,11 @@ In the dashboard (or via a direct script call to `MLMEngine::createInvestment`),
 ### 4. Wallet & Withdrawals
 - Users can deposit USDT via the E-Wallet section.
 - Withdrawals require a minimum of $25 and incur a $10 flat fee.
+
+## ROI & Rank Income Automation
+ROI and Rank income calculations occur daily. To automate this, set up a cron job to run the `cron.php` script once every 24 hours.
+
+**Example Cron Job (at midnight):**
+```bash
+0 0 * * * /usr/bin/php /path/to/your/app/cron.php >> /path/to/your/app/cron.log 2>&1
+```
