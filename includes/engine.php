@@ -280,4 +280,60 @@ class MLMEngine {
         $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
         return true;
     }
+
+    /**
+     * PIN Activation System
+     */
+    public function activateWithPin($userId, $pinCode) {
+        $stmt = $this->db->prepare("SELECT * FROM pins WHERE pin_code = ? AND status = 'unused'");
+        $stmt->execute([$pinCode]);
+        $pin = $stmt->fetch();
+
+        if (!$pin) {
+            throw new Exception("Invalid or already used PIN");
+        }
+
+        $stmt = $this->db->prepare("SELECT amount FROM packages WHERE id = ?");
+        $stmt->execute([$pin['package_id']]);
+        $package = $stmt->fetch();
+
+        if (!$package) {
+            throw new Exception("Package associated with PIN no longer exists");
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // Mark PIN as used
+            $stmt = $this->db->prepare("UPDATE pins SET status = 'used', used_by = ? WHERE id = ?");
+            $stmt->execute([$userId, $pin['id']]);
+
+            // Create Investment (Package is already paid for by PIN)
+            // We use the amount but don't deduct from e-wallet
+            $stmt = $this->db->prepare("INSERT INTO investments (user_id, package_id, amount, status) VALUES (?, ?, ?, 'active')");
+            $stmt->execute([$userId, $pin['package_id'], $package['amount']]);
+            $investmentId = $this->db->lastInsertId();
+
+            $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
+            $stmt->execute([$package['amount'], $userId]);
+
+            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId);
+
+            // Distribute commissions
+            $this->distributeLevelIncome($userId, $package['amount']);
+
+            // Update Binary Business
+            $stmt = $this->db->prepare("SELECT placement_id, position FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            if ($user && $user['placement_id']) {
+                $this->updateBinaryBusiness($user['placement_id'], $user['position'], $package['amount']);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
 }

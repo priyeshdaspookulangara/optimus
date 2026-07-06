@@ -27,7 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->commit();
         echo "Registration successful! <a href='login.php'>Login here</a>";
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
         echo "Registration failed: " . $e->getMessage();
     }
 }

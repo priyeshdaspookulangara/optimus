@@ -85,6 +85,25 @@ CREATE TABLE IF NOT EXISTS `user_wallets` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
 );
 
+CREATE TABLE IF NOT EXISTS `admins` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `username` VARCHAR(50) UNIQUE NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(100) UNIQUE NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS `pins` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `pin_code` VARCHAR(20) UNIQUE NOT NULL,
+  `package_id` INT NOT NULL,
+  `status` ENUM('unused', 'used') DEFAULT 'unused',
+  `used_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`package_id`) REFERENCES `packages`(`id`),
+  FOREIGN KEY (`used_by`) REFERENCES `users`(`id`)
+);
+
 -- Initial Data Seed
 
 -- Default Packages
@@ -115,3 +134,9 @@ INSERT INTO `ranks` (`name`, `matching_business`, `daily_income`, `duration_days
 -- Password: password123 (hashed)
 INSERT INTO `users` (`username`, `email`, `password`) VALUES
 ('admin', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC');
+
+-- Default Super Admin
+-- Username: superadmin
+-- Password: adminpassword (hashed)
+INSERT INTO `admins` (`username`, `email`, `password`) VALUES
+('superadmin', 'admin@mlm.com', '$2y$10$6zK6Yn1u3x8pYlR0R7o9u.Fj8i3/vY7ZkC6mQW0R0K8R5L1h0k5pG');

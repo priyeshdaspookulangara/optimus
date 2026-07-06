@@ -47,6 +47,18 @@ Use the credentials created during registration at `login.php`.
 - **Username:** `admin`
 - **Password:** `password123`
 
+## Admin Panel
+The application includes a comprehensive Super Admin panel for managing the entire system.
+- **URL:** `/admin/login.php`
+- **Default Username:** `superadmin`
+- **Default Password:** `adminpassword`
+
+### Admin Features:
+- **Member Management:** List, search, activate, or suspend members.
+- **Package Management:** Add or update investment tiers.
+- **PIN Management:** Generate activation PINs for offline sales or manual activations.
+- **Business Reports:** Track total payouts (ROI, Level, Rank) and daily business volume.
+
 ### 3. Investment
 In the dashboard (or via a direct script call to `MLMEngine::createInvestment`), a user can purchase a package. This triggers:
 - Upline level commissions (12 levels).
