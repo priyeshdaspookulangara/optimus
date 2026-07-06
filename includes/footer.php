@@ -10,7 +10,14 @@
   <script>
     $(document).ready(function () {
       $('#copy_btn').click(function () {
-        var textToCopy = "https://optimusinfinity.com/registration_new/<?php echo bin2hex($user['id'] ?? '0'); ?>";
+        <?php
+          $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+          $host = $_SERVER['HTTP_HOST'];
+          $dir = dirname($_SERVER['PHP_SELF']);
+          $baseUrl = $protocol . "://" . $host . $dir;
+          $baseUrl = rtrim($baseUrl, '/\\');
+        ?>
+        var textToCopy = "<?php echo $baseUrl; ?>/registration_new.php?id=<?php echo $user['id'] ?? '0'; ?>";
         var tempTextarea = $("<textarea>");
         tempTextarea.val(textToCopy);
         $("body").append(tempTextarea);

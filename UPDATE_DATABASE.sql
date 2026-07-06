@@ -1,6 +1,10 @@
 -- SQL Script to update existing database structure
 
 -- 1. Update the transactions table
+ALTER TABLE `users`
+  ADD COLUMN `full_name` VARCHAR(100) DEFAULT NULL AFTER `username`,
+  ADD COLUMN `phone` VARCHAR(20) DEFAULT NULL AFTER `full_name`;
+
 ALTER TABLE `transactions`
   ADD COLUMN `investment_id` INT DEFAULT NULL AFTER `related_user_id`,
   ADD COLUMN `level` INT DEFAULT NULL AFTER `investment_id`,
