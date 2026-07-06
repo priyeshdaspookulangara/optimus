@@ -37,6 +37,9 @@ All business variables are stored in `includes/config.php`.
 ### 1. Registration
 Go to `register.php` to create a new user. You can optionally provide a `Sponsor ID` and `Placement ID` to build the genealogy tree.
 
+**Root Member:**
+The system identifies a "Root Member" as any user with no `sponsor_id`. In the provided data, `admin` is the initial root. To add a new primary root, manually insert a user into the `users` table via SQL with `sponsor_id` and `placement_id` set to `NULL`.
+
 ### 2. Login
 Use the credentials created during registration at `login.php`.
 

@@ -31,9 +31,10 @@ try {
     $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
     $stmt->execute([$username]);
     if (!$stmt->fetch()) {
-        $stmt = $db->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
+        // Root user: no sponsor_id, no placement_id
+        $stmt = $db->prepare("INSERT INTO users (username, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, NULL, NULL)");
         $stmt->execute([$username, 'admin@example.com', $hashedPassword]);
-        echo "Default user 'admin' created with password 'password123'.\n";
+        echo "Root user 'admin' created with password 'password123'.\n";
     } else {
         echo "Default user already exists.\n";
     }
