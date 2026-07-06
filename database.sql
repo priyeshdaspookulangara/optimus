@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS `genealogy` (
   FOREIGN KEY (`parent_id`) REFERENCES `users`(`id`)
 );
 
+CREATE TABLE IF NOT EXISTS `user_wallets` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `network` VARCHAR(50) DEFAULT 'TRC20',
+  `address` VARCHAR(255) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+);
+
 -- Initial Data Seed
 
 -- Default Packages
