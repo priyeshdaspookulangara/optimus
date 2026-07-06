@@ -134,7 +134,7 @@ class MLMEngine {
 
                 $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
                 if ($allowable > 0) {
-                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId);
+                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
                 }
             }
         }
@@ -201,7 +201,7 @@ class MLMEngine {
         return min($amountToAdd, $remainingCap);
     }
 
-    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null) {
+    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null) {
         // Signage: Income types are positive, Expense/Debit types are negative
         $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
 
@@ -213,8 +213,8 @@ class MLMEngine {
             $netAmount = $amount - $fee;
         }
 
-        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $relatedUserId, $investmentId, $type, $amount, $fee, $netAmount, $description]);
+        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description]);
     }
 
     /**

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS `transactions` (
   `user_id` INT NOT NULL,
   `related_user_id` INT DEFAULT NULL,
   `investment_id` INT DEFAULT NULL,
+  `level` INT DEFAULT NULL,
   `type` ENUM('ROI', 'LEVEL_INCOME', 'RANK_INCOME', 'WITHDRAWAL', 'INVESTMENT', 'DEPOSIT') NOT NULL,
   `amount` DECIMAL(15, 2) NOT NULL,
   `fee` DECIMAL(15, 2) DEFAULT 0.00,
