@@ -33,9 +33,11 @@ CREATE TABLE IF NOT EXISTS `pins` (
   `pin_code` VARCHAR(20) UNIQUE NOT NULL,
   `package_id` INT NOT NULL,
   `status` ENUM('unused', 'used') DEFAULT 'unused',
+  `assigned_to` INT DEFAULT NULL,
   `used_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`package_id`) REFERENCES `packages`(`id`),
+  FOREIGN KEY (`assigned_to`) REFERENCES `users`(`id`),
   FOREIGN KEY (`used_by`) REFERENCES `users`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

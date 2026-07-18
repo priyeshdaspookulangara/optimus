@@ -5,11 +5,32 @@ require_once __DIR__ . '/../includes/db.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'generate') {
     $packageId = $_POST['package_id'];
     $count = (int)$_POST['count'];
+    $assignUsername = trim($_POST['assign_username'] ?? '');
 
-    $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id) VALUES (?, ?)");
+    $assignedToId = null;
+    if (!empty($assignUsername)) {
+        $userStmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+        $userStmt->execute([$assignUsername]);
+        $targetUser = $userStmt->fetch();
+        if ($targetUser) {
+            $assignedToId = $targetUser['id'];
+        }
+    }
+
+    $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
     for ($i = 0; $i < $count; $i++) {
-        $pin = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
-        $stmt->execute([$pin, $packageId]);
+        // Format: "OI" + unique 6 digit combination
+        $uniqueDigits = mt_rand(100000, 999999);
+        $pin = "OI" . $uniqueDigits;
+
+        // Double check uniqueness (simplified retry for this scale)
+        $chk = $db->prepare("SELECT id FROM pins WHERE pin_code = ?");
+        $chk->execute([$pin]);
+        if ($chk->fetch()) {
+            $pin = "OI" . mt_rand(100000, 999999);
+        }
+
+        $stmt->execute([$pin, $packageId, $assignedToId]);
     }
     header("Location: pins.php?success=generated");
     exit();
@@ -18,10 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $pageTitle = 'PIN Management';
 include __DIR__ . '/includes/header.php';
 
-$stmt = $db->query("SELECT p.*, pkg.name as package_name, u.username as used_by_user
+$stmt = $db->query("SELECT p.*, pkg.name as package_name, u.username as used_by_user, u_ass.username as assigned_to_user
                     FROM pins p
                     JOIN packages pkg ON p.package_id = pkg.id
                     LEFT JOIN users u ON p.used_by = u.id
+                    LEFT JOIN users u_ass ON p.assigned_to = u_ass.id
                     ORDER BY p.created_at DESC");
 $pins = $stmt->fetchAll();
 
@@ -45,6 +67,7 @@ $packages = $stmt->fetchAll();
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
+                        <th>Assigned To</th>
                         <th>Used By</th>
                         <th>Created At</th>
                     </tr>
@@ -59,6 +82,7 @@ $packages = $stmt->fetchAll();
                                 <?php echo strtoupper($p['status']); ?>
                             </span>
                         </td>
+                        <td><?php echo $p['assigned_to_user'] ?? '<span class="text-muted">Public</span>'; ?></td>
                         <td><?php echo $p['used_by_user'] ?? '-'; ?></td>
                         <td><?php echo date('Y-m-d H:i', strtotime($p['created_at'])); ?></td>
                     </tr>
@@ -90,6 +114,11 @@ $packages = $stmt->fetchAll();
                 <div class="mb-3">
                     <label class="form-label">Quantity to Generate</label>
                     <input type="number" name="count" class="form-control" value="1" min="1" max="100" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Assign to Member (Optional - Username)</label>
+                    <input type="text" name="assign_username" class="form-control" placeholder="e.g. shajithmm002">
+                    <small class="text-muted">If specified, the PIN will be displayed under "My PINs" in their dashboard.</small>
                 </div>
             </div>
             <div class="modal-footer">

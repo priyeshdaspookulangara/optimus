@@ -21,6 +21,7 @@
           <li class="nav-item"><a class="nav-link" href="e_wallet_history.php"><i class="icon fa fa-history"></i><span class="item-name">E-Wallet History</span></a></li>
           <li class="nav-item"><a class="nav-link" href="invest.php"><i class="icon fa fa-plus-circle"></i><span class="item-name">Invest</span></a></li>
           <li class="nav-item"><a class="nav-link" href="invest_history.php"><i class="icon fa fa-list"></i><span class="item-name">Invest History</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="my_pins.php"><i class="icon fa fa-key"></i><span class="item-name">My PINs</span></a></li>
           <li class="nav-item"><a class="nav-link" href="roi_income.php"><i class="icon fa fa-chart-line"></i><span class="item-name">ROI Income</span></a></li>
           <li class="nav-item"><a class="nav-link" href="level_income.php"><i class="icon fa fa-users"></i><span class="item-name">Level Income</span></a></li>
           <li class="nav-item"><a class="nav-link" href="rank.php"><i class="icon fa fa-trophy"></i><span class="item-name">Rank</span></a></li>
