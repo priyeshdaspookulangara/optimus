@@ -56,5 +56,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Registration failed: " . $e->getMessage() . " <a href='javascript:history.back()'>Go back</a>";
     }
 } else {
-    header("Location: registration_new.php");
+    header("Location: register.php");
 }
