@@ -3,7 +3,11 @@
 -- 1. Update the transactions table
 ALTER TABLE `users`
   ADD COLUMN `full_name` VARCHAR(100) DEFAULT NULL AFTER `username`,
-  ADD COLUMN `phone` VARCHAR(20) DEFAULT NULL AFTER `full_name`;
+  ADD COLUMN `phone` VARCHAR(20) DEFAULT NULL AFTER `full_name`,
+  ADD COLUMN `address` TEXT DEFAULT NULL AFTER `phone`,
+  ADD COLUMN `post_office_number` VARCHAR(20) DEFAULT NULL AFTER `address`,
+  ADD COLUMN `state` VARCHAR(100) DEFAULT NULL AFTER `post_office_number`,
+  ADD COLUMN `country` VARCHAR(100) DEFAULT NULL AFTER `state`;
 
 ALTER TABLE `transactions`
   ADD COLUMN `investment_id` INT DEFAULT NULL AFTER `related_user_id`,

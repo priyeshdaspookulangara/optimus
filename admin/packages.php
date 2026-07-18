@@ -2,6 +2,8 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+$db = Database::getInstance()->getConnection();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $_POST['name'];
     $amount = $_POST['amount'];

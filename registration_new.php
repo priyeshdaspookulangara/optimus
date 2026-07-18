@@ -15,176 +15,233 @@ if (!empty($sponsorId)) {
 }
 ?>
 <!doctype html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="title" content="Registration - Optimus Infinity">
-  <meta property="og:title" content="Registration - Optimus Infinity">
   <title>Registration - Optimus Infinity</title>
-
 
   <!-- Favicon -->
   <link rel="shortcut icon" href="https://optimusinfinity.com/assets/fav.png" />
-  <!-- Favicon -->
 
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/core/libs.min.css">
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/coinex.min.css?v=4.1.0">
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/custom.min.css?v=4.1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <!-- Page CSS -->
-  <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/authentication.css">
-
-  <!-- Font Awesome -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&display=swap"
-    rel="stylesheet">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
-    integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="assets/web/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/web/css/fontawesome-all.min.css">
+  <link rel="stylesheet" href="assets/web/css/style.css">
+  <link rel="stylesheet" href="assets/web/css/responsive.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #3f2259;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+    }
+    .reg-card {
+      background-color: #ffffff !important;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      color: #333 !important;
+    }
+    .form-label, label {
+      color: #333 !important;
+      font-weight: 500;
+    }
+    .form-control, .form-select {
+      background-color: #3f2259 !important;
+      color: #fff !important;
+      border: 1px solid #504793;
+    }
+    .form-control:focus, .form-select:focus {
+      background-color: #3f2259 !important;
+      color: #fff !important;
+      box-shadow: 0 0 5px rgba(80, 71, 147, 0.5);
+    }
+    .pin-status-badge {
+      font-size: 0.85rem;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: inline-block;
+      margin-top: 5px;
+    }
+    .sticky-header.menu-area {
+      background-color: #3f2259;
+      padding: 15px 0;
+      border-bottom: 1px solid #504793;
+    }
+    .logo img {
+      width: 200px;
+    }
+  </style>
 </head>
 
-<style>
-  /*New Loader*/
-  .loader.simple-loader .loader-body {
-    background: url('../assets/images/loader-new.png') no-repeat scroll center center;
-    animation: rotate 2s infinite linear;
-    background-size: auto 150px;
+<body>
 
-  }
-
-  input {
-    background-color: #3f2259 !important;
-    color: #fff !important;
-  }
-  select {
-    background-color: #3f2259 !important;
-    color: #fff !important;
-  }
-  .form-label {
-    color: #333 !important;
-  }
-</style>
-
-<body style="background-color: #3f2259">
-  <div class="container-fluid content-inner pb-0">
-
-    <div class="wrapper">
-      <div class="row reg">
-        <div class="col-xl-9 col-lg-8 mx-auto">
-          <div class="card p-3" style="background-color: #fff !important;">
-            <div class="card-header d-flex justify-content-between">
-              <div class="header-title">
-                <h4 class="card-title text-uppercase text-dark">Registration</h4>
+  <!-- header-area -->
+  <header id="header">
+    <div id="sticky-header" class="menu-area">
+      <div class="container custom-container">
+        <div class="row">
+          <div class="col-12">
+            <div class="menu-wrap d-flex justify-content-between align-items-center">
+              <div class="logo">
+                <a href="index.php"><img src="https://optimusinfinity.com/assets/logo.png" alt="Logo"></a>
               </div>
-            </div>
-            <div class="card-body">
-              <div class="new-user-info">
-                <form action="create_user.php" method="post">
-                  <div class="row">
-                    <div class="form-group col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-                      <label class="form-label" for="referral_id">Sponsor ID: </label>
-                      <input type="text" class="form-control" id="referral_id" name="referral_id"
-                        value="<?php echo htmlspecialchars($sponsorId); ?>" readonly>
-                    </div>
-                    <div class="form-group col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-                      <label class="form-label" for="sponsor_name">Sponsor Name: </label>
-                      <input type="text" class="form-control" id="sponsor_name" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly>
-                    </div>
-
-                    <div class="form-group col-12">
-                      <label class="form-label" for="name">Full Name: </label>
-                      <input type="text" class="form-control" id="name" name="name" required
-                        placeholder="Full Name">
-                    </div>
-
-                    <div class="form-group col-12">
-                      <label class="form-label" for="username">Username: </label>
-                      <input type="text" class="form-control" id="username" name="username" required
-                        placeholder="Username">
-                    </div>
-
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="phone">Phone: </label>
-                      <input type="text" class="form-control" id="phone" name="phone" required
-                        placeholder="Phone">
-                    </div>
-
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="email">Email</label>
-                      <input type="email" class="form-control" id="email" placeholder="Email"
-                        name="email" required>
-                    </div>
-
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="otp">OTP <span id="ajax_msg"></span></label>
-                      <div class="input-group mb-3">
-                        <input type="text" class="form-control" id="otp" placeholder="OTP" name="otp">
-                        <button class="btn text-white btn-primary" type="button" id="otp_btn"
-                          style="background-color:#cca254">SEND OTP</button>
-                      </div>
-                    </div>
-
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="country">Country</label>
-                      <select class="form-select" id="country" name="country">
-                        <option value="USA">United States</option>
-                        <option value="UK">United Kingdom</option>
-                        <option value="India">India</option>
-                        <option value="UAE">United Arab Emirates</option>
-                        <!-- Add other countries as needed -->
-                      </select>
-                    </div>
-
-                    <div class="form-group col-md-6">
-                        <label class="form-label">Position</label>
-                        <select name="position" class="form-select">
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                        </select>
-                    </div>
-
-                  </div>
-                  <hr>
-                  <h5 class="mb-3 text-dark">Security</h5>
-                  <div class="row">
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="password">Password: </label>
-                      <input type="password" class="form-control" id="password" name="password" required
-                        placeholder="Password">
-                    </div>
-                    <div class="form-group col-md-6">
-                      <label class="form-label" for="password_confirmation">Confirm Password: </label>
-                      <input type="password" class="form-control" id="password_confirmation" required
-                        name="password_confirmation" placeholder="Repeat Password">
-                    </div>
-                  </div>
-                  <div class="text-center mt-4">
-                    <button type="submit" id="submit-success" class="text-white btn btn-primary submit-btn px-4"><i
-                        class="fa-regular fa-circle-check me-2"></i>Register Now</button>
-                  </div>
-                  <div class="text-center mt-3">
-                      <a href="login.php" class="text-dark">Already have an account? Login</a>
-                  </div>
-                </form>
+              <div class="header-action">
+                <a href="login.php" class="btn btn-outline-light px-4">Sign In</a>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </header>
+  <!-- header-area-end -->
 
-  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  <main class="py-5">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-xl-9 col-lg-10">
+          <div class="card reg-card p-4">
+            <div class="card-header border-0 bg-transparent text-center">
+              <h2 class="text-uppercase fw-bold text-dark mb-0">Registration</h2>
+            </div>
+            <div class="card-body">
+              <form action="create_user.php" method="post" id="regForm">
+                <div class="row">
+
+                  <!-- Sponsor Info -->
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="referral_id">Sponsor ID: </label>
+                    <input type="number" class="form-control" id="referral_id" name="referral_id"
+                      value="<?php echo htmlspecialchars($sponsorId); ?>" required placeholder="Sponsor ID">
+                  </div>
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="sponsor_name">Sponsor Name: </label>
+                    <input type="text" class="form-control" id="sponsor_name" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly style="background-color: #e9ecef !important; color: #495057 !important;">
+                  </div>
+
+                  <!-- Activation PIN -->
+                  <div class="form-group col-12 mb-3">
+                    <label class="form-label" for="pin_code">Activation PIN (Optional): </label>
+                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="e.g. OI123456">
+                    <div id="pin_feedback"></div>
+                  </div>
+
+                  <!-- Personal Info -->
+                  <div class="form-group col-12 mb-3">
+                    <label class="form-label" for="name">Full Name: </label>
+                    <input type="text" class="form-control" id="name" name="name" required placeholder="Full Name">
+                  </div>
+
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="username">Username: </label>
+                    <input type="text" class="form-control" id="username" name="username" required placeholder="Username">
+                  </div>
+
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="phone">Phone: </label>
+                    <input type="text" class="form-control" id="phone" name="phone" required placeholder="Phone">
+                  </div>
+
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" class="form-control" id="email" placeholder="Email" name="email" required>
+                  </div>
+
+                  <!-- Address Details -->
+                  <div class="form-group col-12 mb-3">
+                    <label class="form-label" for="address">Address: </label>
+                    <input type="text" class="form-control" id="address" name="address" required placeholder="Street address">
+                  </div>
+
+                  <div class="form-group col-md-4 mb-3">
+                    <label class="form-label" for="post_office_number">Post Office Number: </label>
+                    <input type="text" class="form-control" id="post_office_number" name="post_office_number" required placeholder="ZIP / PO Box">
+                  </div>
+
+                  <div class="form-group col-md-4 mb-3">
+                    <label class="form-label" for="state">State: </label>
+                    <input type="text" class="form-control" id="state" name="state" required placeholder="State / Province">
+                  </div>
+
+                  <div class="form-group col-md-4 mb-3">
+                    <label class="form-label" for="country">Country</label>
+                    <input type="text" class="form-control" id="country" name="country" required placeholder="Country">
+                  </div>
+
+                  <div class="form-group col-md-6 mb-3">
+                      <label class="form-label">Position</label>
+                      <select name="position" class="form-select">
+                          <option value="left">Left</option>
+                          <option value="right">Right</option>
+                      </select>
+                  </div>
+
+                </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3 text-dark fw-bold">Security</h5>
+                <div class="row">
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="password">Password: </label>
+                    <input type="password" class="form-control" id="password" name="password" required placeholder="Password">
+                  </div>
+                  <div class="form-group col-md-6 mb-3">
+                    <label class="form-label" for="password_confirmation">Confirm Password: </label>
+                    <input type="password" class="form-control" id="password_confirmation" required name="password_confirmation" placeholder="Repeat Password">
+                  </div>
+                </div>
+
+                <div class="text-center mt-4">
+                  <button type="submit" class="text-white btn btn-primary px-5 py-3 text-uppercase fw-bold" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%); border: none;">
+                    <i class="fa-regular fa-circle-check me-2"></i>Register Now
+                  </button>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="login.php" class="text-dark fw-bold">Already have an account? Login</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <script type="text/javascript">
     $(document).ready(function () {
-      $('#otp_btn').click(function () {
-        $('#ajax_msg').text('OTP Sent (Simulator)').css('color', 'green');
+
+      // Dynamic Sponsor lookup on keyup
+      $('#referral_id').on('input', function() {
+        var id = $(this).val();
+        if(id) {
+          $.getJSON('get_sponsor.php', { id: id }, function(data) {
+            $('#sponsor_name').val(data.username);
+          });
+        } else {
+          $('#sponsor_name').val('Not Found');
+        }
       });
+
+      // Real-time PIN validation
+      $('#pin_code').on('input', function() {
+        var pin = $(this).val().trim();
+        if(pin.length >= 6) {
+          $.getJSON('check_pin.php', { pin: pin }, function(data) {
+            if(data.status === 'success') {
+              $('#pin_feedback').html('<span class="pin-status-badge bg-success text-white"><i class="fa fa-check-circle me-1"></i> Valid PIN: ' + data.package + ' ($' + data.amount + ')</span>');
+            } else if(data.status === 'used') {
+              $('#pin_feedback').html('<span class="pin-status-badge bg-warning text-white"><i class="fa fa-exclamation-triangle me-1"></i> Used PIN</span>');
+            } else {
+              $('#pin_feedback').html('<span class="pin-status-badge bg-danger text-white"><i class="fa fa-times-circle me-1"></i> Invalid PIN</span>');
+            }
+          });
+        } else {
+          $('#pin_feedback').empty();
+        }
+      });
+
     });
   </script>
 </body>

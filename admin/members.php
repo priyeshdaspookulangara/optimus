@@ -2,6 +2,8 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+$db = Database::getInstance()->getConnection();
+
 if (isset($_POST['action']) && $_POST['action'] == 'update_status') {
     $userId = $_POST['user_id'];
     $newStatus = $_POST['status'];

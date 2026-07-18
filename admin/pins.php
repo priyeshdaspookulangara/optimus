@@ -2,6 +2,8 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+$db = Database::getInstance()->getConnection();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'generate') {
     $packageId = $_POST['package_id'];
     $count = (int)$_POST['count'];

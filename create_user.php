@@ -5,11 +5,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $fullName = trim($_POST['name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $postOfficeNumber = trim($_POST['post_office_number'] ?? '');
+    $state = trim($_POST['state'] ?? '');
+    $country = trim($_POST['country'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['password_confirmation'] ?? '';
     $sponsorId = $_POST['referral_id'] ?? null;
     $position = $_POST['position'] ?? 'left';
+    $pinCode = trim($_POST['pin_code'] ?? '');
 
     if ($password !== $confirmPassword) {
         die("Passwords do not match. <a href='javascript:history.back()'>Go back</a>");
@@ -29,13 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        // If sponsorId is empty, it might be a root registration if allowed,
-        // but typically it should be mandatory in MLM.
-        // For this task, we assume it's provided.
-
-        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        // We'll use sponsorId as placementId for simplicity if not specified otherwise in registration form
-        $stmt->execute([$username, $fullName, $phone, $email, $hashedPassword, $sponsorId, $sponsorId, $position]);
+        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId, $position]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorId) {
@@ -43,11 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $engine->addToGenealogy($newUserId, $sponsorId, $sponsorId, $position);
         }
 
+        // If a PIN code was provided during registration, activate the package instantly!
+        if (!empty($pinCode)) {
+            $engine = new MLMEngine();
+            $engine->activateWithPin($newUserId, $pinCode);
+        }
+
         $db->commit();
         echo "Registration successful! <a href='login.php'>Login here</a>";
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        echo "Registration failed: " . $e->getMessage();
+        echo "Registration failed: " . $e->getMessage() . " <a href='javascript:history.back()'>Go back</a>";
     }
 } else {
     header("Location: registration_new.php");
