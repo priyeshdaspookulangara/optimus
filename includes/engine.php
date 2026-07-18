@@ -19,7 +19,11 @@ class MLMEngine {
             throw new Exception("Invalid package amount");
         }
 
-        $this->db->beginTransaction();
+        $isNested = $this->db->inTransaction();
+        if (!$isNested) {
+            $this->db->beginTransaction();
+        }
+
         try {
             // Find package ID (in this simplified schema, we can match by amount)
             $stmt = $this->db->prepare("SELECT id FROM packages WHERE amount = ?");
@@ -58,10 +62,14 @@ class MLMEngine {
                 $this->updateBinaryBusiness($user['placement_id'], $user['position'], $packageAmount);
             }
 
-            $this->db->commit();
+            if (!$isNested) {
+                $this->db->commit();
+            }
             return true;
         } catch (Exception $e) {
-            $this->db->rollBack();
+            if (!$isNested && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $e;
         }
     }
@@ -301,7 +309,12 @@ class MLMEngine {
             throw new Exception("Package associated with PIN no longer exists");
         }
 
-        $this->db->beginTransaction();
+        // Detect if parent caller already started a transaction to prevent PDO duplicate transaction crash
+        $isNested = $this->db->inTransaction();
+        if (!$isNested) {
+            $this->db->beginTransaction();
+        }
+
         try {
             // Mark PIN as used
             $stmt = $this->db->prepare("UPDATE pins SET status = 'used', used_by = ? WHERE id = ?");
@@ -329,10 +342,14 @@ class MLMEngine {
                 $this->updateBinaryBusiness($user['placement_id'], $user['position'], $package['amount']);
             }
 
-            $this->db->commit();
+            if (!$isNested) {
+                $this->db->commit();
+            }
             return true;
         } catch (Exception $e) {
-            $this->db->rollBack();
+            if (!$isNested && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $e;
         }
     }
