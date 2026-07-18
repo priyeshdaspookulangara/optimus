@@ -47,4 +47,4 @@ CREATE TABLE IF NOT EXISTS `pins` (
 
 -- Insert default superadmin if not exists
 INSERT IGNORE INTO `admins` (`username`, `email`, `password`) VALUES
-('superadmin', 'admin@mlm.com', '$2y$10$6zK6Yn1u3x8pYlR0R7o9u.Fj8i3/vY7ZkC6mQW0R0K8R5L1h0k5pG');
+('superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');

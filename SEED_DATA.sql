@@ -37,10 +37,10 @@ INSERT INTO `ranks` (`id`, `name`, `matching_business`, `daily_income`, `duratio
 
 -- 3. Insert Default Super Admin
 -- Username: superadmin
--- Password: adminpassword (hashed)
+-- Password: admin123 (hashed)
 TRUNCATE TABLE `admins`;
 INSERT INTO `admins` (`id`, `username`, `email`, `password`) VALUES
-(1, 'superadmin', 'admin@mlm.com', '$2y$10$6zK6Yn1u3x8pYlR0R7o9u.Fj8i3/vY7ZkC6mQW0R0K8R5L1h0k5pG');
+(1, 'superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');
 
 -- 4. Insert Default Seed Member
 -- Username: admin
