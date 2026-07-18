@@ -1,7 +1,0 @@
-[Mon Jul  6 16:51:18 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
-[Mon Jul  6 16:51:22 2026] 127.0.0.1:52842 Accepted
-[Mon Jul  6 16:51:22 2026] 127.0.0.1:52842 [200]: GET /registration_new.php?id=1
-[Mon Jul  6 16:51:22 2026] 127.0.0.1:52842 Closing
-[Mon Jul  6 16:54:28 2026] 127.0.0.1:36282 Accepted
-[Mon Jul  6 16:54:28 2026] 127.0.0.1:36282 [200]: GET /registration_new.php?id=1
-[Mon Jul  6 16:54:28 2026] 127.0.0.1:36282 Closing
