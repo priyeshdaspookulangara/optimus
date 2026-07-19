@@ -35,6 +35,7 @@ $db = Database::getInstance()->getConnection();
         <a href="packages.php" id="link-packages" class="<?php echo basename($_SERVER['PHP_SELF']) == 'packages.php' ? 'active' : ''; ?>"><i class="fa fa-box me-2"></i> Packages</a>
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
+        <a href="backup_restore.php" id="link-backup-restore" class="<?php echo basename($_SERVER['PHP_SELF']) == 'backup_restore.php' ? 'active' : ''; ?>"><i class="fa fa-database me-2"></i> Backup & Restore</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>

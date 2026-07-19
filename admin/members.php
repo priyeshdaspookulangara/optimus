@@ -1,7 +1,13 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/db.php';
 
+// Strict admin authentication check before any action
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+require_once __DIR__ . '/../includes/db.php';
 $db = Database::getInstance()->getConnection();
 
 if (isset($_POST['action'])) {
