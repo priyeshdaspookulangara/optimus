@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once __DIR__ . '/includes/engine.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,7 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $db->commit();
-        echo "Registration successful! <a href='login.php'>Login here</a>";
+
+        // Save user ID to session so we can display their credentials on the success page once securely
+        $_SESSION['new_user_id'] = $newUserId;
+        header("Location: registration_success.php");
+        exit();
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         echo "Registration failed: " . $e->getMessage() . " <a href='javascript:history.back()'>Go back</a>";
