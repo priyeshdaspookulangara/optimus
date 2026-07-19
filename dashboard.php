@@ -48,6 +48,10 @@ $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
 $ceilingBalance = max(0, $maxCap - $stats['total_earning']);
 $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
 
+// Fetch dynamic unilevel legs business
+$engine = new MLMEngine();
+$legStats = $engine->getLegsBusiness($userId);
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -82,11 +86,11 @@ include __DIR__ . '/includes/header.php';
             <div class="overview-row">
                 <div class="overview-box">
                     <h3 class="text-upercase">CURRENT POWER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format(max($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
+                    <p class="text-primary mt-2"><?php echo number_format($legStats['power_leg'], 2); ?></p>
                 </div>
                 <div class="overview-box">
                     <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format(min($user['left_leg_business'], $user['right_leg_business']), 2); ?></p>
+                    <p class="text-primary mt-2"><?php echo number_format($legStats['matching_leg'], 2); ?></p>
                 </div>
             </div>
         </div>

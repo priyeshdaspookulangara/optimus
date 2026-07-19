@@ -54,14 +54,6 @@ class MLMEngine {
             // Distribute Level Income (Recursive up to 12 levels)
             $this->distributeLevelIncome($userId, $packageAmount);
 
-            // Update Binary Business volume for ancestors
-            $stmt = $this->db->prepare("SELECT placement_id, position FROM users WHERE id = ?");
-            $stmt->execute([$userId]);
-            $user = $stmt->fetch();
-            if ($user && $user['placement_id']) {
-                $this->updateBinaryBusiness($user['placement_id'], $user['position'], $packageAmount);
-            }
-
             if (!$isNested) {
                 $this->db->commit();
             }
@@ -150,15 +142,54 @@ class MLMEngine {
     }
 
     /**
+     * Calculate unilevel leg business volumes dynamically
+     * Power Leg = Leg with largest volume
+     * Matching Leg = Sum of all other legs
+     */
+    public function getLegsBusiness($userId) {
+        $stmt = $this->db->prepare("
+            SELECT u.id, u.username,
+                   (u.total_investment + COALESCE((
+                       SELECT SUM(downline.total_investment)
+                       FROM genealogy g
+                       JOIN users downline ON g.user_id = downline.id
+                       WHERE g.parent_id = u.id
+                   ), 0)) as total_leg_business
+            FROM users u
+            WHERE u.sponsor_id = ?
+        ");
+        $stmt->execute([$userId]);
+        $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($legs)) {
+            return ['power_leg' => 0.00, 'matching_leg' => 0.00];
+        }
+
+        // Extract volumes
+        $volumes = array_column($legs, 'total_leg_business');
+        $powerLeg = max($volumes);
+
+        // Matching Leg is the sum of all other legs
+        $totalVolume = array_sum($volumes);
+        $matchingLeg = $totalVolume - $powerLeg;
+
+        return [
+            'power_leg' => (float)$powerLeg,
+            'matching_leg' => (float)$matchingLeg
+        ];
+    }
+
+    /**
      * Matching Engine: Identify Power Leg and calculate Rank Income
      */
     public function processRankIncome() {
-        $stmt = $this->db->prepare("SELECT id, left_leg_business, right_leg_business, rank_id, rank_income_days FROM users WHERE status = 'active'");
+        $stmt = $this->db->prepare("SELECT id, rank_id, rank_income_days FROM users WHERE status = 'active'");
         $stmt->execute();
         $users = $stmt->fetchAll();
 
         foreach ($users as $user) {
-            $matchingLeg = min($user['left_leg_business'], $user['right_leg_business']);
+            $legStats = $this->getLegsBusiness($user['id']);
+            $matchingLeg = $legStats['matching_leg'];
 
             $currentRankId = $this->checkRankQualification($matchingLeg);
 
@@ -227,9 +258,9 @@ class MLMEngine {
     }
 
     /**
-     * Add user to genealogy tree
+     * Add user to genealogy tree (Unilevel tree up to 12 generations)
      */
-    public function addToGenealogy($userId, $sponsorId, $placementId, $position) {
+    public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {
         // Direct sponsor as Level 1 in genealogy (unilevel style for commission)
         $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
         $stmt->execute([$userId, $sponsorId]);
@@ -237,33 +268,6 @@ class MLMEngine {
         // Inherit parents from sponsor for unilevel commissions
         $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
         $stmt->execute([$userId, $sponsorId]);
-
-        // Update binary business volume
-        $this->updateBinaryBusiness($placementId, $position, 0); // Initial business is 0
-    }
-
-    public function updateBinaryBusiness($placementId, $position, $amount) {
-        $currentId = $placementId;
-        $currentPosition = $position;
-
-        while ($currentId !== null) {
-            if ($currentPosition == 'left') {
-                $stmt = $this->db->prepare("UPDATE users SET left_leg_business = left_leg_business + ? WHERE id = ?");
-            } else {
-                $stmt = $this->db->prepare("UPDATE users SET right_leg_business = right_leg_business + ? WHERE id = ?");
-            }
-            $stmt->execute([$amount, $currentId]);
-
-            // Move up the binary tree
-            $stmt = $this->db->prepare("SELECT placement_id, position FROM users WHERE id = ?");
-            $stmt->execute([$currentId]);
-            $parent = $stmt->fetch();
-
-            if (!$parent || $parent['placement_id'] === null) break;
-
-            $currentPosition = $parent['position'];
-            $currentId = $parent['placement_id'];
-        }
     }
 
     /**
@@ -333,14 +337,6 @@ class MLMEngine {
 
             // Distribute commissions
             $this->distributeLevelIncome($userId, $package['amount']);
-
-            // Update Binary Business
-            $stmt = $this->db->prepare("SELECT placement_id, position FROM users WHERE id = ?");
-            $stmt->execute([$userId]);
-            $user = $stmt->fetch();
-            if ($user && $user['placement_id']) {
-                $this->updateBinaryBusiness($user['placement_id'], $user['position'], $package['amount']);
-            }
 
             if (!$isNested) {
                 $this->db->commit();
