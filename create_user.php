@@ -13,7 +13,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['password_confirmation'] ?? '';
     $sponsorId = $_POST['referral_id'] ?? null;
-    $position = $_POST['position'] ?? 'left';
     $pinCode = trim($_POST['pin_code'] ?? '');
 
     if ($password !== $confirmPassword) {
@@ -34,13 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId, $position]);
+        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorId) {
             $engine = new MLMEngine();
-            $engine->addToGenealogy($newUserId, $sponsorId, $sponsorId, $position);
+            $engine->addToGenealogy($newUserId, $sponsorId);
         }
 
         // If a PIN code was provided during registration, activate the package instantly!

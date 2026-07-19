@@ -169,14 +169,6 @@ if (!empty($sponsorId)) {
                     <input type="text" class="form-control" id="country" name="country" required placeholder="Country">
                   </div>
 
-                  <div class="form-group col-md-6 mb-3">
-                      <label class="form-label">Position</label>
-                      <select name="position" class="form-select">
-                          <option value="left">Left</option>
-                          <option value="right">Right</option>
-                      </select>
-                  </div>
-
                 </div>
 
                 <hr class="my-4">
