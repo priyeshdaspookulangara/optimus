@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`sponsor_id`) REFERENCES `users`(`id`),
   FOREIGN KEY (`placement_id`) REFERENCES `users`(`id`)
-);
+) AUTO_INCREMENT = 7500;
 
 CREATE TABLE IF NOT EXISTS `packages` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,

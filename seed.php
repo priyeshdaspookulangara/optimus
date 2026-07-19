@@ -39,6 +39,10 @@ try {
         echo "Default user already exists.\n";
     }
 
+    // Set AUTO_INCREMENT for users to start from 7500
+    $db->exec("ALTER TABLE users AUTO_INCREMENT = 7500");
+    echo "User AUTO_INCREMENT set to 7500.\n";
+
     echo "Seeding complete!\n";
 
 } catch (Exception $e) {
