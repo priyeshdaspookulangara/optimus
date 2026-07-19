@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Strict admin authentication check before any action
+// Strict admin session verification at the absolute top of the file
 if (!isset($_SESSION['admin_id'])) {
     header("Location: login.php");
     exit();
@@ -106,8 +106,7 @@ $members = $stmt->fetchAll();
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Username</th>
-                        <th>Email</th>
+                        <th>Member Info</th>
                         <th>Rank</th>
                         <th>Total Invested</th>
                         <th>Status</th>
@@ -119,8 +118,12 @@ $members = $stmt->fetchAll();
                     <?php foreach($members as $m): ?>
                     <tr>
                         <td><?php echo $m['id']; ?></td>
-                        <td><strong><?php echo $m['username']; ?></strong></td>
-                        <td><?php echo $m['email']; ?></td>
+                        <td>
+                            <strong><?php echo htmlspecialchars($m['username']); ?></strong>
+                            <br><small class="text-muted"><i class="fa-regular fa-user me-1"></i> <?php echo htmlspecialchars($m['full_name'] ?? 'N/A'); ?></small>
+                            <br><small class="text-muted"><i class="fa-regular fa-envelope me-1"></i> <?php echo htmlspecialchars($m['email']); ?></small>
+                            <br><small class="text-muted"><i class="fa fa-phone me-1"></i> <?php echo htmlspecialchars($m['phone'] ?? 'N/A'); ?></small>
+                        </td>
                         <td><span class="badge bg-info">Rank <?php echo $m['rank_id']; ?></span></td>
                         <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
                         <td>
@@ -130,21 +133,53 @@ $members = $stmt->fetchAll();
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
-                            <form method="post" class="d-inline">
-                                <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
-                                <input type="hidden" name="action" value="update_status">
-                                <?php if($m['status'] == 'active'): ?>
-                                    <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-warning">Suspend</button>
-                                <?php else: ?>
-                                    <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
-                                <?php endif; ?>
-                            </form>
+                            <div class="d-flex flex-column gap-1">
+                                <!-- Status Action -->
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="update_status">
+                                    <?php if($m['status'] == 'active'): ?>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-warning w-100">Suspend</button>
+                                    <?php else: ?>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success w-100">Activate</button>
+                                    <?php endif; ?>
+                                </form>
 
-                            <form method="post" class="d-inline" onsubmit="return confirm('ARE YOU SURE? This will permanently delete this member and all associated records (genealogy, transactions, investments, wallets, PINs)! This action CANNOT be undone.');">
-                                <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
-                                <input type="hidden" name="action" value="delete_member">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                            </form>
+                                <?php if (!empty($m['phone'])):
+                                    // Strip non-numeric characters for WhatsApp API
+                                    $whatsappPhone = preg_replace('/[^0-9]/', '', $m['phone']);
+
+                                    // Professional template welcome message
+                                    $welcomeMessage = "🌟 *Welcome to Optimus Infinity!* 🌟\n\n" .
+                                                      "Hello *" . ($m['full_name'] ?? $m['username']) . "*,\n\n" .
+                                                      "We are absolutely thrilled to welcome you to the Optimus Infinity family! 🎉\n\n" .
+                                                      "Here are your account details for quick reference:\n" .
+                                                      "👤 *Username:* " . $m['username'] . "\n" .
+                                                      "📧 *Email:* " . $m['email'] . "\n" .
+                                                      "📞 *Phone:* " . $m['phone'] . "\n\n" .
+                                                      "You can log in to your personal dashboard and manage your investments here:\n" .
+                                                      "🌐 https://optimusinfinity.com/login.php\n\n" .
+                                                      "If you have any questions or need assistance setting up, please don't hesitate to reach out! We are here to help you grow. 🚀\n\n" .
+                                                      "Best regards,\n" .
+                                                      "*Optimus Infinity Team*";
+                                    $encodedMsg = urlencode($welcomeMessage);
+                                ?>
+                                    <!-- WhatsApp Welcome Button -->
+                                    <a href="https://api.whatsapp.com/send?phone=<?php echo $whatsappPhone; ?>&text=<?php echo $encodedMsg; ?>"
+                                       target="_blank"
+                                       class="btn btn-sm btn-success text-white w-100"
+                                       style="background-color: #25D366; border-color: #25D366;">
+                                        <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                                    </a>
+                                <?php endif; ?>
+
+                                <!-- Delete Action -->
+                                <form method="post" class="d-inline" onsubmit="return confirm('ARE YOU SURE? This will permanently delete this member and all associated records (genealogy, transactions, investments, wallets, PINs)! This action CANNOT be undone.');">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="delete_member">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Delete</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
