@@ -241,11 +241,13 @@ class MLMEngine {
         return min($amountToAdd, $remainingCap);
     }
 
-    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null) {
+    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
         // Signage: Income types are positive, Expense/Debit types are negative
         $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
 
-        if ($isDebit) {
+        if ($customNetAmount !== null) {
+            $netAmount = $customNetAmount;
+        } elseif ($isDebit) {
             // For withdrawals: total deduction = amount + fee (both should be negative for balance)
             $netAmount = -($amount + $fee);
         } else {
@@ -333,7 +335,7 @@ class MLMEngine {
             $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
             $stmt->execute([$package['amount'], $userId]);
 
-            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId);
+            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
 
             // Distribute commissions
             $this->distributeLevelIncome($userId, $package['amount']);
