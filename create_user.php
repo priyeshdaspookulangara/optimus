@@ -35,9 +35,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId, $position]);
-        $newUserId = $db->lastInsertId();
+        // Generate a random unique user ID between 5000 and 10000
+        do {
+            $newUserId = rand(5000, 10000);
+            $chk = $db->prepare("SELECT id FROM users WHERE id = ?");
+            $chk->execute([$newUserId]);
+        } while ($chk->fetch());
+
+        $stmt = $db->prepare("INSERT INTO users (id, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newUserId, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId, $position]);
 
         if ($sponsorId) {
             $engine = new MLMEngine();
