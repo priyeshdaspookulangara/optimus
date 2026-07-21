@@ -181,7 +181,7 @@ class MLMEngine {
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
 
-        $slabs = [500, 1000, 1500, 2000, 2500, 3000];
+        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
