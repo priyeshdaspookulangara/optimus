@@ -54,6 +54,9 @@ class MLMEngine {
             // Distribute Level Income (Recursive up to 12 levels)
             $this->distributeLevelIncome($userId, $packageAmount);
 
+            // Trigger Real-Time Rank Upgrades for Uplines
+            $this->updateUplineRanks($userId);
+
             if (!$isNested) {
                 $this->db->commit();
             }
@@ -240,6 +243,37 @@ class MLMEngine {
         }
     }
 
+    /**
+     * Traverse unilevel tree upwards and update ranks for all eligible uplines in real-time
+     */
+    public function updateUplineRanks($userId) {
+        $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
+        $stmt->execute([$userId]);
+        $parents = $stmt->fetchAll();
+
+        foreach ($parents as $parent) {
+            $uplineId = $parent['parent_id'];
+
+            // Get live matching and power leg stats for this upline
+            $legStats = $this->getLegsBusiness($uplineId);
+            $matchedBusiness = $legStats['matched_business'];
+
+            // Determine current rank qualification based on matching business
+            $currentRankId = $this->checkRankQualification($matchedBusiness);
+
+            // Fetch current rank of the upline
+            $userStmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+            $userStmt->execute([$uplineId]);
+            $user = $userStmt->fetch();
+
+            // If they qualify for a higher rank, upgrade them instantly!
+            if ($currentRankId !== null && $currentRankId > $user['rank_id']) {
+                $updateRank = $this->db->prepare("UPDATE users SET rank_id = ?, rank_income_days = 0 WHERE id = ?");
+                $updateRank->execute([$currentRankId, $uplineId]);
+            }
+        }
+    }
+
     private function checkRankQualification($matchingBusiness) {
         $qualifiedRankId = null;
         foreach ($this->config['ranks'] as $id => $rank) {
@@ -362,6 +396,9 @@ class MLMEngine {
 
             // Distribute commissions
             $this->distributeLevelIncome($userId, $package['amount']);
+
+            // Trigger Real-Time Rank Upgrades for Uplines
+            $this->updateUplineRanks($userId);
 
             if (!$isNested) {
                 $this->db->commit();
