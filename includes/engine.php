@@ -142,9 +142,8 @@ class MLMEngine {
     }
 
     /**
-     * Calculate unilevel leg business volumes dynamically
-     * Power Leg = Leg with largest volume
-     * Matching Leg = Sum of all other legs
+     * Calculate unilevel leg business volumes and apply the
+     * Sequential Slab-Matching Hierarchy (500, 1000, 1500, 2000, 2500, 3000)
      */
     public function getLegsBusiness($userId) {
         $stmt = $this->db->prepare("
@@ -162,25 +161,50 @@ class MLMEngine {
         $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         if (empty($legs)) {
-            return ['power_leg' => 0.00, 'matching_leg' => 0.00];
+            return [
+                'power_leg' => 0.00,
+                'matching_leg' => 0.00,
+                'matched_business' => 0.00,
+                'power_carry_forward' => 0.00,
+                'rest_carry_forward' => 0.00
+            ];
         }
 
-        // Extract volumes
+        // Raw Legs Calculation
         $volumes = array_column($legs, 'total_leg_business');
-        $powerLeg = max($volumes);
-
-        // Matching Leg is the sum of all other legs
+        $powerLegRaw = max($volumes);
         $totalVolume = array_sum($volumes);
-        $matchingLeg = $totalVolume - $powerLeg;
+        $restLegRaw = $totalVolume - $powerLegRaw;
+
+        // Apply Sequential Slab-Matching Hierarchy
+        $vPower = $powerLegRaw;
+        $vRest = $restLegRaw;
+        $totalMatched = 0.00;
+
+        $slabs = [500, 1000, 1500, 2000, 2500, 3000];
+        foreach ($slabs as $slab) {
+            $m = min($vPower, $vRest);
+            if ($m >= $slab) {
+                $pairs = floor($m / $slab);
+                $matchedVolume = $pairs * $slab;
+
+                $totalMatched += $matchedVolume;
+                $vPower -= $matchedVolume;
+                $vRest -= $matchedVolume;
+            }
+        }
 
         return [
-            'power_leg' => (float)$powerLeg,
-            'matching_leg' => (float)$matchingLeg
+            'power_leg' => (float)$powerLegRaw,
+            'matching_leg' => (float)$restLegRaw,
+            'matched_business' => (float)$totalMatched,
+            'power_carry_forward' => (float)$vPower,
+            'rest_carry_forward' => (float)$vRest
         ];
     }
 
     /**
-     * Matching Engine: Identify Power Leg and calculate Rank Income
+     * Matching Engine: Identify Power Leg and calculate Rank Income using Sequential Slab-Matching Hierarchy
      */
     public function processRankIncome() {
         $stmt = $this->db->prepare("SELECT id, rank_id, rank_income_days FROM users WHERE status = 'active'");
@@ -189,9 +213,9 @@ class MLMEngine {
 
         foreach ($users as $user) {
             $legStats = $this->getLegsBusiness($user['id']);
-            $matchingLeg = $legStats['matching_leg'];
+            $matchedBusiness = $legStats['matched_business']; // Strictly uses exhausted slab-matched business
 
-            $currentRankId = $this->checkRankQualification($matchingLeg);
+            $currentRankId = $this->checkRankQualification($matchedBusiness);
 
             // Handle Rank Upgrade
             if ($currentRankId !== null && $currentRankId > $user['rank_id']) {
@@ -241,13 +265,11 @@ class MLMEngine {
         return min($amountToAdd, $remainingCap);
     }
 
-    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
+    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null) {
         // Signage: Income types are positive, Expense/Debit types are negative
         $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
 
-        if ($customNetAmount !== null) {
-            $netAmount = $customNetAmount;
-        } elseif ($isDebit) {
+        if ($isDebit) {
             // For withdrawals: total deduction = amount + fee (both should be negative for balance)
             $netAmount = -($amount + $fee);
         } else {
@@ -287,8 +309,9 @@ class MLMEngine {
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
-        if ($user['balance'] < $amount) {
-            throw new Exception("Insufficient balance");
+        // Check if balance covers both the requested amount and the flat gas fee
+        if ($user['balance'] < ($amount + $fee)) {
+            throw new Exception("Insufficient balance to cover withdrawal amount and the \$" . $fee . " flat gas fee.");
         }
 
         $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
@@ -335,7 +358,7 @@ class MLMEngine {
             $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
             $stmt->execute([$package['amount'], $userId]);
 
-            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
+            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId);
 
             // Distribute commissions
             $this->distributeLevelIncome($userId, $package['amount']);

@@ -93,6 +93,20 @@ include __DIR__ . '/includes/header.php';
                     <p class="text-primary mt-2"><?php echo number_format($legStats['matching_leg'], 2); ?></p>
                 </div>
             </div>
+            <div class="overview-row">
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
+                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                </div>
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">POWER CARRY FORWARD</h3>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
+                </div>
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">WEAKER CARRY FORWARD</h3>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['rest_carry_forward'], 2); ?></p>
+                </div>
+            </div>
         </div>
     </div>
 

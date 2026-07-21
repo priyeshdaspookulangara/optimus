@@ -51,7 +51,7 @@ Use the credentials created during registration at `login.php`.
 The application includes a comprehensive Super Admin panel for managing the entire system.
 - **URL:** `/admin/login.php`
 - **Default Username:** `superadmin`
-- **Default Password:** `adminpassword`
+- **Default Password:** `admin123`
 
 ### Admin Features:
 - **Member Management:** List, search, activate, or suspend members.
