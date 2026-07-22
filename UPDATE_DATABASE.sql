@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS `pins` (
   FOREIGN KEY (`used_by`) REFERENCES `users`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `matching_schedules` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `slab_amount` DECIMAL(15, 2) NOT NULL,
+  `daily_income` DECIMAL(15, 2) NOT NULL,
+  `days_passed` INT DEFAULT 0,
+  `max_days` INT DEFAULT 100,
+  `status` ENUM('active', 'completed') DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- Insert default superadmin if not exists
 INSERT IGNORE INTO `admins` (`username`, `email`, `password`) VALUES
 ('superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');

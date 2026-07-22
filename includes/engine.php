@@ -143,7 +143,7 @@ class MLMEngine {
 
     /**
      * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 1500, 2000, 2500, 3000)
+     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
      */
     public function getLegsBusiness($userId) {
         $stmt = $this->db->prepare("
@@ -166,7 +166,8 @@ class MLMEngine {
                 'matching_leg' => 0.00,
                 'matched_business' => 0.00,
                 'power_carry_forward' => 0.00,
-                'rest_carry_forward' => 0.00
+                'rest_carry_forward' => 0.00,
+                'slab_breakdown' => []
             ];
         }
 
@@ -176,21 +177,26 @@ class MLMEngine {
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
 
-        // Apply Sequential Slab-Matching Hierarchy
+        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
+        $slabBreakdown = [];
 
-        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
+        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $pairs = floor($m / $slab);
-                $matchedVolume = $pairs * $slab;
+                $units = (int)floor($m / $slab);
+                $matchedVolume = $units * $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
                 $vRest -= $matchedVolume;
+
+                $slabBreakdown[$slab] = $units;
+            } else {
+                $slabBreakdown[$slab] = 0;
             }
         }
 
@@ -199,43 +205,96 @@ class MLMEngine {
             'matching_leg' => (float)$restLegRaw,
             'matched_business' => (float)$totalMatched,
             'power_carry_forward' => (float)$vPower,
-            'rest_carry_forward' => (float)$vRest
+            'rest_carry_forward' => (float)$vRest,
+            'slab_breakdown' => $slabBreakdown
         ];
     }
 
     /**
      * Matching Engine: Identify Power Leg and calculate Rank Income using Sequential Slab-Matching Hierarchy
+     * and track active 100-day schedules per slab unit.
      */
     public function processRankIncome() {
-        $stmt = $this->db->prepare("SELECT id, rank_id, rank_income_days FROM users WHERE status = 'active'");
+        $stmt = $this->db->prepare("SELECT id, rank_id FROM users WHERE status = 'active'");
         $stmt->execute();
         $users = $stmt->fetchAll();
 
         foreach ($users as $user) {
             $legStats = $this->getLegsBusiness($user['id']);
             $matchedBusiness = $legStats['matched_business']; // Strictly uses exhausted slab-matched business
+            $slabBreakdown = $legStats['slab_breakdown'] ?? [];
 
             $currentRankId = $this->checkRankQualification($matchedBusiness);
 
             // Handle Rank Upgrade
             if ($currentRankId !== null && $currentRankId > $user['rank_id']) {
-                $updateRank = $this->db->prepare("UPDATE users SET rank_id = ?, rank_income_days = 0 WHERE id = ?");
+                $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$currentRankId, $user['id']]);
                 $user['rank_id'] = $currentRankId;
-                $user['rank_income_days'] = 0;
             }
 
-            // Distribute Daily Rank Income (for 100 days)
-            if ($user['rank_id'] > 0 && $user['rank_income_days'] < 100) {
-                $rankData = $this->config['ranks'][$user['rank_id'] - 1];
-                $dailyRankIncome = $rankData['daily_income'];
+            // Sync/Create new matching schedules if currently qualified units > existing registered matching schedules
+            foreach ($slabBreakdown as $slab => $requiredUnits) {
+                if ($requiredUnits > 0) {
+                    $stmtSched = $this->db->prepare("SELECT COUNT(*) as count FROM matching_schedules WHERE user_id = ? AND slab_amount = ?");
+                    $stmtSched->execute([$user['id'], $slab]);
+                    $existing = $stmtSched->fetch();
+                    $existingUnits = (int)$existing['count'];
 
-                $allowable = $this->getAllowableAmount($user['id'], $dailyRankIncome);
-                if ($allowable > 0) {
-                    $this->logTransaction($user['id'], 'RANK_INCOME', $allowable, 0, "Daily Rank Income for rank: {$rankData['name']}");
-                    $updateDays = $this->db->prepare("UPDATE users SET rank_income_days = rank_income_days + 1 WHERE id = ?");
-                    $updateDays->execute([$user['id']]);
+                    if ($requiredUnits > $existingUnits) {
+                        // Find daily income rate for this slab from config
+                        $dailyIncome = 0.00;
+                        foreach ($this->config['ranks'] as $rankConf) {
+                            if ($rankConf['matching'] == $slab) {
+                                $dailyIncome = $rankConf['daily_income'];
+                                break;
+                            }
+                        }
+
+                        $newUnits = $requiredUnits - $existingUnits;
+                        $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
+                        for ($i = 0; $i < $newUnits; $i++) {
+                            $stmtInsert->execute([$user['id'], $slab, $dailyIncome]);
+                        }
+                    }
                 }
+            }
+        }
+
+        // Process daily payouts for all active matching schedules
+        $stmtActiveScheds = $this->db->prepare("SELECT * FROM matching_schedules WHERE status = 'active'");
+        $stmtActiveScheds->execute();
+        $activeScheds = $stmtActiveScheds->fetchAll();
+
+        foreach ($activeScheds as $sched) {
+            $this->db->beginTransaction();
+            try {
+                $dailyIncome = (float)$sched['daily_income'];
+                $userId = $sched['user_id'];
+
+                // Verify remaining ID cap (300%)
+                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+                if ($allowable > 0) {
+                    // Log the RANK_INCOME transaction
+                    $this->logTransaction(
+                        $userId,
+                        'RANK_INCOME',
+                        $allowable,
+                        0,
+                        "Daily Matching Income for Slab \$" . number_format($sched['slab_amount'], 2) . " (Day " . ($sched['days_passed'] + 1) . "/100)"
+                    );
+
+                    $newDaysPassed = $sched['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $sched['max_days']) ? 'completed' : 'active';
+
+                    $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
+                } else {
+                    // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
             }
         }
     }

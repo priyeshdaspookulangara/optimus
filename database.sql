@@ -112,6 +112,18 @@ CREATE TABLE IF NOT EXISTS `pins` (
   FOREIGN KEY (`used_by`) REFERENCES `users`(`id`)
 );
 
+CREATE TABLE IF NOT EXISTS `matching_schedules` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `slab_amount` DECIMAL(15, 2) NOT NULL,
+  `daily_income` DECIMAL(15, 2) NOT NULL,
+  `days_passed` INT DEFAULT 0,
+  `max_days` INT DEFAULT 100,
+  `status` ENUM('active', 'completed') DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+);
+
 -- Initial Data Seed
 
 -- Default Packages

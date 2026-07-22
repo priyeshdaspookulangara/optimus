@@ -15,6 +15,20 @@ class Database {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
+
+            // Dynamically ensure matching_schedules table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `matching_schedules` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id` INT NOT NULL,
+                `slab_amount` DECIMAL(15, 2) NOT NULL,
+                `daily_income` DECIMAL(15, 2) NOT NULL,
+                `days_passed` INT DEFAULT 0,
+                `max_days` INT DEFAULT 100,
+                `status` ENUM('active', 'completed') DEFAULT 'active',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
