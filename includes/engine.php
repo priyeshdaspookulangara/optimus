@@ -289,6 +289,39 @@ class MLMEngine {
 
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
+
+                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+                    $stmtUplines = $this->db->prepare("
+                        SELECT g.parent_id, u.username, u.status
+                        FROM genealogy g
+                        JOIN users u ON g.parent_id = u.id
+                        WHERE g.user_id = ?
+                        ORDER BY g.level ASC
+                    ");
+                    $stmtUplines->execute([$userId]);
+                    $uplines = $stmtUplines->fetchAll();
+
+                    // Get username of the original matching Earner for transaction logging
+                    $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                    $stmtUser->execute([$userId]);
+                    $origUserObj = $stmtUser->fetch();
+                    $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+
+                    foreach ($uplines as $upline) {
+                        if ($upline['status'] === 'active') {
+                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
+                            if ($uplineAllowable > 0) {
+                                $this->logTransaction(
+                                    $upline['parent_id'],
+                                    'RANK_INCOME',
+                                    $uplineAllowable,
+                                    0,
+                                    "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
+                                    $userId
+                                );
+                            }
+                        }
+                    }
                 } else {
                     // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
                 }
