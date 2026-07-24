@@ -136,16 +136,16 @@ INSERT INTO `packages` (`name`, `amount`) VALUES
 
 -- Default Ranks
 INSERT INTO `ranks` (`name`, `matching_business`, `daily_income`, `duration_days`, `total_cap_multiplier`) VALUES
-('Mentor', 500, 2.00, 100, 3.0),
-('Pioneer', 1000, 4.00, 100, 3.0),
-('Elite', 2500, 10.00, 100, 3.0),
-('Titan', 5000, 20.00, 100, 3.0),
-('Master', 10000, 40.00, 100, 3.0),
-('Grand Master', 25000, 100.00, 100, 3.0),
-('Icon', 50000, 200.00, 100, 3.0),
-('Legend', 100000, 400.00, 100, 3.0),
-('Director', 250000, 1000.00, 100, 3.0),
-('Ambassador', 500000, 2000.00, 100, 3.0),
+('Mentor', 500, 0.25, 100, 3.0),
+('Pioneer', 1000, 2.50, 100, 3.0),
+('Elite', 2500, 6.25, 100, 3.0),
+('Titan', 5000, 12.50, 100, 3.0),
+('Master', 10000, 25.00, 100, 3.0),
+('Grand Master', 25000, 62.50, 100, 3.0),
+('Icon', 50000, 125.00, 100, 3.0),
+('Legend', 100000, 250.00, 100, 3.0),
+('Director', 250000, 625.00, 100, 3.0),
+('Ambassador', 500000, 1250.00, 100, 3.0),
 ('Chairman', 1000000, 4000.00, 100, 3.0),
 ('President', 2500000, 10000.00, 100, 3.0);
 
