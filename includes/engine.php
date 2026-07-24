@@ -307,7 +307,26 @@ class MLMEngine {
                     $origUserObj = $stmtUser->fetch();
                     $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
 
+                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+                    $consecutiveSingleCount = 0;
+
                     foreach ($uplines as $upline) {
+                        // Check if this parent has only one direct referral (single direct referral node)
+                        $stmtReferrals->execute([$upline['parent_id']]);
+                        $refData = $stmtReferrals->fetch();
+                        $refCount = (int)$refData['ref_count'];
+
+                        if ($refCount === 1) {
+                            $consecutiveSingleCount++;
+                        } else {
+                            $consecutiveSingleCount = 0;
+                        }
+
+                        // If we already went past 3 consecutive single nodes, break immediately
+                        if ($consecutiveSingleCount > 3) {
+                            break;
+                        }
+
                         if ($upline['status'] === 'active') {
                             $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
                             if ($uplineAllowable > 0) {
@@ -320,6 +339,11 @@ class MLMEngine {
                                     $userId
                                 );
                             }
+                        }
+
+                        // Stop propagating further if we just paid the 3rd consecutive single referral node
+                        if ($consecutiveSingleCount === 3) {
+                            break;
                         }
                     }
                 } else {
