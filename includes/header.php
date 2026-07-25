@@ -1,3 +1,22 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$headerUser = null;
+$headerRankName = 'None';
+if (isset($_SESSION['user_id'])) {
+    $headerUserId = $_SESSION['user_id'];
+    $headerDb = Database::getInstance()->getConnection();
+    $headerStmt = $headerDb->prepare("SELECT * FROM users WHERE id = ?");
+    $headerStmt->execute([$headerUserId]);
+    $headerUser = $headerStmt->fetch();
+    if ($headerUser) {
+        $user = $headerUser; // Ensure $user has all fields
+        $headerConfig = require __DIR__ . '/config.php';
+        $headerRankName = ($headerUser['rank_id'] > 0) ? $headerConfig['ranks'][$headerUser['rank_id']-1]['name'] : 'None';
+    }
+}
+?>
 <!doctype html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -16,7 +35,8 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <style>
     body { background: #fff; }
-    .dropdown-item:hover { color: #fff; background-color: #000; }
+    .dropdown-item { color: #3f2259 !important; font-weight: 500; }
+    .dropdown-item:hover { color: #fff !important; background-color: #3f2259 !important; }
     .card { border: 1px solid #dedede !important; border-radius: 10px !important; }
     .card-title { text-transform: uppercase !important; font-size: 18px !important; }
     .text-primary { color: #cca354 !important; }
@@ -25,6 +45,7 @@
   </style>
 </head>
 <body class=" ">
+  <div class="loader d-none"></div>
   <?php include __DIR__ . '/sidebar.php'; ?>
   <main class="main-content">
     <div class="position-relative">
@@ -45,11 +66,27 @@
                 </button>
               </li>
               <li class="nav-item dropdown">
-                <a class="nav-link py-0 d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                  <div class="caption ms-3">
-                    <h6 class="mb-0 caption-title"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></h6>
+                <a class="nav-link py-0 d-flex align-items-center dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+                  <i class="fa-solid fa-circle-user fa-xl text-primary me-2"></i>
+                  <div class="caption">
+                    <h6 class="mb-0 caption-title text-dark"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?> <i class="fa fa-chevron-down ms-1 text-muted" style="font-size: 0.75rem;"></i></h6>
                   </div>
                 </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff; min-width: 220px;">
+                  <li class="px-3 py-2 text-dark">
+                    <div class="fw-bold"><?php echo htmlspecialchars($user['full_name'] ?? $user['username'] ?? 'Member'); ?></div>
+                    <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
+                    <span class="badge bg-primary text-white mt-1">Rank: <?php echo htmlspecialchars($headerRankName); ?></span>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item py-2" href="dashboard.php"><i class="fa fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                  <li><a class="dropdown-item py-2" href="withdraw_wallet.php"><i class="fa fa-wallet me-2 text-primary"></i>Withdraw Wallet</a></li>
+                  <li><a class="dropdown-item py-2" href="my_pins.php"><i class="fa fa-key me-2 text-primary"></i>My PINs</a></li>
+                  <li><a class="dropdown-item py-2" href="my_team.php"><i class="fa fa-users me-2 text-primary"></i>My Team</a></li>
+                  <li><a class="dropdown-item py-2" href="support.php"><i class="fa fa-headset me-2 text-primary"></i>Support</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item py-2 text-danger" href="logout.php"><i class="fa fa-sign-out-alt me-2 text-danger"></i>Logout</a></li>
+                </ul>
               </li>
             </ul>
           </div>
