@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `post_office_number` VARCHAR(20) DEFAULT NULL,
   `state` VARCHAR(100) DEFAULT NULL,
   `country` VARCHAR(100) DEFAULT NULL,
-  `email` VARCHAR(100) UNIQUE NOT NULL,
+  `email` VARCHAR(100) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
   `sponsor_id` INT DEFAULT NULL,
   `placement_id` INT DEFAULT NULL,

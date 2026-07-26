@@ -1,5 +1,8 @@
 -- SQL Script to update existing database structure
 
+-- Drop unique index constraint on email to allow duplicate emails across different usernames
+ALTER TABLE `users` DROP INDEX `email`;
+
 -- 1. Update the transactions table
 ALTER TABLE `users`
   ADD COLUMN `full_name` VARCHAR(100) DEFAULT NULL AFTER `username`,

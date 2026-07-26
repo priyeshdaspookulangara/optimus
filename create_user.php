@@ -21,11 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $db = Database::getInstance()->getConnection();
 
-    // Check if user exists
-    $stmt = $db->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-    $stmt->execute([$username, $email]);
+    // Check if user exists (only username must be unique, email can be used by multiple users)
+    $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+    $stmt->execute([$username]);
     if ($stmt->fetch()) {
-        die("Username or Email already exists. <a href='javascript:history.back()'>Go back</a>");
+        die("Username already exists. <a href='javascript:history.back()'>Go back</a>");
     }
 
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
