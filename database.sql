@@ -2,6 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `mid` VARCHAR(50) UNIQUE DEFAULT NULL,
   `username` VARCHAR(50) UNIQUE NOT NULL,
   `full_name` VARCHAR(100) DEFAULT NULL,
   `phone` VARCHAR(20) DEFAULT NULL,
@@ -152,8 +153,8 @@ INSERT INTO `ranks` (`name`, `matching_business`, `daily_income`, `duration_days
 -- Default Sample User
 -- Username: admin
 -- Password: password123 (hashed)
-INSERT INTO `users` (`username`, `email`, `password`) VALUES
-('admin', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC');
+INSERT INTO `users` (`mid`, `username`, `email`, `password`) VALUES
+('OPT59655', 'admin', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC');
 
 -- Default Super Admin
 -- Username: superadmin

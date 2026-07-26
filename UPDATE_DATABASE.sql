@@ -3,6 +3,9 @@
 -- Drop unique index constraint on email to allow duplicate emails across different usernames
 ALTER TABLE `users` DROP INDEX `email`;
 
+-- Add mid column to users table if it does not already exist
+ALTER TABLE `users` ADD COLUMN `mid` VARCHAR(50) UNIQUE DEFAULT NULL AFTER `id`;
+
 -- 1. Update the transactions table
 ALTER TABLE `users`
   ADD COLUMN `full_name` VARCHAR(100) DEFAULT NULL AFTER `username`,

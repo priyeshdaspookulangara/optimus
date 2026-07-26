@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['password_confirmation'] ?? '';
-    $sponsorId = $_POST['referral_id'] ?? null;
+    $sponsorRef = trim($_POST['referral_id'] ?? '');
     $pinCode = trim($_POST['pin_code'] ?? '');
 
     if ($password !== $confirmPassword) {
@@ -28,18 +28,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Username already exists. <a href='javascript:history.back()'>Go back</a>");
     }
 
+    // Resolve sponsor ID from Sponsor mid/code
+    $sponsorDbId = null;
+    $sponsorName = "None";
+    $sponsorMidDisplay = "None";
+    if (!empty($sponsorRef)) {
+        $stmtSponsor = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
+        $stmtSponsor->execute([$sponsorRef, $sponsorRef]);
+        $sData = $stmtSponsor->fetch();
+        if ($sData) {
+            $sponsorDbId = $sData['id'];
+            $sponsorName = $sData['username'];
+            $sponsorMidDisplay = !empty($sData['mid']) ? $sData['mid'] : $sData['id'];
+        }
+    }
+
+    // Generate unique alphanumeric mid code (OPTxxxxx)
+    $newMid = '';
+    $midExists = true;
+    while ($midExists) {
+        $newMid = 'OPT' . rand(10000, 99999);
+        $stmtCheck = $db->prepare("SELECT id FROM users WHERE mid = ?");
+        $stmtCheck->execute([$newMid]);
+        if (!$stmtCheck->fetch()) {
+            $midExists = false;
+        }
+    }
+
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorId, $sponsorId]);
+        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId]);
         $newUserId = $db->lastInsertId();
 
-        if ($sponsorId) {
+        if ($sponsorDbId) {
             $engine = new MLMEngine();
-            $engine->addToGenealogy($newUserId, $sponsorId);
+            $engine->addToGenealogy($newUserId, $sponsorDbId);
         }
 
         // If a PIN code was provided during registration, activate the package instantly!
@@ -50,16 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $db->commit();
 
-        // Fetch Sponsor's Username
-        $sponsorName = "None";
-        if ($sponsorId) {
-            $stmtSponsor = $db->prepare("SELECT username FROM users WHERE id = ?");
-            $stmtSponsor->execute([$sponsorId]);
-            $sData = $stmtSponsor->fetch();
-            if ($sData) {
-                $sponsorName = $sData['username'];
-            }
-        }
+        // Details are already fetched beforehand as $sponsorName and $sponsorMidDisplay
 
         // Fetch Activated Package Name
         $packageName = "None (Pending Activation)";
@@ -132,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <tbody>
                           <tr>
                             <td class="label-column">SPONSOR NAME</td>
-                            <td class="value-column"><?php echo htmlspecialchars($sponsorName); ?></td>
+                            <td class="value-column"><?php echo htmlspecialchars($sponsorName); ?> (<?php echo htmlspecialchars($sponsorMidDisplay); ?>)</td>
                           </tr>
                           <tr>
                             <td class="label-column">PACKAGE</td>
@@ -149,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <td class="value-column"><strong><?php echo htmlspecialchars($username); ?></strong></td>
                           </tr>
                           <tr>
-                            <td class="label-column">USER ID</td>
-                            <td class="value-column"><strong><?php echo htmlspecialchars($newUserId); ?></strong></td>
+                            <td class="label-column">USER ID (MEMBER CODE / MID)</td>
+                            <td class="value-column"><strong style="color: #504793; font-size: 1.1rem;"><?php echo htmlspecialchars($newMid); ?></strong></td>
                           </tr>
                           <tr>
                             <td class="label-column">PASSWORD</td>

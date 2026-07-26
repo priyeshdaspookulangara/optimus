@@ -6,11 +6,13 @@ $sponsorId = $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 
 if (!empty($sponsorId)) {
-    $stmt = $db->prepare("SELECT username FROM users WHERE id = ?");
-    $stmt->execute([$sponsorId]);
+    // Search by mid first, then by auto-increment id as fallback
+    $stmt = $db->prepare("SELECT username, mid, id FROM users WHERE mid = ? OR id = ?");
+    $stmt->execute([$sponsorId, $sponsorId]);
     $user = $stmt->fetch();
     if ($user) {
         $sponsorName = $user['username'];
+        $sponsorId = !empty($user['mid']) ? $user['mid'] : $user['id'];
     }
 }
 ?>
@@ -111,9 +113,9 @@ if (!empty($sponsorId)) {
 
                   <!-- Sponsor Info -->
                   <div class="form-group col-md-6 mb-3">
-                    <label class="form-label" for="referral_id">Sponsor ID: </label>
-                    <input type="number" class="form-control" id="referral_id" name="referral_id"
-                      value="<?php echo htmlspecialchars($sponsorId); ?>" required placeholder="Sponsor ID">
+                    <label class="form-label" for="referral_id">Sponsor Code (Sponsor ID): </label>
+                    <input type="text" class="form-control" id="referral_id" name="referral_id"
+                      value="<?php echo htmlspecialchars($sponsorId); ?>" required placeholder="Sponsor Code">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>

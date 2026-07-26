@@ -11,8 +11,8 @@ if (empty($sponsorId)) {
 
 try {
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("SELECT username FROM users WHERE id = ?");
-    $stmt->execute([$sponsorId]);
+    $stmt = $db->prepare("SELECT username FROM users WHERE mid = ? OR id = ?");
+    $stmt->execute([$sponsorId, $sponsorId]);
     $user = $stmt->fetch();
 
     if ($user) {
