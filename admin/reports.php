@@ -21,7 +21,10 @@ $incomeStats = $db->query("SELECT type, SUM(amount) as total
 <div class="row">
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">Income Payout Summary</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Income Payout Summary</span>
+                <a href="print_report.php?type=payouts" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa fa-print me-1"></i>Print Report</a>
+            </div>
             <div class="card-body">
                 <table class="table">
                     <thead>
@@ -45,7 +48,10 @@ $incomeStats = $db->query("SELECT type, SUM(amount) as total
 
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">Recent Business Volume</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent Business Volume</span>
+                <a href="print_report.php?type=volume" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa fa-print me-1"></i>Print Report</a>
+            </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-sm">
@@ -71,17 +77,18 @@ $incomeStats = $db->query("SELECT type, SUM(amount) as total
 </div>
 
 <div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">Top 10 Investors</div>
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Top 10 Investors</span>
+                <a href="print_report.php?type=investors" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa fa-print me-1"></i>Print Report</a>
+            </div>
             <div class="card-body">
                 <table class="table table-striped">
                     <thead>
                         <tr>
                             <th>Username</th>
-                            <th>Email</th>
                             <th>Total Invested ($)</th>
-                            <th>Join Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,12 +97,40 @@ $incomeStats = $db->query("SELECT type, SUM(amount) as total
                         foreach($topInvestors as $top):
                         ?>
                         <tr>
-                            <td><?php echo $top['username']; ?></td>
-                            <td><?php echo $top['email']; ?></td>
-                            <td class="fw-bold">$<?php echo number_format($top['total_investment'], 2); ?></td>
-                            <td><?php echo date('Y-m-d', strtotime($top['created_at'])); ?></td>
+                            <td><?php echo htmlspecialchars($top['username']); ?></td>
+                            <td class="fw-bold text-success">$<?php echo number_format($top['total_investment'], 2); ?></td>
                         </tr>
                         <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Member Withdrawals Summary</span>
+                <a href="print_report.php?type=withdrawals" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa fa-print me-1"></i>Print Report</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Requested Amount</th>
+                            <th>Fee (Gas)</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $withdrawalSummary = $db->query("SELECT COUNT(*) as count, SUM(amount) as total_amount, SUM(fee) as total_fee FROM transactions WHERE type = 'WITHDRAWAL'")->fetch();
+                        ?>
+                        <tr>
+                            <td><strong>$<?php echo number_format($withdrawalSummary['total_amount'] ?? 0, 2); ?></strong></td>
+                            <td class="text-danger">$<?php echo number_format($withdrawalSummary['total_fee'] ?? 0, 2); ?></td>
+                            <td><?php echo $withdrawalSummary['count'] ?? 0; ?> requests</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
