@@ -7,19 +7,56 @@ $db = Database::getInstance()->getConnection();
 $pageTitle = 'Withdrawals Management';
 include __DIR__ . '/includes/header.php';
 
-// Fetch all withdrawal transactions with username
-$stmt = $db->query("
-    SELECT t.*, u.username
-    FROM transactions t
-    JOIN users u ON t.user_id = u.id
-    WHERE t.type = 'WITHDRAWAL'
-    ORDER BY t.created_at DESC
-");
+$startDate = $_GET['start_date'] ?? '';
+$endDate = $_GET['end_date'] ?? '';
+
+// Build dynamic query
+$query = "SELECT t.*, u.username
+          FROM transactions t
+          JOIN users u ON t.user_id = u.id
+          WHERE t.type = 'WITHDRAWAL'";
+
+$params = [];
+if ($startDate !== '') {
+    $query .= " AND DATE(t.created_at) >= ?";
+    $params[] = $startDate;
+}
+if ($endDate !== '') {
+    $query .= " AND DATE(t.created_at) <= ?";
+    $params[] = $endDate;
+}
+
+$query .= " ORDER BY t.created_at DESC";
+
+$stmt = $db->prepare($query);
+$stmt->execute($params);
 $withdrawals = $stmt->fetchAll();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Withdrawals List</h3>
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Withdrawals List</h3>
+    </div>
+
+    <!-- Dynamic Date Range Filter Form -->
+    <form method="get" class="row g-2 align-items-center bg-light p-3 rounded border">
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text">Start Date</span>
+                <input type="date" name="start_date" class="form-control" value="<?php echo htmlspecialchars($startDate); ?>">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text">End Date</span>
+                <input type="date" name="end_date" class="form-control" value="<?php echo htmlspecialchars($endDate); ?>">
+            </div>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary w-100"><i class="fa fa-filter me-1"></i>Filter</button>
+            <a href="withdrawals.php" class="btn btn-outline-secondary w-100">Clear</a>
+        </div>
+    </form>
 </div>
 
 <div class="card">

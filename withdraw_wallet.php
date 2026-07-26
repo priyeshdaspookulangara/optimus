@@ -50,6 +50,10 @@ include __DIR__ . '/includes/header.php';
 <div class="container-fluid content-inner pb-0">
     <div class="row">
       <div class="col-lg-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>USDT Wallet Configuration</h3>
+            <a href="withdraw_fund.php" class="btn btn-warning text-white fw-bold"><i class="fa fa-money-bill-wave me-2"></i>Withdraw Funds Now</a>
+        </div>
         <div class="card p-4 bg-dark text-white mb-4">
             <h4>Update USDT (TRC20) Wallet</h4>
             <?php if(isset($success)): ?>
