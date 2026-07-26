@@ -26,9 +26,12 @@ $stmt = $db->prepare("SELECT
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND DATE(created_at) = CURDATE()) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ?) as wallet_balance,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI') as total_roi,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME') as total_level,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME') as total_rank
 ");
-$stmt->execute([$userId, $userId, $userId, $userId]);
+$stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId]);
 $stats = $stmt->fetch();
 
 // Team Stats
@@ -68,9 +71,10 @@ include __DIR__ . '/includes/header.php';
                     <h3>TODAY %</h3>
                     <p class="text-primary mt-2">0.5%</p>
                 </div>
-                <div class="overview-box">
-                    <h3>TOTAL EARNING $</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($stats['total_earning'], 2); ?></p>
+                <div class="overview-box" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal" title="Click to view full breakdown">
+                    <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
                 </div>
             </div>
             <div class="overview-row">
@@ -194,6 +198,55 @@ include __DIR__ . '/includes/header.php';
                     <h3>MY TEAM MEMBERS</h3>
                     <p class="text-primary mt-2"><?php echo $team['team_count']; ?></p>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Earnings Breakdown Modal -->
+<div class="modal fade" id="earningsBreakdownModal" tabindex="-1" aria-labelledby="earningsBreakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-white" style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px;">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title text-white fw-bold" id="earningsBreakdownModalLabel">
+                    <i class="fa-solid fa-chart-pie me-2 text-warning"></i> Earnings Composition
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">Lifetime Total Earnings</span>
+                    <h2 class="text-success fw-bold mt-1" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+                </div>
+                <div class="p-3 rounded mb-3" style="background-color: #3f2259;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-coins text-warning me-2"></i>Daily Trade Profit (ROI)</span>
+                            <small class="text-muted">0.50% Daily returns from your packages</small>
+                        </div>
+                        <span class="badge bg-dark text-success fs-6 fw-bold">$<?php echo number_format($stats['total_roi'], 2); ?></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-network-wired text-info me-2"></i>Level Generation Income</span>
+                            <small class="text-muted">Commissions distributed over 12 generations</small>
+                        </div>
+                        <span class="badge bg-dark text-info fs-6 fw-bold">$<?php echo number_format($stats['total_level'], 2); ?></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-award text-danger me-2"></i>Slab Matching (Rank Income)</span>
+                            <small class="text-muted">Daily rank income from matched unilevel business</small>
+                        </div>
+                        <span class="badge bg-dark text-danger fs-6 fw-bold">$<?php echo number_format($stats['total_rank'], 2); ?></span>
+                    </div>
+                </div>
+                <div class="text-center text-muted" style="font-size: 11px;">
+                    <i class="fa-solid fa-lock me-1"></i> Values are calculated in real-time from audit-logged financial events.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
             </div>
         </div>
     </div>
