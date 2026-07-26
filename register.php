@@ -2,17 +2,20 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorId = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['id'] ?? '';
 $sponsorName = "Not Found";
+$sponsorMid = "";
+$sponsorDbId = "";
 
-if (!empty($sponsorId)) {
+if (!empty($sponsorQuery)) {
     // Search by mid first, then by auto-increment id as fallback
-    $stmt = $db->prepare("SELECT username, mid, id FROM users WHERE mid = ? OR id = ?");
-    $stmt->execute([$sponsorId, $sponsorId]);
+    $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
+    $stmt->execute([$sponsorQuery, $sponsorQuery]);
     $user = $stmt->fetch();
     if ($user) {
         $sponsorName = $user['username'];
-        $sponsorId = !empty($user['mid']) ? $user['mid'] : $user['id'];
+        $sponsorMid = !empty($user['mid']) ? $user['mid'] : $user['id'];
+        $sponsorDbId = $user['id'];
     }
 }
 ?>
@@ -113,9 +116,11 @@ if (!empty($sponsorId)) {
 
                   <!-- Sponsor Info -->
                   <div class="form-group col-md-6 mb-3">
-                    <label class="form-label" for="referral_id">Sponsor Code (Sponsor ID): </label>
-                    <input type="text" class="form-control" id="referral_id" name="referral_id"
-                      value="<?php echo htmlspecialchars($sponsorId); ?>" required placeholder="Sponsor Code">
+                    <label class="form-label" for="mid">Sponsor Code (Sponsor ID): </label>
+                    <input type="text" class="form-control" id="mid" name="mid"
+                      value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
+                    <input type="hidden" id="referral_id" name="referral_id"
+                      value="<?php echo htmlspecialchars($sponsorDbId); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
@@ -207,14 +212,21 @@ if (!empty($sponsorId)) {
     $(document).ready(function () {
 
       // Dynamic Sponsor lookup on keyup
-      $('#referral_id').on('input', function() {
-        var id = $(this).val();
+      $('#mid').on('input', function() {
+        var id = $(this).val().trim();
         if(id) {
           $.getJSON('get_sponsor.php', { id: id }, function(data) {
-            $('#sponsor_name').val(data.username);
+            if (data.status === 'success') {
+              $('#sponsor_name').val(data.username);
+              $('#referral_id').val(data.id);
+            } else {
+              $('#sponsor_name').val('Not Found');
+              $('#referral_id').val('');
+            }
           });
         } else {
           $('#sponsor_name').val('Not Found');
+          $('#referral_id').val('');
         }
       });
 

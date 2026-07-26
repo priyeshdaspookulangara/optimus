@@ -17,7 +17,7 @@
           $baseUrl = $protocol . "://" . $host . $dir;
           $baseUrl = rtrim($baseUrl, '/\\');
         ?>
-        var textToCopy = "<?php echo $baseUrl; ?>/registration_new.php?id=<?php echo $user['id'] ?? '0'; ?>";
+        var textToCopy = "<?php echo $baseUrl; ?>/registration_new.php?id=<?php echo !empty($user['mid']) ? $user['mid'] : ($user['id'] ?? '0'); ?>";
         var tempTextarea = $("<textarea>");
         tempTextarea.val(textToCopy);
         $("body").append(tempTextarea);

@@ -11,15 +11,15 @@ if (empty($sponsorId)) {
 
 try {
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("SELECT username FROM users WHERE mid = ? OR id = ?");
+    $stmt = $db->prepare("SELECT id, username FROM users WHERE mid = ? OR id = ?");
     $stmt->execute([$sponsorId, $sponsorId]);
     $user = $stmt->fetch();
 
     if ($user) {
-        echo json_encode(['status' => 'success', 'username' => $user['username']]);
+        echo json_encode(['status' => 'success', 'username' => $user['username'], 'id' => $user['id']]);
     } else {
-        echo json_encode(['status' => 'not_found', 'username' => 'Not Found']);
+        echo json_encode(['status' => 'not_found', 'username' => 'Not Found', 'id' => '']);
     }
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'username' => 'System Error']);
+    echo json_encode(['status' => 'error', 'username' => 'System Error', 'id' => '']);
 }
