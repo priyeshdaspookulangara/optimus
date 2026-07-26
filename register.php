@@ -130,7 +130,7 @@ if (!empty($sponsorQuery)) {
                   <!-- Activation PIN -->
                   <div class="form-group col-12 mb-3">
                     <label class="form-label" for="pin_code">Activation PIN (Optional): </label>
-                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="OIXXXXXX">
+                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="OPTXXXXXX">
                     <div id="pin_feedback"></div>
                   </div>
 

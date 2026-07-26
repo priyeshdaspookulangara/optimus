@@ -21,15 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
     for ($i = 0; $i < $count; $i++) {
-        // Format: "OI" + unique 6 digit combination
+        // Format: "OPT" + unique 6 digit combination
         $uniqueDigits = mt_rand(100000, 999999);
-        $pin = "OI" . $uniqueDigits;
+        $pin = "OPT" . $uniqueDigits;
 
         // Double check uniqueness (simplified retry for this scale)
         $chk = $db->prepare("SELECT id FROM pins WHERE pin_code = ?");
         $chk->execute([$pin]);
         if ($chk->fetch()) {
-            $pin = "OI" . mt_rand(100000, 999999);
+            $pin = "OPT" . mt_rand(100000, 999999);
         }
 
         $stmt->execute([$pin, $packageId, $assignedToId]);
