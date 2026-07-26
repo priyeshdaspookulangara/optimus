@@ -16,18 +16,82 @@ if (isset($_POST['action']) && $_POST['action'] == 'update_status') {
 $pageTitle = 'Member Management';
 include __DIR__ . '/includes/header.php';
 
+// Fetch lists for filters
+$config = require __DIR__ . '/../includes/config.php';
+$packagesList = $config['packages'];
+$ranksList = $config['ranks'];
+
 $search = $_GET['search'] ?? '';
-$query = "SELECT * FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC";
+$rankFilter = $_GET['rank_id'] ?? '';
+$packageFilter = $_GET['package_amount'] ?? '';
+
+// Build dynamic query
+$query = "SELECT DISTINCT u.* FROM users u";
+$params = [];
+$joins = [];
+$conditions = [];
+
+if (!empty($packageFilter)) {
+    $joins[] = "JOIN investments i ON u.id = i.user_id";
+    $conditions[] = "i.amount = ?";
+    $params[] = $packageFilter;
+}
+
+if ($search !== '') {
+    $conditions[] = "(u.username LIKE ? OR u.email LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
+}
+
+if ($rankFilter !== '') {
+    $conditions[] = "u.rank_id = ?";
+    $params[] = $rankFilter;
+}
+
+$joinStr = implode(" ", $joins);
+$whereStr = !empty($conditions) ? "WHERE " . implode(" AND ", $conditions) : "";
+$query .= " {$joinStr} {$whereStr} ORDER BY u.created_at DESC";
+
 $stmt = $db->prepare($query);
-$stmt->execute(["%$search%", "%$search%"]);
+$stmt->execute($params);
 $members = $stmt->fetchAll();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Members List</h3>
-    <form class="d-flex" style="width: 300px;">
-        <input type="text" name="search" class="form-control me-2" placeholder="Search username..." value="<?php echo htmlspecialchars($search); ?>">
-        <button type="submit" class="btn btn-outline-primary">Search</button>
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Members List</h3>
+    </div>
+
+    <!-- Dynamic Filters Form -->
+    <form method="get" class="row g-2 align-items-center bg-light p-3 rounded border">
+        <div class="col-md-3">
+            <input type="text" name="search" class="form-control" placeholder="Search username / email..." value="<?php echo htmlspecialchars($search); ?>">
+        </div>
+        <div class="col-md-3">
+            <select name="rank_id" class="form-select">
+                <option value="">-- All Ranks --</option>
+                <option value="0" <?php echo $rankFilter === '0' ? 'selected' : ''; ?>>None / No Rank</option>
+                <?php foreach($ranksList as $idx => $rConf): ?>
+                    <option value="<?php echo $idx + 1; ?>" <?php echo $rankFilter == ($idx + 1) ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($rConf['name']); ?> (Slab $<?php echo number_format($rConf['matching']); ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="package_amount" class="form-select">
+                <option value="">-- All Packages --</option>
+                <?php foreach($packagesList as $pkgAmt): ?>
+                    <option value="<?php echo $pkgAmt; ?>" <?php echo $packageFilter == $pkgAmt ? 'selected' : ''; ?>>
+                        Package $<?php echo number_format($pkgAmt); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary w-100"><i class="fa fa-filter me-1"></i>Filter</button>
+            <a href="members.php" class="btn btn-outline-secondary w-100">Clear</a>
+        </div>
     </form>
 </div>
 
@@ -57,7 +121,11 @@ $members = $stmt->fetchAll();
                         <td><?php echo $m['id']; ?></td>
                         <td><strong><?php echo $m['username']; ?></strong></td>
                         <td><?php echo $m['email']; ?></td>
-                        <td><span class="badge bg-info">Rank <?php echo $m['rank_id']; ?></span></td>
+                        <td>
+                            <span class="badge bg-info" style="font-size: 13px;">
+                                <?php echo ($m['rank_id'] > 0 && isset($ranksList[$m['rank_id']-1])) ? htmlspecialchars($ranksList[$m['rank_id']-1]['name']) : 'None'; ?>
+                            </span>
+                        </td>
                         <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
                         <td>
                             <span class="badge <?php echo $m['status'] == 'active' ? 'bg-success' : 'bg-danger'; ?>">

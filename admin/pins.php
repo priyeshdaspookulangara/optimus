@@ -41,12 +41,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $pageTitle = 'PIN Management';
 include __DIR__ . '/includes/header.php';
 
-$stmt = $db->query("SELECT p.*, pkg.name as package_name, u.username as used_by_user, u_ass.username as assigned_to_user
-                    FROM pins p
-                    JOIN packages pkg ON p.package_id = pkg.id
-                    LEFT JOIN users u ON p.used_by = u.id
-                    LEFT JOIN users u_ass ON p.assigned_to = u_ass.id
-                    ORDER BY p.created_at DESC");
+$statusFilter = $_GET['status'] ?? '';
+
+// Build dynamic query
+$query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u_ass.username as assigned_to_user
+          FROM pins p
+          JOIN packages pkg ON p.package_id = pkg.id
+          LEFT JOIN users u ON p.used_by = u.id
+          LEFT JOIN users u_ass ON p.assigned_to = u_ass.id";
+
+$params = [];
+if ($statusFilter === 'used') {
+    $query .= " WHERE p.status = 'used'";
+} elseif ($statusFilter === 'unused') {
+    $query .= " WHERE p.status = 'unused'";
+}
+
+$query .= " ORDER BY p.created_at DESC";
+
+$stmt = $db->prepare($query);
+$stmt->execute($params);
 $pins = $stmt->fetchAll();
 
 $stmt = $db->query("SELECT * FROM packages ORDER BY amount ASC");
@@ -58,6 +72,13 @@ $packages = $stmt->fetchAll();
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generatePinModal">
         <i class="fa fa-magic me-2"></i> Generate PINs
     </button>
+</div>
+
+<!-- Filters Bar -->
+<div class="mb-3 d-flex gap-2">
+    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
 </div>
 
 <div class="card">
