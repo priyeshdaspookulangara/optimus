@@ -2,15 +2,78 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+// Authentication check before running state-changing operations
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if (empty($_SESSION['admin_csrf'])) {
+    $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+}
+
 $db = Database::getInstance()->getConnection();
 
-if (isset($_POST['action']) && $_POST['action'] == 'update_status') {
-    $userId = $_POST['user_id'];
-    $newStatus = $_POST['status'];
-    $stmt = $db->prepare("UPDATE users SET status = ? WHERE id = ?");
-    $stmt->execute([$newStatus, $userId]);
-    header("Location: members.php?success=status_updated");
-    exit();
+if (isset($_POST['action'])) {
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
+        header("Location: members.php?error=" . urlencode("CSRF token validation failed."));
+        exit();
+    }
+
+    if ($_POST['action'] == 'update_status') {
+        $userId = $_POST['user_id'];
+        $newStatus = $_POST['status'];
+        $stmt = $db->prepare("UPDATE users SET status = ? WHERE id = ?");
+        $stmt->execute([$newStatus, $userId]);
+        header("Location: members.php?success=status_updated");
+        exit();
+    } elseif ($_POST['action'] == 'clear_system') {
+        // Clear all members except root (ID 1)
+        $db->beginTransaction();
+        try {
+            // Disable foreign keys temporarily
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+
+            // Delete from dependent tables
+            $db->exec("DELETE FROM genealogy WHERE user_id > 1 OR parent_id > 1");
+            $db->exec("DELETE FROM investments WHERE user_id > 1");
+            $db->exec("DELETE FROM transactions WHERE user_id > 1 OR related_user_id > 1");
+            $db->exec("DELETE FROM user_wallets WHERE user_id > 1");
+            $db->exec("DELETE FROM matching_schedules WHERE user_id > 1");
+
+            // Delete unused/used PINs created for or by non-root users
+            $db->exec("DELETE FROM pins WHERE used_by > 1 OR assigned_to > 1");
+
+            // Delete users except ID 1 (Root admin)
+            $db->exec("DELETE FROM users WHERE id > 1");
+
+            // Reset Root user (ID 1) MLM metrics
+            $db->exec("UPDATE users SET
+                rank_id = 0,
+                total_investment = 0.00,
+                left_leg_business = 0.00,
+                right_leg_business = 0.00,
+                rank_income_days = 0,
+                sponsor_id = NULL,
+                placement_id = NULL,
+                status = 'active'
+                WHERE id = 1
+            ");
+
+            // Re-enable foreign key checks
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+
+            $db->commit();
+            header("Location: members.php?success=system_cleared");
+            exit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            header("Location: members.php?error=" . urlencode($e->getMessage()));
+            exit();
+        }
+    }
 }
 
 $pageTitle = 'Member Management';
@@ -60,6 +123,11 @@ $members = $stmt->fetchAll();
 <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3>Members List</h3>
+        <form method="post" onsubmit="return confirm('WARNING: This will permanently delete all members (except root user), their downlines, genealogy trees, and all historical transactions, investments, matching schedules, and incomes! This action is irreversible. Are you absolutely sure?');">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+            <input type="hidden" name="action" value="clear_system">
+            <button type="submit" class="btn btn-danger"><i class="fa fa-trash-alt me-1"></i>Reset System (Clear All Except Root)</button>
+        </form>
     </div>
 
     <!-- Dynamic Filters Form -->
@@ -95,8 +163,14 @@ $members = $stmt->fetchAll();
     </form>
 </div>
 
-<?php if(isset($_GET['success'])): ?>
+<?php if(isset($_GET['success']) && $_GET['success'] == 'system_cleared'): ?>
+    <div class="alert alert-success"><strong>System Reset Complete!</strong> All members (except root user) and their associated genealogy tree, packages, investments, and transactional data have been securely deleted.</div>
+<?php elseif(isset($_GET['success'])): ?>
     <div class="alert alert-success">Action completed successfully.</div>
+<?php endif; ?>
+
+<?php if(isset($_GET['error'])): ?>
+    <div class="alert alert-danger">Error: <?php echo htmlspecialchars($_GET['error']); ?></div>
 <?php endif; ?>
 
 <div class="card">
@@ -119,8 +193,8 @@ $members = $stmt->fetchAll();
                     <?php foreach($members as $m): ?>
                     <tr>
                         <td><?php echo $m['id']; ?></td>
-                        <td><strong><?php echo $m['username']; ?></strong></td>
-                        <td><?php echo $m['email']; ?></td>
+                        <td><strong><?php echo htmlspecialchars($m['username']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($m['email']); ?></td>
                         <td>
                             <span class="badge bg-info" style="font-size: 13px;">
                                 <?php echo ($m['rank_id'] > 0 && isset($ranksList[$m['rank_id']-1])) ? htmlspecialchars($ranksList[$m['rank_id']-1]['name']) : 'None'; ?>
@@ -128,13 +202,14 @@ $members = $stmt->fetchAll();
                         </td>
                         <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
                         <td>
-                            <span class="badge <?php echo $m['status'] == 'active' ? 'bg-success' : 'bg-danger'; ?>">
-                                <?php echo strtoupper($m['status']); ?>
+                            <span class="badge <?php echo htmlspecialchars($m['status']) == 'active' ? 'bg-success' : 'bg-danger'; ?>">
+                                <?php echo htmlspecialchars(strtoupper($m['status'])); ?>
                             </span>
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
                             <form method="post" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
                                 <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
                                 <input type="hidden" name="action" value="update_status">
                                 <?php if($m['status'] == 'active'): ?>
