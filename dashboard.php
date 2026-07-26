@@ -111,12 +111,72 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <div class="container-fluid">
-        <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
-            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #cca354 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
+        <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase ceiling-limit-btn" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
+            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #3f2259 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
             <div class="progress" style="height: 50px">
                 <div class="progress-bar text-bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
             </div>
         </button>
+    </div>
+
+    <!-- Achievement Milestones / Rank Scroller -->
+    <div class="achievement-section">
+        <h5><i class="fa-solid fa-medal"></i>Achievement Milestones</h5>
+        <div class="rank-scroller-wrap">
+            <button type="button" class="rank-scroll-btn left" onclick="document.getElementById('rankScroller').scrollBy({left:-340,behavior:'smooth'})">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="rank-scroller" id="rankScroller">
+                <?php
+                // Render the 12 dynamic ranks
+                $ranksList = [
+                    ['class' => 'rk-mentor',      'name' => 'Mentor',       'matching' => '500'],
+                    ['class' => 'rk-pioneer',     'name' => 'Pioneer',      'matching' => '1,000'],
+                    ['class' => 'rk-elite',       'name' => 'Elite',        'matching' => '2,500'],
+                    ['class' => 'rk-titan',       'name' => 'Titan',        'matching' => '5,000'],
+                    ['class' => 'rk-master',      'name' => 'Master',       'matching' => '10,000'],
+                    ['class' => 'rk-grandmaster', 'name' => 'Grand Master', 'matching' => '25,000'],
+                    ['class' => 'rk-icon',        'name' => 'Icon',         'matching' => '50,000'],
+                    ['class' => 'rk-legend',      'name' => 'Legend',       'matching' => '100,000'],
+                    ['class' => 'rk-director',    'name' => 'Director',     'matching' => '250,000'],
+                    ['class' => 'rk-ambassador',  'name' => 'Ambassador',   'matching' => '500,000'],
+                    ['class' => 'rk-chairman',    'name' => 'Chairman',     'matching' => '1,000,000'],
+                    ['class' => 'rk-president',   'name' => 'President',    'matching' => '2,500,000'],
+                ];
+
+                foreach ($ranksList as $index => $r):
+                    $rIndex = $index + 1;
+                    $isAchieved = ($user['rank_id'] >= $rIndex);
+                    $isCurrent = ($user['rank_id'] == $rIndex);
+
+                    $cardClass = $r['class'];
+                    if ($isAchieved) {
+                        $cardClass .= ' rk-achieved';
+                    }
+                    if ($isCurrent) {
+                        $cardClass .= ' rk-current';
+                    }
+                ?>
+                    <div class="rank-card <?php echo $cardClass; ?>">
+                        <div class="rk-content">
+                            <div class="rk-name">
+                                <?php echo htmlspecialchars($r['name']); ?>
+                                <?php if ($isCurrent): ?>
+                                    <span class="rk-badge-current">Current</span>
+                                <?php elseif ($isAchieved): ?>
+                                    <i class="fa-solid fa-circle-check rk-badge-check" title="Achieved"></i>
+                                <?php endif; ?>
+                            </div>
+                            <div class="rk-target"><?php echo $r['matching']; ?> x <?php echo $r['matching']; ?></div>
+                            <div class="rk-desc">Target Business</div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <button type="button" class="rank-scroll-btn right" onclick="document.getElementById('rankScroller').scrollBy({left:340,behavior:'smooth'})">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
     </div>
 
     <div class="row p-0 mt-4">
