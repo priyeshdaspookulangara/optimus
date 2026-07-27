@@ -183,11 +183,21 @@ if (!empty($sponsorQuery)) {
                 <div class="row">
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="password">Password: </label>
-                    <input type="password" class="form-control" id="password" name="password" required placeholder="Password">
+                    <div class="input-group">
+                      <input type="password" class="form-control" id="password" name="password" required placeholder="Password" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                      <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border: 1px solid #504793; background-color: #3f2259; color: #fff; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                        <i class="fa-solid fa-eye-slash"></i>
+                      </button>
+                    </div>
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="password_confirmation">Confirm Password: </label>
-                    <input type="password" class="form-control" id="password_confirmation" required name="password_confirmation" placeholder="Repeat Password">
+                    <div class="input-group">
+                      <input type="password" class="form-control" id="password_confirmation" required name="password_confirmation" placeholder="Repeat Password" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                      <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm" style="border: 1px solid #504793; background-color: #3f2259; color: #fff; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                        <i class="fa-solid fa-eye-slash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -246,6 +256,21 @@ if (!empty($sponsorQuery)) {
         } else {
           $('#pin_feedback').empty();
         }
+      });
+
+      // Password visibility toggles
+      $('#togglePassword').click(function() {
+        var pwdField = $('#password');
+        var type = pwdField.attr('type') === 'password' ? 'text' : 'password';
+        pwdField.attr('type', type);
+        $(this).find('i').toggleClass('fa-eye fa-eye-slash');
+      });
+
+      $('#togglePasswordConfirm').click(function() {
+        var pwdField = $('#password_confirmation');
+        var type = pwdField.attr('type') === 'password' ? 'text' : 'password';
+        pwdField.attr('type', type);
+        $(this).find('i').toggleClass('fa-eye fa-eye-slash');
       });
 
     });

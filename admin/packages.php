@@ -2,9 +2,25 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+// Authentication check before running state-changing operations
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if (empty($_SESSION['admin_csrf'])) {
+    $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+}
+
 $db = Database::getInstance()->getConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
+        header("Location: packages.php?error=" . urlencode("CSRF token validation failed."));
+        exit();
+    }
+
     $name = $_POST['name'];
     $amount = $_POST['amount'];
 
@@ -70,6 +86,7 @@ $packages = $stmt->fetchAll();
 <div class="modal fade" id="packageModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitle">Add Package</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

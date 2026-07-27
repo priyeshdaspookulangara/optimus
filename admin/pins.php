@@ -2,9 +2,25 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
+// Authentication check before running state-changing operations
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if (empty($_SESSION['admin_csrf'])) {
+    $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+}
+
 $db = Database::getInstance()->getConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'generate') {
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
+        header("Location: pins.php?error=" . urlencode("CSRF token validation failed."));
+        exit();
+    }
+
     $packageId = $_POST['package_id'];
     $count = (int)$_POST['count'];
     $assignUsername = trim($_POST['assign_username'] ?? '');
@@ -98,15 +114,15 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($pins as $p): ?>
                     <tr>
-                        <td><code><?php echo $p['pin_code']; ?></code></td>
-                        <td><?php echo $p['package_name']; ?></td>
+                        <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
+                        <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
-                            <span class="badge <?php echo $p['status'] == 'unused' ? 'bg-success' : 'bg-secondary'; ?>">
-                                <?php echo strtoupper($p['status']); ?>
+                            <span class="badge <?php echo htmlspecialchars($p['status']) == 'unused' ? 'bg-success' : 'bg-secondary'; ?>">
+                                <?php echo htmlspecialchars(strtoupper($p['status'])); ?>
                             </span>
                         </td>
-                        <td><?php echo $p['assigned_to_user'] ?? '<span class="text-muted">Public</span>'; ?></td>
-                        <td><?php echo $p['used_by_user'] ?? '-'; ?></td>
+                        <td><?php echo $p['assigned_to_user'] ? htmlspecialchars($p['assigned_to_user']) : '<span class="text-muted">Public</span>'; ?></td>
+                        <td><?php echo $p['used_by_user'] ? htmlspecialchars($p['used_by_user']) : '-'; ?></td>
                         <td><?php echo date('Y-m-d H:i', strtotime($p['created_at'])); ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -120,6 +136,7 @@ $packages = $stmt->fetchAll();
 <div class="modal fade" id="generatePinModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
             <input type="hidden" name="action" value="generate">
             <div class="modal-header">
                 <h5 class="modal-title">Generate Activation PINs</h5>
