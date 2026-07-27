@@ -46,10 +46,10 @@ $team_inv = $stmt->fetch();
 $config = require __DIR__ . '/includes/config.php';
 $rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
 
-// Ceiling Limit Calculation (300% of total investment)
-$maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-$ceilingBalance = max(0, $maxCap - $stats['total_earning']);
-$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
+// Ceiling Limit Calculation (Depends only on ROI, capped at 200% of total investment)
+$maxCap = $user['total_investment'] * $config['roi']['cap_multiplier'];
+$ceilingBalance = max(0, $maxCap - $stats['total_roi']);
+$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 100) : 0;
 
 // Fetch dynamic unilevel legs business
 $engine = new MLMEngine();
