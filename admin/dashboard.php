@@ -113,10 +113,10 @@ $unusedPins = $stmt->fetch()['unused_pins'];
                             while($row = $stmt->fetch()):
                             ?>
                             <tr>
-                                <td><?php echo $row['username']; ?></td>
-                                <td><span class="badge bg-secondary"><?php echo $row['type']; ?></span></td>
+                                <td><?php echo htmlspecialchars($row['username']); ?></td>
+                                <td><span class="badge bg-secondary"><?php echo htmlspecialchars($row['type']); ?></span></td>
                                 <td>$<?php echo number_format($row['amount'], 2); ?></td>
-                                <td><?php echo $row['description']; ?></td>
+                                <td><?php echo htmlspecialchars($row['description']); ?></td>
                                 <td><?php echo date('Y-m-d H:i', strtotime($row['created_at'])); ?></td>
                             </tr>
                             <?php endwhile; ?>

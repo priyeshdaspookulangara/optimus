@@ -54,6 +54,9 @@ class MLMEngine {
             // Distribute Level Income (Recursive up to 12 levels)
             $this->distributeLevelIncome($userId, $packageAmount);
 
+            // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
+            $this->updateUplineRanks($userId);
+
             if (!$isNested) {
                 $this->db->commit();
             }
@@ -482,6 +485,9 @@ class MLMEngine {
             // Distribute commissions
             $this->distributeLevelIncome($userId, $package['amount']);
 
+            // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
+            $this->updateUplineRanks($userId);
+
             if (!$isNested) {
                 $this->db->commit();
             }
@@ -491,6 +497,71 @@ class MLMEngine {
                 $this->db->rollBack();
             }
             throw $e;
+        }
+    }
+
+    /**
+     * Instantly evaluate dynamic leg business, update rank qualifications, and
+     * sync matching schedules (contracts) for a user and all their upline sponsors.
+     */
+    public function updateUplineRanks($userId) {
+        // Fetch all direct unilevel ancestors (parents in the genealogy tree) ordered by level ascending
+        $stmt = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+        $stmt->execute([$userId]);
+        $ancestors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Include the user themselves as well (if they purchased a package, their own matching legs could change)
+        $targets = array_merge([['parent_id' => $userId]], $ancestors);
+
+        foreach ($targets as $target) {
+            $ancestorId = $target['parent_id'];
+            if (empty($ancestorId)) continue;
+
+            // Fetch ancestor's current info
+            $stmtUser = $this->db->prepare("SELECT id, rank_id, status FROM users WHERE id = ?");
+            $stmtUser->execute([$ancestorId]);
+            $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+            if (!$user) continue;
+
+            $legStats = $this->getLegsBusiness($ancestorId);
+            $matchedBusiness = $legStats['matched_business'];
+            $slabBreakdown = $legStats['slab_breakdown'] ?? [];
+
+            $qualifiedRankId = $this->checkRankQualification($matchedBusiness);
+
+            // Handle Rank Upgrade
+            if ($qualifiedRankId !== null && $qualifiedRankId > $user['rank_id']) {
+                $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                $updateRank->execute([$qualifiedRankId, $ancestorId]);
+                $user['rank_id'] = $qualifiedRankId;
+            }
+
+            // Sync/Create new matching schedules if qualified units > existing registered matching schedules
+            foreach ($slabBreakdown as $slab => $requiredUnits) {
+                if ($requiredUnits > 0) {
+                    $stmtSched = $this->db->prepare("SELECT COUNT(*) as count FROM matching_schedules WHERE user_id = ? AND slab_amount = ?");
+                    $stmtSched->execute([$ancestorId, $slab]);
+                    $existing = $stmtSched->fetch(PDO::FETCH_ASSOC);
+                    $existingUnits = (int)$existing['count'];
+
+                    if ($requiredUnits > $existingUnits) {
+                        // Find daily income rate for this slab from config
+                        $dailyIncome = 0.00;
+                        foreach ($this->config['ranks'] as $rankConf) {
+                            if ($rankConf['matching'] == $slab) {
+                                $dailyIncome = $rankConf['daily_income'];
+                                break;
+                            }
+                        }
+
+                        $newUnits = $requiredUnits - $existingUnits;
+                        $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
+                        for ($i = 0; $i < $newUnits; $i++) {
+                            $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
+                        }
+                    }
+                }
+            }
         }
     }
 }
