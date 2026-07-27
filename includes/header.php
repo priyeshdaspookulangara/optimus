@@ -200,6 +200,8 @@
   </style>
 </head>
 <body class=" ">
+  <!-- Hidden loader element to prevent coinex.js page-load execution crashes -->
+  <div class="loader d-none"></div>
   <?php include __DIR__ . '/sidebar.php'; ?>
   <main class="main-content">
     <div class="position-relative">

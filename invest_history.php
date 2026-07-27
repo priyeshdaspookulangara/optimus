@@ -33,6 +33,10 @@ include __DIR__ . '/includes/header.php';
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.2/css/dataTables.bootstrap5.min.css" />
 
+<style>
+    td { color: #000 !important; }
+</style>
+
 <div class="container-fluid content-inner pb-0">
     <div class="row">
       <div class="col-lg-12">
@@ -41,7 +45,7 @@ include __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
       <div class="col-lg-12 DT-col">
-        <div class="card">
+        <div class="card p-2">
           <div class="card-header">
             <h4 class="card-title mb-0">Investments</h4>
           </div>
