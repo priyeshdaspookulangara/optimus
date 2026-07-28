@@ -1,3 +1,23 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once __DIR__ . '/db.php';
+$headerDb = Database::getInstance()->getConnection();
+$headerUserId = $_SESSION['user_id'] ?? null;
+
+if ($headerUserId) {
+    if (!isset($user) || !isset($user['mid'])) {
+        $stmtHeaderUser = $headerDb->prepare("SELECT * FROM users WHERE id = ?");
+        $stmtHeaderUser->execute([$headerUserId]);
+        $user = $stmtHeaderUser->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!isset($rankName) && $user) {
+        $headerConfig = require __DIR__ . '/config.php';
+        $rankName = ($user['rank_id'] > 0) ? $headerConfig['ranks'][$user['rank_id']-1]['name'] : 'None';
+    }
+}
+?>
 <!doctype html>
 <html lang="en" data-bs-theme="light">
 <head>
