@@ -11,7 +11,7 @@ $startDate = $_GET['start_date'] ?? '';
 $endDate = $_GET['end_date'] ?? '';
 
 // Build dynamic query
-$query = "SELECT t.*, u.username
+$query = "SELECT t.*, u.username, u.mid
           FROM transactions t
           JOIN users u ON t.user_id = u.id
           WHERE t.type = 'WITHDRAWAL'";
@@ -67,7 +67,7 @@ $withdrawals = $stmt->fetchAll();
                     <tr class="table-dark">
                         <th>Transaction ID</th>
                         <th>Date & Time</th>
-                        <th>Username</th>
+                        <th>Member (MID)</th>
                         <th>Requested Amount</th>
                         <th>Gas Fee</th>
                         <th>Net Amount Paid</th>
@@ -84,7 +84,7 @@ $withdrawals = $stmt->fetchAll();
                         <tr>
                             <td>#<?php echo $w['id']; ?></td>
                             <td><?php echo date('Y-m-d H:i:s', strtotime($w['created_at'])); ?></td>
-                            <td><strong><?php echo htmlspecialchars($w['username']); ?></strong></td>
+                            <td><strong><?php echo htmlspecialchars($w['username']); ?></strong> <span class="badge bg-secondary" style="font-size: 11px;"><?php echo htmlspecialchars($w['mid'] ?? 'None'); ?></span></td>
                             <td class="text-danger">$<?php echo number_format($w['amount'], 2); ?></td>
                             <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
                             <td class="fw-bold text-success">$<?php echo number_format($w['amount'] - $w['fee'], 2); ?></td>

@@ -60,7 +60,7 @@ include __DIR__ . '/includes/header.php';
 $statusFilter = $_GET['status'] ?? '';
 
 // Build dynamic query
-$query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u_ass.username as assigned_to_user
+$query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u.mid as used_by_mid, u_ass.username as assigned_to_user, u_ass.mid as assigned_to_mid
           FROM pins p
           JOIN packages pkg ON p.package_id = pkg.id
           LEFT JOIN users u ON p.used_by = u.id
@@ -109,6 +109,7 @@ $packages = $stmt->fetchAll();
                         <th>Assigned To</th>
                         <th>Used By</th>
                         <th>Created At</th>
+                        <th>Share / Send</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -121,9 +122,22 @@ $packages = $stmt->fetchAll();
                                 <?php echo htmlspecialchars(strtoupper($p['status'])); ?>
                             </span>
                         </td>
-                        <td><?php echo $p['assigned_to_user'] ? htmlspecialchars($p['assigned_to_user']) : '<span class="text-muted">Public</span>'; ?></td>
-                        <td><?php echo $p['used_by_user'] ? htmlspecialchars($p['used_by_user']) : '-'; ?></td>
+                        <td><?php echo $p['assigned_to_user'] ? htmlspecialchars($p['assigned_to_user']) . ' (' . htmlspecialchars($p['assigned_to_mid'] ?? 'None') . ')' : '<span class="text-muted">Public</span>'; ?></td>
+                        <td><?php echo $p['used_by_user'] ? htmlspecialchars($p['used_by_user']) . ' (' . htmlspecialchars($p['used_by_mid'] ?? 'None') . ')' : '-'; ?></td>
                         <td><?php echo date('Y-m-d H:i', strtotime($p['created_at'])); ?></td>
+                        <td>
+                            <?php
+                            $waText = "🌟 *OPTIMUS INFINITY - ACTIVATION PIN* 🌟\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n🔑 *PIN CODE:* " . $p['pin_code'] . "\n📦 *PACKAGE:* " . $p['package_name'] . "\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                            $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
+
+                            $smsText = "OPTIMUS INFINITY - ACTIVATION PIN\n\nDear Partner,\n\nYour Package Activation PIN is: " . $p['pin_code'] . "\nPackage: " . $p['package_name'] . "\n\nThank you, Optimus Infinity!";
+                            $smsUrl = "sms:?body=" . urlencode($smsText);
+                            ?>
+                            <div class="d-flex gap-1">
+                                <a href="<?php echo $waUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="Share via WhatsApp"><i class="fab fa-whatsapp me-1"></i>WhatsApp</a>
+                                <a href="<?php echo $smsUrl; ?>" class="btn btn-sm btn-info text-white" title="Share via SMS"><i class="fa-solid fa-comment-sms me-1"></i>SMS</a>
+                            </div>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

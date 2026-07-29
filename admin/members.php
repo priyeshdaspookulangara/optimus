@@ -179,7 +179,7 @@ $members = $stmt->fetchAll();
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>MID (Member Code)</th>
                         <th>Username</th>
                         <th>Email</th>
                         <th>Rank</th>
@@ -192,7 +192,7 @@ $members = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($members as $m): ?>
                     <tr>
-                        <td><?php echo $m['id']; ?></td>
+                        <td><strong class="text-primary"><?php echo htmlspecialchars($m['mid'] ?? 'None'); ?></strong></td>
                         <td><strong><?php echo htmlspecialchars($m['username']); ?></strong></td>
                         <td><?php echo htmlspecialchars($m['email']); ?></td>
                         <td>
