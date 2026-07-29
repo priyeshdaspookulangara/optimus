@@ -11,13 +11,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pinCode = trim($_POST['pin_code'] ?? '');
     $userId = $_SESSION['user_id'];
 
+    $referer = $_SERVER['HTTP_REFERER'] ?? 'invest.php';
+    $isEWallet = (strpos($referer, 'e_wallet.php') !== false);
+
     try {
         $engine = new MLMEngine();
         $engine->activateWithPin($userId, $pinCode);
-        header("Location: invest_history.php?success=package_activated");
+        if ($isEWallet) {
+            header("Location: e_wallet.php?success=package_activated");
+        } else {
+            header("Location: invest_history.php?success=package_activated");
+        }
         exit();
     } catch (Exception $e) {
-        header("Location: invest.php?error=" . urlencode($e->getMessage()));
+        if ($isEWallet) {
+            header("Location: e_wallet.php?error=" . urlencode($e->getMessage()));
+        } else {
+            header("Location: invest.php?error=" . urlencode($e->getMessage()));
+        }
         exit();
     }
 }
