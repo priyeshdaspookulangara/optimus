@@ -14,44 +14,113 @@ if (empty($_SESSION['admin_csrf'])) {
 
 $db = Database::getInstance()->getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'generate') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     // Validate CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
         header("Location: pins.php?error=" . urlencode("CSRF token validation failed."));
         exit();
     }
 
-    $packageId = $_POST['package_id'];
-    $count = (int)$_POST['count'];
-    $assignUsername = trim($_POST['assign_username'] ?? '');
+    if ($_POST['action'] == 'generate') {
+        $packageId = $_POST['package_id'];
+        $count = (int)$_POST['count'];
+        $assignUsername = trim($_POST['assign_username'] ?? '');
 
-    $assignedToId = null;
-    if (!empty($assignUsername)) {
-        $userStmt = $db->prepare("SELECT id FROM users WHERE username = ?");
-        $userStmt->execute([$assignUsername]);
-        $targetUser = $userStmt->fetch();
-        if ($targetUser) {
-            $assignedToId = $targetUser['id'];
-        }
-    }
-
-    $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
-    for ($i = 0; $i < $count; $i++) {
-        // Format: "OPT" + unique 6 digit combination
-        $uniqueDigits = mt_rand(100000, 999999);
-        $pin = "OPT" . $uniqueDigits;
-
-        // Double check uniqueness (simplified retry for this scale)
-        $chk = $db->prepare("SELECT id FROM pins WHERE pin_code = ?");
-        $chk->execute([$pin]);
-        if ($chk->fetch()) {
-            $pin = "OPT" . mt_rand(100000, 999999);
+        $assignedToId = null;
+        if (!empty($assignUsername)) {
+            $userStmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+            $userStmt->execute([$assignUsername]);
+            $targetUser = $userStmt->fetch();
+            if ($targetUser) {
+                $assignedToId = $targetUser['id'];
+            }
         }
 
-        $stmt->execute([$pin, $packageId, $assignedToId]);
+        $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
+        for ($i = 0; $i < $count; $i++) {
+            // Format: "OPT" + unique 6 digit combination
+            $uniqueDigits = mt_rand(100000, 999999);
+            $pin = "OPT" . $uniqueDigits;
+
+            // Double check uniqueness (simplified retry for this scale)
+            $chk = $db->prepare("SELECT id FROM pins WHERE pin_code = ?");
+            $chk->execute([$pin]);
+            if ($chk->fetch()) {
+                $pin = "OPT" . mt_rand(100000, 999999);
+            }
+
+            $stmt->execute([$pin, $packageId, $assignedToId]);
+        }
+        header("Location: pins.php?success=generated");
+        exit();
+    } elseif ($_POST['action'] == 'share_whatsapp') {
+        $target = trim($_POST['recipient_target'] ?? '');
+        $selectedPins = $_POST['selected_pins'] ?? [];
+
+        if (empty($selectedPins)) {
+            header("Location: pins.php?error=" . urlencode("No PINs selected."));
+            exit();
+        }
+
+        // Lookup recipient info
+        $phone = '';
+        $recipientName = 'Partner';
+        if (!empty($target)) {
+            $stmt = $db->prepare("SELECT phone, username, mid, full_name FROM users WHERE mid = ? OR phone = ? OR username = ?");
+            $stmt->execute([$target, $target, $target]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $phone = $user['phone'] ?? '';
+                $recipientName = $user['full_name'] ?: $user['username'];
+            } else {
+                // If not found, check if target contains digits and looks like a phone number
+                $cleanTarget = preg_replace('/[^0-9]/', '', $target);
+                if (strlen($cleanTarget) >= 7) {
+                    $phone = $target;
+                }
+            }
+        }
+
+        // Load selected pins details
+        $placeholders = implode(',', array_fill(0, count($selectedPins), '?'));
+        $stmt = $db->prepare("SELECT p.pin_code, pkg.name as package_name
+                              FROM pins p
+                              JOIN packages pkg ON p.package_id = pkg.id
+                              WHERE p.pin_code IN ($placeholders)");
+        $stmt->execute($selectedPins);
+        $pinsData = $stmt->fetchAll();
+
+        if (empty($pinsData)) {
+            header("Location: pins.php?error=" . urlencode("No valid PINs found."));
+            exit();
+        }
+
+        // Format the WhatsApp text
+        $waText = "*OPTIMUS INFINITY - ACTIVATION PINS*\n\n";
+        $waText .= "Dear " . $recipientName . ",\n\n";
+        $waText .= "Your Package Activation PIN list has been successfully generated:\n\n";
+
+        $idx = 1;
+        foreach ($pinsData as $pinRow) {
+            $waText .= $idx . ") *PIN CODE:* " . $pinRow['pin_code'] . "\n   *PACKAGE:* " . $pinRow['package_name'] . "\n\n";
+            $idx++;
+        }
+
+        $waText .= "Total PINs: " . count($pinsData) . "\n\n";
+        $waText .= "Thank you for choosing Optimus Infinity.";
+
+        // Clean phone number for WhatsApp API
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+
+        $waUrl = "https://api.whatsapp.com/send?";
+        if (!empty($cleanPhone)) {
+            $waUrl .= "phone=" . urlencode($cleanPhone) . "&";
+        }
+        $waUrl .= "text=" . urlencode($waText);
+
+        header("Location: " . $waUrl);
+        exit();
     }
-    header("Location: pins.php?success=generated");
-    exit();
 }
 
 $pageTitle = 'PIN Management';
@@ -85,10 +154,30 @@ $packages = $stmt->fetchAll();
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3>PIN Management</h3>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generatePinModal">
-        <i class="fa fa-magic me-2"></i> Generate PINs
-    </button>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success" id="shareSelectedBtn" data-bs-toggle="modal" data-bs-target="#sharePinModal" disabled>
+            <i class="fab fa-whatsapp me-2"></i> Share Selected via WhatsApp
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generatePinModal">
+            <i class="fa fa-magic me-2"></i> Generate PINs
+        </button>
+    </div>
 </div>
+
+<!-- Success/Error Alert Messages -->
+<?php if(isset($_GET['success'])): ?>
+    <div class="alert alert-success alert-dismissible fade show text-dark" role="alert">
+        <strong>Success!</strong> Action completed successfully.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<?php if(isset($_GET['error'])): ?>
+    <div class="alert alert-danger alert-dismissible fade show text-dark" role="alert">
+        <strong>Error:</strong> <?php echo htmlspecialchars($_GET['error']); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
 
 <!-- Filters Bar -->
 <div class="mb-3 d-flex gap-2">
@@ -103,6 +192,7 @@ $packages = $stmt->fetchAll();
             <table class="table table-sm table-striped">
                 <thead>
                     <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll"></th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -115,6 +205,9 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($pins as $p): ?>
                     <tr>
+                        <td>
+                            <input type="checkbox" class="pin-select-chk" data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>" data-package="<?php echo htmlspecialchars($p['package_name']); ?>">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -127,7 +220,7 @@ $packages = $stmt->fetchAll();
                         <td><?php echo date('Y-m-d H:i', strtotime($p['created_at'])); ?></td>
                         <td>
                             <?php
-                            $waText = "🌟 *OPTIMUS INFINITY - ACTIVATION PIN* 🌟\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n🔑 *PIN CODE:* " . $p['pin_code'] . "\n📦 *PACKAGE:* " . $p['package_name'] . "\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                            $waText = "*OPTIMUS INFINITY - ACTIVATION PIN*\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n*PIN CODE:* " . $p['pin_code'] . "\n*PACKAGE:* " . $p['package_name'] . "\n\nThank you for choosing Optimus Infinity.";
                             $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
 
                             $smsText = "OPTIMUS INFINITY - ACTIVATION PIN\n\nDear Partner,\n\nYour Package Activation PIN is: " . $p['pin_code'] . "\nPackage: " . $p['package_name'] . "\n\nThank you, Optimus Infinity!";
@@ -182,5 +275,149 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<!-- Share PIN Modal -->
+<div class="modal fade" id="sharePinModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content" action="pins.php" target="_blank" id="whatsappShareForm">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+            <input type="hidden" name="action" value="share_whatsapp">
+            <div class="modal-header">
+                <h5 class="modal-title text-dark">Share Selected PINs via WhatsApp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-dark">
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Recipient (MID, Username, or Phone)</label>
+                    <input type="text" name="recipient_target" class="form-control text-dark" placeholder="e.g. OPT59655 or +1234567890" required>
+                    <small class="text-muted d-block mt-1">
+                        Enter a Member ID (MID), Username, or direct Phone Number (e.g. 1234567890).
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Selected PINs Preview</label>
+                    <ul class="list-group list-group-flush border rounded text-dark" id="selectedPinsList" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Populate dynamically using JavaScript -->
+                    </ul>
+                </div>
+
+                <!-- Dynamic hidden inputs for selected pins -->
+                <div id="selectedPinsInputs"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-success" id="confirmShareBtn"><i class="fab fa-whatsapp me-2"></i>Share via WhatsApp</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var selectAll = document.getElementById("selectAll");
+    var shareSelectedBtn = document.getElementById("shareSelectedBtn");
+    var checkboxes = document.querySelectorAll(".pin-select-chk");
+    var shareForm = document.getElementById("whatsappShareForm");
+
+    // Toggle select all
+    if (selectAll) {
+        selectAll.addEventListener("change", function() {
+            var isChecked = this.checked;
+            checkboxes.forEach(function(chk) {
+                chk.checked = isChecked;
+            });
+            updateShareButtonState();
+        });
+    }
+
+    // Monitor individual checkboxes using event delegation or direct binding
+    // Since rows might load dynamically or directly, direct binding is perfect on load
+    checkboxes.forEach(function(chk) {
+        chk.addEventListener("change", function() {
+            updateShareButtonState();
+        });
+    });
+
+    function updateShareButtonState() {
+        var checkedCount = document.querySelectorAll(".pin-select-chk:checked").length;
+        if (shareSelectedBtn) {
+            shareSelectedBtn.disabled = (checkedCount === 0);
+        }
+        if (selectAll) {
+            var checkboxesTotal = document.querySelectorAll(".pin-select-chk").length;
+            selectAll.checked = (checkedCount === checkboxesTotal && checkboxesTotal > 0);
+        }
+    }
+
+    // Populate modal when Share Selected button is clicked
+    if (shareSelectedBtn) {
+        shareSelectedBtn.addEventListener("click", function() {
+            var selectedPinsContainer = document.getElementById("selectedPinsList");
+            var selectedInputContainer = document.getElementById("selectedPinsInputs");
+
+            if (selectedPinsContainer) selectedPinsContainer.innerHTML = "";
+            if (selectedInputContainer) selectedInputContainer.innerHTML = "";
+
+            var checkedBoxes = document.querySelectorAll(".pin-select-chk:checked");
+            checkedBoxes.forEach(function(chk) {
+                var pin = chk.getAttribute("data-pin");
+                var packageName = chk.getAttribute("data-package");
+
+                // Append to preview list
+                if (selectedPinsContainer) {
+                    var li = document.createElement("li");
+                    li.className = "list-group-item d-flex justify-content-between align-items-center py-2 text-dark";
+                    li.innerHTML = '<span>🔑 <code>' + escapeHtml(pin) + '</code></span> <span class="badge bg-secondary">' + escapeHtml(packageName) + '</span>';
+                    selectedPinsContainer.appendChild(li);
+                }
+
+                // Append hidden input
+                if (selectedInputContainer) {
+                    var input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = "selected_pins[]";
+                    input.value = pin;
+                    selectedInputContainer.appendChild(input);
+                }
+            });
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return "";
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Close the Bootstrap modal on form submit
+    if (shareForm) {
+        shareForm.addEventListener("submit", function() {
+            setTimeout(function() {
+                var modalEl = document.getElementById('sharePinModal');
+                if (modalEl) {
+                    // Try to hide with Bootstrap modal instance
+                    if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) {
+                            modal.hide();
+                            return;
+                        }
+                    }
+                    // Fallback: trigger click on Close button
+                    var closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+                    if (closeBtn) {
+                        closeBtn.click();
+                    }
+                }
+            }, 1000);
+        });
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
