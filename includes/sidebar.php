@@ -31,6 +31,7 @@
           <li class="nav-item"><a class="nav-link" href="withdraw_wallet.php"><i class="icon fa fa-credit-card"></i><span class="item-name">Withdraw Wallet</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_fund.php"><i class="icon fa fa-money-bill-wave"></i><span class="item-name">Withdraw Fund</span></a></li>
           <li class="nav-item"><a class="nav-link" href="my_withdrawals.php"><i class="icon fa fa-history"></i><span class="item-name">Withdrawals History</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="kyc_details.php"><i class="icon fa fa-id-card"></i><span class="item-name">KYC Details</span></a></li>
           <li class="nav-item"><a class="nav-link" href="support.php"><i class="icon fa fa-headset"></i><span class="item-name">Support</span></a></li>
           <li class="nav-item"><a class="nav-link" href="logout.php"><i class="icon fa fa-sign-out-alt"></i><span class="item-name">Logout</span></a></li>
         </ul>
