@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS `matching_schedules` (
 
 -- Default Packages
 INSERT INTO `packages` (`name`, `amount`) VALUES
-('Package $25', 25), ('Package $50', 50), ('Package $100', 100),
+('Zero Package', 0), ('Package $25', 25), ('Package $50', 50), ('Package $100', 100),
 ('Package $250', 250), ('Package $500', 500), ('Package $1000', 1000),
 ('Package $2500', 2500), ('Package $5000', 5000), ('Package $10000', 10000),
 ('Package $25000', 25000), ('Package $50000', 50000), ('Package $100000', 100000),

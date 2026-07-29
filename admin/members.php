@@ -151,7 +151,7 @@ $members = $stmt->fetchAll();
                 <option value="">-- All Packages --</option>
                 <?php foreach($packagesList as $pkgAmt): ?>
                     <option value="<?php echo $pkgAmt; ?>" <?php echo $packageFilter == $pkgAmt ? 'selected' : ''; ?>>
-                        Package $<?php echo number_format($pkgAmt); ?>
+                        <?php echo $pkgAmt == 0 ? 'Zero Package' : 'Package $' . number_format($pkgAmt); ?>
                     </option>
                 <?php endforeach; ?>
             </select>

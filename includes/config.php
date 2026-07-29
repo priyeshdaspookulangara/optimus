@@ -9,9 +9,9 @@ return [
         'pass' => '',
     ],
 
-    // Packages: Tier values from $25 up to $1,000,000
+    // Packages: Tier values from $0 up to $1,000,000
     'packages' => [
-        25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
+        0, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
     ],
 
     // Level Percentages: 12-generation distribution
