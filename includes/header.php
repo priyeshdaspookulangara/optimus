@@ -246,12 +246,14 @@ if ($headerUserId) {
                   <i class="fa-solid fa-circle-user fa-xl text-primary"></i>
                   <div class="caption text-start ms-2">
                     <h6 class="mb-0 caption-title text-dark"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></h6>
+                    <small class="text-muted d-block" style="font-size: 10px; line-height: 1;"><?php echo htmlspecialchars($user['mid'] ?? ''); ?></small>
                   </div>
                   <i class="fa fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff;">
                   <li class="px-3 py-2 text-dark">
                     <div class="fw-bold"><?php echo htmlspecialchars($user['full_name'] ?? 'Optimus Member'); ?></div>
+                    <small class="text-muted d-block">ID: <?php echo htmlspecialchars($user['mid'] ?? ''); ?></small>
                     <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
                     <span class="badge bg-primary text-white mt-1">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
                   </li>
