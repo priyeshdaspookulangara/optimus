@@ -28,6 +28,79 @@ if (isset($_POST['action'])) {
         $stmt->execute([$newStatus, $userId]);
         header("Location: members.php?success=status_updated");
         exit();
+    } elseif ($_POST['action'] == 'delete_member') {
+        $userId = $_POST['user_id'];
+        $confirmMid = trim($_POST['confirm_mid'] ?? '');
+
+        // Fetch user first to verify MID and prevent deleting Root user ID 1
+        $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $targetUser = $stmt->fetch();
+
+        if (!$targetUser) {
+            header("Location: members.php?error=" . urlencode("User not found."));
+            exit();
+        }
+
+        if ($targetUser['id'] == 1) {
+            header("Location: members.php?error=" . urlencode("Root Administrator (ID 1) cannot be deleted."));
+            exit();
+        }
+
+        if (strcasecmp(trim($targetUser['mid'] ?? ''), $confirmMid) !== 0) {
+            header("Location: members.php?error=" . urlencode("Confirmation member ID does not match. Please try again."));
+            exit();
+        }
+
+        // Proceed to delete
+        $db->beginTransaction();
+        try {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+
+            // Delete from dependent tables
+            $stmt = $db->prepare("DELETE FROM genealogy WHERE user_id = ? OR parent_id = ?");
+            $stmt->execute([$userId, $userId]);
+
+            $stmt = $db->prepare("DELETE FROM investments WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare("DELETE FROM transactions WHERE user_id = ? OR related_user_id = ?");
+            $stmt->execute([$userId, $userId]);
+
+            $stmt = $db->prepare("DELETE FROM user_wallets WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare("DELETE FROM matching_schedules WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare("DELETE FROM pins WHERE assigned_to = ? OR used_by = ?");
+            $stmt->execute([$userId, $userId]);
+
+            $stmt = $db->prepare("DELETE FROM user_kyc WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            // Safely clear referencing parent/sponsor/placement ID fields
+            $stmt = $db->prepare("UPDATE users SET sponsor_id = NULL WHERE sponsor_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare("UPDATE users SET placement_id = NULL WHERE placement_id = ?");
+            $stmt->execute([$userId]);
+
+            // Finally, delete the user itself
+            $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            $db->commit();
+
+            header("Location: members.php?success=member_deleted");
+            exit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            header("Location: members.php?error=" . urlencode($e->getMessage()));
+            exit();
+        }
     } elseif ($_POST['action'] == 'clear_system') {
         // Clear all members except root (ID 1)
         $db->beginTransaction();
@@ -165,6 +238,8 @@ $members = $stmt->fetchAll();
 
 <?php if(isset($_GET['success']) && $_GET['success'] == 'system_cleared'): ?>
     <div class="alert alert-success"><strong>System Reset Complete!</strong> All members (except root user) and their associated genealogy tree, packages, investments, and transactional data have been securely deleted.</div>
+<?php elseif(isset($_GET['success']) && $_GET['success'] == 'member_deleted'): ?>
+    <div class="alert alert-success"><strong>Success!</strong> The member and all their associated genealogy, transactions, investments, wallets, PINs, and KYC info have been permanently deleted.</div>
 <?php elseif(isset($_GET['success'])): ?>
     <div class="alert alert-success">Action completed successfully.</div>
 <?php endif; ?>
@@ -218,6 +293,12 @@ $members = $stmt->fetchAll();
                                     <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
                                 <?php endif; ?>
                             </form>
+
+                            <?php if ($m['id'] > 1): ?>
+                                <button type="button" class="btn btn-sm btn-danger ms-1" onclick='openDeleteMemberModal(<?php echo $m['id']; ?>, <?php echo json_encode($m['username']); ?>, <?php echo json_encode($m['mid'] ?? ''); ?>)'>
+                                    <i class="fa fa-trash-alt"></i> Delete
+                                </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -226,5 +307,51 @@ $members = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<!-- Delete Member Modal -->
+<div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-labelledby="deleteMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+            <input type="hidden" name="action" value="delete_member">
+            <input type="hidden" name="user_id" id="delete_user_id">
+
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteMemberModalLabel"><i class="fa-solid fa-triangle-exclamation me-2"></i>Permanently Delete Member</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>CRITICAL WARNING:</strong> This action is irreversible. It will permanently purge:
+                    <ul class="mb-0 mt-1" style="font-size: 13px;">
+                        <li>Genealogy and team sponsorship relationships</li>
+                        <li>All historical packages and active/completed investments</li>
+                        <li>Accrued incomes and transaction logs</li>
+                        <li>Withdrawal wallet addresses, schedules, and submitted KYC data</li>
+                    </ul>
+                </div>
+                <p class="mt-3">Are you absolutely sure you want to delete member: <strong id="delete_user_username" class="text-danger"></strong>?</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Type Member ID <span id="delete_user_mid_placeholder" class="text-primary"></span> to Confirm:</label>
+                    <input type="text" name="confirm_mid" id="delete_confirm_mid" class="form-control" required autocomplete="off" placeholder="Type member ID here">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger"><i class="fa fa-trash-alt me-1"></i>Delete Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDeleteMemberModal(userId, username, mid) {
+    document.getElementById('delete_user_id').value = userId;
+    document.getElementById('delete_user_username').innerText = username;
+    document.getElementById('delete_user_mid_placeholder').innerText = "(" + mid + ")";
+    document.getElementById('delete_confirm_mid').value = '';
+    new bootstrap.Modal(document.getElementById('deleteMemberModal')).show();
+}
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

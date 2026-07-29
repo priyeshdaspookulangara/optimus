@@ -74,7 +74,7 @@ class MLMEngine {
      */
     public function processDailyROI() {
         $today = date('Y-m-d');
-        $stmt = $this->db->prepare("SELECT i.*, u.id as user_id FROM investments i JOIN users u ON i.user_id = u.id WHERE i.status = 'active' AND (i.last_roi_at IS NULL OR i.last_roi_at < ?)");
+        $stmt = $this->db->prepare("SELECT i.*, u.id as user_id FROM investments i JOIN users u ON i.user_id = u.id WHERE i.amount > 0 AND i.status = 'active' AND (i.last_roi_at IS NULL OR i.last_roi_at < ?)");
         $stmt->execute([$today]);
         $investments = $stmt->fetchAll();
 
@@ -476,17 +476,22 @@ class MLMEngine {
             $stmt->execute([$userId, $pin['package_id'], $package['amount']]);
             $investmentId = $this->db->lastInsertId();
 
-            $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
-            $stmt->execute([$package['amount'], $userId]);
+            if ($package['amount'] > 0) {
+                $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
+                $stmt->execute([$package['amount'], $userId]);
 
-            // PIN activation is a prepaid investment, so custom net_amount = 0.00 prevents debiting user's e-wallet balance
-            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
+                // PIN activation is a prepaid investment, so custom net_amount = 0.00 prevents debiting user's e-wallet balance
+                $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
 
-            // Distribute commissions
-            $this->distributeLevelIncome($userId, $package['amount']);
+                // Distribute commissions
+                $this->distributeLevelIncome($userId, $package['amount']);
 
-            // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
-            $this->updateUplineRanks($userId);
+                // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
+                $this->updateUplineRanks($userId);
+            } else {
+                // For null pin (0 amount)
+                $this->logTransaction($userId, 'INVESTMENT', 0.00, 0, "Package activated via NULL PIN (0 value): {$pinCode}", null, $investmentId, null, 0.00);
+            }
 
             if (!$isNested) {
                 $this->db->commit();

@@ -261,6 +261,7 @@ if ($headerUserId) {
                   <li><a class="dropdown-item py-2" href="withdraw_wallet.php"><i class="fa fa-credit-card me-2 text-primary"></i>Withdraw Wallet</a></li>
                   <li><a class="dropdown-item py-2" href="my_pins.php"><i class="fa fa-key me-2 text-primary"></i>My PINs</a></li>
                   <li><a class="dropdown-item py-2" href="my_team.php"><i class="fa fa-users me-2 text-primary"></i>My Team</a></li>
+                  <li><a class="dropdown-item py-2" href="kyc_details.php"><i class="fa fa-id-card me-2 text-primary"></i>KYC Details</a></li>
                   <li><a class="dropdown-item py-2" href="support.php"><i class="fa fa-headset me-2 text-primary"></i>Support</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item py-2 text-danger" href="logout.php"><i class="fa fa-sign-out-alt me-2 text-danger"></i>Logout</a></li>

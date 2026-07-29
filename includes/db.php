@@ -29,6 +29,23 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure user_kyc table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `user_kyc` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id` INT NOT NULL UNIQUE,
+                `pan_number` VARCHAR(50) DEFAULT NULL,
+                `bank_name` VARCHAR(100) DEFAULT NULL,
+                `account_number` VARCHAR(100) DEFAULT NULL,
+                `ifsc_code` VARCHAR(50) DEFAULT NULL,
+                `account_holder_name` VARCHAR(100) DEFAULT NULL,
+                `branch_name` VARCHAR(100) DEFAULT NULL,
+                `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                `remarks` TEXT DEFAULT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }

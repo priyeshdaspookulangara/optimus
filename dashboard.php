@@ -55,11 +55,42 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch KYC Status
+$stmt = $db->prepare("SELECT * FROM user_kyc WHERE user_id = ?");
+$stmt->execute([$userId]);
+$userKyc = $stmt->fetch();
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
 
 <div class="container-fluid content-inner dashboard-inner pb-5 p-3">
+    <?php if (!$userKyc): ?>
+        <div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4" role="alert" style="border-left: 5px solid #dc3545; background-color: #fdf2f2;">
+            <div>
+                <h5 class="alert-heading text-danger mb-1 fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>KYC Details Not Submitted!</h5>
+                <p class="mb-0 text-dark">Please submit your PAN and bank details to verify your identity and prevent withdrawal delays.</p>
+            </div>
+            <a href="kyc_details.php" class="btn btn-danger btn-sm text-white text-uppercase fw-bold px-3 py-2"><i class="fa-solid fa-id-card me-1"></i>Submit KYC Now</a>
+        </div>
+    <?php elseif ($userKyc['status'] === 'pending'): ?>
+        <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4" role="alert" style="border-left: 5px solid #ffc107; background-color: #fffbeb;">
+            <div>
+                <h5 class="alert-heading text-warning-emphasis mb-1 fw-bold text-dark"><i class="fa-solid fa-clock me-2"></i>KYC Verification Pending Review</h5>
+                <p class="mb-0 text-dark">Your KYC details are currently being verified by our administration team. No action is required at this time.</p>
+            </div>
+            <a href="kyc_details.php" class="btn btn-warning btn-sm text-dark text-uppercase fw-bold px-3 py-2"><i class="fa-solid fa-eye me-1"></i>View Details</a>
+        </div>
+    <?php elseif ($userKyc['status'] === 'rejected'): ?>
+        <div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4" role="alert" style="border-left: 5px solid #dc3545; background-color: #fdf2f2;">
+            <div>
+                <h5 class="alert-heading text-danger mb-1 fw-bold"><i class="fa-solid fa-circle-xmark me-2"></i>KYC Verification Rejected!</h5>
+                <p class="mb-0 text-dark">Your previous submission was rejected. Reason: <strong><?php echo htmlspecialchars($userKyc['remarks'] ?? 'Invalid details'); ?></strong>. Please correct and resubmit.</p>
+            </div>
+            <a href="kyc_details.php" class="btn btn-danger btn-sm text-white text-uppercase fw-bold px-3 py-2"><i class="fa-solid fa-edit me-1"></i>Update & Resubmit</a>
+        </div>
+    <?php endif; ?>
+
     <div class="row p-0">
         <div class="account-overview">
             <div class="overview-row">
