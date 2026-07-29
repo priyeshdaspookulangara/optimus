@@ -314,56 +314,109 @@ $packages = $stmt->fetchAll();
 </div>
 
 <script>
-$(document).ready(function() {
-    // Select All Checkbox logic
-    $('#selectAll').on('change', function() {
-        $('.pin-select-chk').prop('checked', this.checked).trigger('change');
-    });
+document.addEventListener("DOMContentLoaded", function() {
+    var selectAll = document.getElementById("selectAll");
+    var shareSelectedBtn = document.getElementById("shareSelectedBtn");
+    var checkboxes = document.querySelectorAll(".pin-select-chk");
+    var shareForm = document.getElementById("whatsappShareForm");
 
-    // Enable/disable the Share Selected button and update modal content
-    $(document).on('change', '.pin-select-chk', function() {
-        var checkedCount = $('.pin-select-chk:checked').length;
-        if (checkedCount > 0) {
-            $('#shareSelectedBtn').prop('disabled', false);
-        } else {
-            $('#shareSelectedBtn').prop('disabled', true);
-        }
+    // Toggle select all
+    if (selectAll) {
+        selectAll.addEventListener("change", function() {
+            var isChecked = this.checked;
+            checkboxes.forEach(function(chk) {
+                chk.checked = isChecked;
+            });
+            updateShareButtonState();
+        });
+    }
 
-        // Update Select All checkbox state based on individual checkboxes
-        var totalCount = $('.pin-select-chk').length;
-        $('#selectAll').prop('checked', checkedCount === totalCount);
-    });
-
-    // Populate modal when Share Selected button is clicked
-    $('#shareSelectedBtn').on('click', function() {
-        var selectedPinsContainer = $('#selectedPinsList');
-        selectedPinsContainer.empty();
-
-        var selectedInputContainer = $('#selectedPinsInputs');
-        selectedInputContainer.empty();
-
-        $('.pin-select-chk:checked').each(function() {
-            var pin = $(this).data('pin');
-            var package_name = $(this).data('package');
-
-            // Append to preview list in modal
-            selectedPinsContainer.append('<li class="list-group-item d-flex justify-content-between align-items-center py-2 text-dark"><span>🔑 <code>' + pin + '</code></span> <span class="badge bg-secondary">' + package_name + '</span></li>');
-
-            // Append hidden inputs to the form
-            selectedInputContainer.append('<input type="hidden" name="selected_pins[]" value="' + pin + '">');
+    // Monitor individual checkboxes using event delegation or direct binding
+    // Since rows might load dynamically or directly, direct binding is perfect on load
+    checkboxes.forEach(function(chk) {
+        chk.addEventListener("change", function() {
+            updateShareButtonState();
         });
     });
 
-    // When the WhatsApp share form is submitted, close the modal shortly after so the page state remains clean
-    $('#whatsappShareForm').on('submit', function() {
-        setTimeout(function() {
-            var modalEl = document.getElementById('sharePinModal');
-            var modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) {
-                modal.hide();
-            }
-        }, 1000);
-    });
+    function updateShareButtonState() {
+        var checkedCount = document.querySelectorAll(".pin-select-chk:checked").length;
+        if (shareSelectedBtn) {
+            shareSelectedBtn.disabled = (checkedCount === 0);
+        }
+        if (selectAll) {
+            var checkboxesTotal = document.querySelectorAll(".pin-select-chk").length;
+            selectAll.checked = (checkedCount === checkboxesTotal && checkboxesTotal > 0);
+        }
+    }
+
+    // Populate modal when Share Selected button is clicked
+    if (shareSelectedBtn) {
+        shareSelectedBtn.addEventListener("click", function() {
+            var selectedPinsContainer = document.getElementById("selectedPinsList");
+            var selectedInputContainer = document.getElementById("selectedPinsInputs");
+
+            if (selectedPinsContainer) selectedPinsContainer.innerHTML = "";
+            if (selectedInputContainer) selectedInputContainer.innerHTML = "";
+
+            var checkedBoxes = document.querySelectorAll(".pin-select-chk:checked");
+            checkedBoxes.forEach(function(chk) {
+                var pin = chk.getAttribute("data-pin");
+                var packageName = chk.getAttribute("data-package");
+
+                // Append to preview list
+                if (selectedPinsContainer) {
+                    var li = document.createElement("li");
+                    li.className = "list-group-item d-flex justify-content-between align-items-center py-2 text-dark";
+                    li.innerHTML = '<span>🔑 <code>' + escapeHtml(pin) + '</code></span> <span class="badge bg-secondary">' + escapeHtml(packageName) + '</span>';
+                    selectedPinsContainer.appendChild(li);
+                }
+
+                // Append hidden input
+                if (selectedInputContainer) {
+                    var input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = "selected_pins[]";
+                    input.value = pin;
+                    selectedInputContainer.appendChild(input);
+                }
+            });
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return "";
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Close the Bootstrap modal on form submit
+    if (shareForm) {
+        shareForm.addEventListener("submit", function() {
+            setTimeout(function() {
+                var modalEl = document.getElementById('sharePinModal');
+                if (modalEl) {
+                    // Try to hide with Bootstrap modal instance
+                    if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) {
+                            modal.hide();
+                            return;
+                        }
+                    }
+                    // Fallback: trigger click on Close button
+                    var closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+                    if (closeBtn) {
+                        closeBtn.click();
+                    }
+                }
+            }, 1000);
+        });
+    }
 });
 </script>
 
