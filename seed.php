@@ -11,7 +11,8 @@ try {
     $db->exec("DELETE FROM packages");
     $stmt = $db->prepare("INSERT INTO packages (name, amount) VALUES (?, ?)");
     foreach ($config['packages'] as $amount) {
-        $stmt->execute(["Package \${$amount}", $amount]);
+        $name = ($amount == 0) ? "Zero Package" : "Package \${$amount}";
+        $stmt->execute([$name, $amount]);
     }
     echo "Packages seeded.\n";
 

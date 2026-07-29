@@ -75,6 +75,7 @@ include __DIR__ . '/includes/header.php';
                         <label for="amount" class="form-label text-white">Select Package</label>
                         <select class="form-select" id="amount" name="amount" required>
                             <?php foreach($config['packages'] as $pkg): ?>
+                                <?php if ($pkg == 0) continue; ?>
                                 <option value="<?php echo $pkg; ?>">$<?php echo number_format($pkg); ?></option>
                             <?php endforeach; ?>
                         </select>

@@ -1,23 +1,24 @@
 -- MLM Initial Data Seed DML
 
--- 1. Insert Default Packages ($25 up to $1,000,000)
+-- 1. Insert Default Packages ($0 up to $1,000,000)
 TRUNCATE TABLE `packages`;
 INSERT INTO `packages` (`id`, `name`, `amount`) VALUES
-(1, 'Package $25', 25.00),
-(2, 'Package $50', 50.00),
-(3, 'Package $100', 100.00),
-(4, 'Package $250', 250.00),
-(5, 'Package $500', 500.00),
-(6, 'Package $1000', 1000.00),
-(7, 'Package $2500', 2500.00),
-(8, 'Package $5000', 5000.00),
-(9, 'Package $10000', 10000.00),
-(10, 'Package $25000', 25000.00),
-(11, 'Package $50000', 50000.00),
-(12, 'Package $100000', 100000.00),
-(13, 'Package $250000', 250000.00),
-(14, 'Package $500000', 500000.00),
-(15, 'Package $1000000', 1000000.00);
+(1, 'Zero Package', 0.00),
+(2, 'Package $25', 25.00),
+(3, 'Package $50', 50.00),
+(4, 'Package $100', 100.00),
+(5, 'Package $250', 250.00),
+(6, 'Package $500', 500.00),
+(7, 'Package $1000', 1000.00),
+(8, 'Package $2500', 2500.00),
+(9, 'Package $5000', 5000.00),
+(10, 'Package $10000', 10000.00),
+(11, 'Package $25000', 25000.00),
+(12, 'Package $50000', 50000.00),
+(13, 'Package $100000', 100000.00),
+(14, 'Package $250000', 250000.00),
+(15, 'Package $500000', 500000.00),
+(16, 'Package $1000000', 1000000.00);
 
 -- 2. Insert Default 12 Specific Ranks
 TRUNCATE TABLE `ranks`;

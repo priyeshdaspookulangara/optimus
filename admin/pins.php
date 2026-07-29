@@ -79,6 +79,14 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $pins = $stmt->fetchAll();
 
+// Ensure a Zero Package (amount = 0) exists
+$chkZero = $db->prepare("SELECT id FROM packages WHERE amount = 0");
+$chkZero->execute();
+if (!$chkZero->fetch()) {
+    $insertZero = $db->prepare("INSERT INTO packages (name, amount) VALUES (?, ?)");
+    $insertZero->execute(['Zero Package', 0]);
+}
+
 $stmt = $db->query("SELECT * FROM packages ORDER BY amount ASC");
 $packages = $stmt->fetchAll();
 ?>
