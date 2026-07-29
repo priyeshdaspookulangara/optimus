@@ -96,18 +96,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         // Format the WhatsApp text
-        $waText = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\n";
+        $waText = "*OPTIMUS INFINITY - ACTIVATION PINS*\n\n";
         $waText .= "Dear " . $recipientName . ",\n\n";
-        $waText .= "Your Package Activation PIN list has been successfully generated!\n\n";
+        $waText .= "Your Package Activation PIN list has been successfully generated:\n\n";
 
         $idx = 1;
         foreach ($pinsData as $pinRow) {
-            $waText .= $idx . ") 🔑 *PIN CODE:* " . $pinRow['pin_code'] . "\n   📦 *PACKAGE:* " . $pinRow['package_name'] . "\n\n";
+            $waText .= $idx . ") *PIN CODE:* " . $pinRow['pin_code'] . "\n   *PACKAGE:* " . $pinRow['package_name'] . "\n\n";
             $idx++;
         }
 
         $waText .= "Total PINs: " . count($pinsData) . "\n\n";
-        $waText .= "Thank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+        $waText .= "Thank you for choosing Optimus Infinity.";
 
         // Clean phone number for WhatsApp API
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
@@ -220,7 +220,7 @@ $packages = $stmt->fetchAll();
                         <td><?php echo date('Y-m-d H:i', strtotime($p['created_at'])); ?></td>
                         <td>
                             <?php
-                            $waText = "🌟 *OPTIMUS INFINITY - ACTIVATION PIN* 🌟\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n🔑 *PIN CODE:* " . $p['pin_code'] . "\n📦 *PACKAGE:* " . $p['package_name'] . "\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                            $waText = "*OPTIMUS INFINITY - ACTIVATION PIN*\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n*PIN CODE:* " . $p['pin_code'] . "\n*PACKAGE:* " . $p['package_name'] . "\n\nThank you for choosing Optimus Infinity.";
                             $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
 
                             $smsText = "OPTIMUS INFINITY - ACTIVATION PIN\n\nDear Partner,\n\nYour Package Activation PIN is: " . $p['pin_code'] . "\nPackage: " . $p['package_name'] . "\n\nThank you, Optimus Infinity!";
