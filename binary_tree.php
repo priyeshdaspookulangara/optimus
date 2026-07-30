@@ -31,7 +31,7 @@ if ($focusedUserId === $loggedInUserId) {
 }
 
 if (!$isAllowed) {
-    $errorMsg = "Access denied. You can only view your own downline binary tree.";
+    $errorMsg = "Access denied. You can only view your own downline team.";
     $focusedUserId = $loggedInUserId;
 }
 
@@ -65,7 +65,7 @@ if (!empty($searchQuery)) {
     }
 }
 
-// Helper functions to fetch nodes
+// Helper functions to fetch nodes (supporting dynamic unilevel-to-binary fallback)
 function getBinaryNode($db, $userId) {
     if (!$userId) return null;
     $stmt = $db->prepare("
@@ -80,6 +80,8 @@ function getBinaryNode($db, $userId) {
 
 function getChildNode($db, $parentId, $position) {
     if (!$parentId) return null;
+
+    // 1. Try to find a child with explicit binary placement column (if populated in future)
     $stmt = $db->prepare("
         SELECT u.*,
                (SELECT COUNT(*) FROM users WHERE sponsor_id = u.id) as direct_count
@@ -88,7 +90,31 @@ function getChildNode($db, $parentId, $position) {
         LIMIT 1
     ");
     $stmt->execute([$parentId, $position]);
-    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $node = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($node) {
+        return $node;
+    }
+
+    // 2. Fallback to unilevel direct sponsor downline:
+    // 'left' -> 1st child (index 0), 'right' -> 2nd child (index 1)
+    $stmt = $db->prepare("
+        SELECT u.*,
+               (SELECT COUNT(*) FROM users WHERE sponsor_id = u.id) as direct_count
+        FROM users u
+        WHERE u.sponsor_id = ?
+        ORDER BY u.id ASC
+    ");
+    $stmt->execute([$parentId]);
+    $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($position === 'left' && isset($children[0])) {
+        return $children[0];
+    }
+    if ($position === 'right' && isset($children[1])) {
+        return $children[1];
+    }
+
+    return null;
 }
 
 // Fetch all 7 nodes of our 3-level binary tree
@@ -106,8 +132,14 @@ $Node7 = getChildNode($db, $Node3 ? $Node3['id'] : null, 'right');
 // Determine parent ID of the current focused root user for the "Navigate Up" button
 $upUserId = null;
 if ($focusedUserId !== $loggedInUserId && $Node1) {
-    $upUserId = $Node1['placement_id'];
+    // If we have explicit placement_id, use it, else use sponsor_id as unilevel parent fallback
+    $upUserId = $Node1['placement_id'] ?: $Node1['sponsor_id'];
 }
+
+// Fetch all direct unilevel referrals of the focused user to allow navigating through they
+$stmtDirects = $db->prepare("SELECT id, username, mid, total_investment, status FROM users WHERE sponsor_id = ? ORDER BY id ASC");
+$stmtDirects->execute([$focusedUserId]);
+$allDirects = $stmtDirects->fetchAll();
 
 $pageTitle = 'Binary Placement Tree';
 include __DIR__ . '/includes/header.php';
@@ -214,6 +246,27 @@ include __DIR__ . '/includes/header.php';
                     <?php if (!empty($errorMsg)): ?>
                         <div class="alert alert-danger dismissible fade show" role="alert">
                             <i class="fa fa-exclamation-circle me-1"></i> <?php echo $errorMsg; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Direct Referrals Navigation (Extremely useful for unilevel trees) -->
+                    <?php if (!empty($allDirects)): ?>
+                        <div class="mb-4 bg-light p-3 rounded">
+                            <h6 class="text-dark fw-bold mb-2"><i class="fa fa-users text-primary me-2"></i>Direct Downlines of <?php echo htmlspecialchars($Node1['username']); ?> (<?php echo count($allDirects); ?>):</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <?php foreach ($allDirects as $index => $dir): ?>
+                                    <a href="binary_tree.php?user_id=<?php echo $dir['id']; ?>" class="btn btn-xs <?php echo ($index < 2) ? 'btn-outline-primary' : 'btn-outline-secondary'; ?> py-1 px-2" style="font-size: 11px;">
+                                        <i class="fa fa-user me-1"></i>
+                                        <?php echo htmlspecialchars($dir['username']); ?> (<?php echo htmlspecialchars($dir['mid'] ?? $dir['id']); ?>)
+                                        <?php if ($index < 2): ?>
+                                            <span class="badge bg-primary text-white ms-1"><?php echo ($index === 0) ? 'Left Slot' : 'Right Slot'; ?></span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php if (count($allDirects) > 2): ?>
+                                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle me-1"></i>Note: This tree displays the first two referrals as Left & Right. You can click on any referral above to focus and explore their subtree.</small>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
 
