@@ -275,6 +275,15 @@ class MLMEngine {
                 $dailyIncome = (float)$sched['daily_income'];
                 $userId = $sched['user_id'];
 
+                // Find rank ID for this slab
+                $slabRankId = 0;
+                foreach ($this->config['ranks'] as $idx => $rankConf) {
+                    if ($rankConf['matching'] == $sched['slab_amount']) {
+                        $slabRankId = $idx + 1;
+                        break;
+                    }
+                }
+
                 // Verify remaining ID cap (300%)
                 $allowable = $this->getAllowableAmount($userId, $dailyIncome);
                 if ($allowable > 0) {
@@ -341,6 +350,17 @@ class MLMEngine {
                                     "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
                                     $userId
                                 );
+                            }
+
+                            // Propagate Rank Upwards (obeying active status and termination threshold)
+                            if ($slabRankId > 0) {
+                                $stmtCurrentRank = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+                                $stmtCurrentRank->execute([$upline['parent_id']]);
+                                $parentUser = $stmtCurrentRank->fetch();
+                                if ($parentUser && $slabRankId > $parentUser['rank_id']) {
+                                    $stmtUpdateParentRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                                    $stmtUpdateParentRank->execute([$slabRankId, $upline['parent_id']]);
+                                }
                             }
                         }
 
