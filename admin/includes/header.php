@@ -38,6 +38,7 @@ $db = Database::getInstance()->getConnection();
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
         <a href="interventions.php" id="link-interventions" class="<?php echo basename($_SERVER['PHP_SELF']) == 'interventions.php' ? 'active' : ''; ?>"><i class="fa fa-exclamation-triangle me-2"></i> Audit Interventions</a>
         <a href="abnormalities.php" id="link-abnormalities" class="<?php echo basename($_SERVER['PHP_SELF']) == 'abnormalities.php' ? 'active' : ''; ?>"><i class="fa fa-bug me-2"></i> System Abnormalities</a>
+        <a href="roi_performance.php" id="link-roi-performance" class="<?php echo basename($_SERVER['PHP_SELF']) == 'roi_performance.php' ? 'active' : ''; ?>"><i class="fa fa-chart-pie me-2"></i> Investment & ROI</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>
