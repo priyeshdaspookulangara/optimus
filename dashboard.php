@@ -79,6 +79,16 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div class="overview-row">
                 <div class="overview-box">
+                    <h3>TOTAL LEVEL INCOME $</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_level'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>TOTAL RANK INCOME $</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_rank'], 2); ?></p>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box">
                     <h3>TEAM INVESTMENT $</h3>
                     <p class="text-primary mt-2"><?php echo number_format($team_inv['team_investment'] ?? 0, 2); ?></p>
                 </div>

@@ -234,6 +234,9 @@ class MLMEngine {
                 $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$currentRankId, $user['id']]);
                 $user['rank_id'] = $currentRankId;
+
+                // Propagate rank upwards in real-time
+                $this->propagateRankUpwardsInRealTime($user['id'], $currentRankId);
             }
 
             // Sync/Create new matching schedules if currently qualified units > existing registered matching schedules
@@ -554,6 +557,9 @@ class MLMEngine {
                 $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$qualifiedRankId, $ancestorId]);
                 $user['rank_id'] = $qualifiedRankId;
+
+                // Propagate rank upwards in real-time
+                $this->propagateRankUpwardsInRealTime($ancestorId, $qualifiedRankId);
             }
 
             // Sync/Create new matching schedules if qualified units > existing registered matching schedules
@@ -581,6 +587,57 @@ class MLMEngine {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Propagate rank status upwards to eligible active parent sponsors (obeying consecutive single-referral nodes)
+     */
+    public function propagateRankUpwardsInRealTime($userId, $rankId) {
+        if ($rankId <= 0) return;
+
+        // Fetch direct unilevel ancestors
+        $stmtUplines = $this->db->prepare("
+            SELECT g.parent_id, u.status
+            FROM genealogy g
+            JOIN users u ON g.parent_id = u.id
+            WHERE g.user_id = ?
+            ORDER BY g.level ASC
+        ");
+        $stmtUplines->execute([$userId]);
+        $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+        $consecutiveSingleCount = 0;
+
+        foreach ($uplines as $upline) {
+            // Check consecutive single nodes
+            $stmtReferrals->execute([$upline['parent_id']]);
+            $refCount = (int)$stmtReferrals->fetchColumn();
+
+            if ($refCount === 1) {
+                $consecutiveSingleCount++;
+            } else {
+                $consecutiveSingleCount = 0;
+            }
+
+            if ($consecutiveSingleCount > 3) {
+                break;
+            }
+
+            if ($upline['status'] === 'active') {
+                $stmtCurrentRank = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+                $stmtCurrentRank->execute([$upline['parent_id']]);
+                $parentUser = $stmtCurrentRank->fetch(PDO::FETCH_ASSOC);
+                if ($parentUser && $rankId > $parentUser['rank_id']) {
+                    $stmtUpdateParentRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                    $stmtUpdateParentRank->execute([$rankId, $upline['parent_id']]);
+                }
+            }
+
+            if ($consecutiveSingleCount === 3) {
+                break;
             }
         }
     }
