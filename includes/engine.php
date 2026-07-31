@@ -563,5 +563,60 @@ class MLMEngine {
                 }
             }
         }
+
+        // Rank Status Propagation Phase
+        $stmtUplines = $this->db->prepare("
+            SELECT g.parent_id, u.rank_id, u.status
+            FROM genealogy g
+            JOIN users u ON g.parent_id = u.id
+            WHERE g.user_id = ?
+            ORDER BY g.level ASC
+        ");
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+        $stmtUpdateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+
+        foreach ($targets as $target) {
+            $ancestorId = $target['parent_id'];
+            if (empty($ancestorId)) continue;
+
+            // Fetch target's current rank_id (could have been organically upgraded above)
+            $stmtRank = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+            $stmtRank->execute([$ancestorId]);
+            $currentRankId = (int)$stmtRank->fetchColumn();
+
+            if ($currentRankId > 0) {
+                // Fetch direct unilevel ancestors
+                $stmtUplines->execute([$ancestorId]);
+                $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+
+                $consecutiveSingleCount = 0;
+                foreach ($uplines as $upline) {
+                    $uplineId = $upline['parent_id'];
+
+                    // Check if this parent has only one direct referral (single direct referral node)
+                    $stmtReferrals->execute([$uplineId]);
+                    $refCount = (int)$stmtReferrals->fetchColumn();
+
+                    if ($refCount === 1) {
+                        $consecutiveSingleCount++;
+                    } else {
+                        $consecutiveSingleCount = 0;
+                    }
+
+                    if ($consecutiveSingleCount > 3) {
+                        break;
+                    }
+
+                    // Propagate rank if current upline's rank is lower
+                    if ($currentRankId > (int)$upline['rank_id']) {
+                        $stmtUpdateRank->execute([$currentRankId, $uplineId]);
+                    }
+
+                    if ($consecutiveSingleCount === 3) {
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
