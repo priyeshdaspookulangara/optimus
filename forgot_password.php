@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $reset_link = "{$protocol}://{$host}{$dir}/reset_password.php?token={$token}";
 
             // Email details
+            require_once __DIR__ . '/includes/mailer.php';
             $to = $user['email'];
             $subject = "Password Recovery - MLM App";
             $message = "Hello " . htmlspecialchars($user['username']) . ",\n\n" .
@@ -48,12 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        "If you did not request this, please ignore this email.\n\n" .
                        "Best regards,\nMLM App Team";
 
-            $headers = "From: no-reply@" . $host . "\r\n" .
-                       "Reply-To: no-reply@" . $host . "\r\n" .
-                       "X-Mailer: PHP/" . phpversion();
-
-            // Send actual mail using PHP mail()
-            @mail($to, $subject, $message, $headers);
+            // Send email via SMTP (falls back to php mail if SMTP socket unavailable)
+            sendEmail($to, $subject, $message);
 
             // Log the email to emails.log for sandbox/local testing
             $log_entry = "========================================\n" .

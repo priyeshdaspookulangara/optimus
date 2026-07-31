@@ -66,5 +66,13 @@ return [
     'rank_income' => [
         'rate' => 0.0040, // 0.40% daily rank income (often used as reference)
         'duration' => 100,
+    ],
+
+    // SMTP Mailer Settings
+    'smtp' => [
+        'host' => 'ssl://mail.optimusinfinity.com',
+        'port' => 465,
+        'username' => 'info@optimusinfinity.com',
+        'password' => 'pearlsPearls2#',
     ]
 ];
