@@ -11,11 +11,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$username]);
     $admin = $stmt->fetch();
 
-    if ($admin && password_verify($password, $admin['password'])) {
-        $_SESSION['admin_id'] = $admin['id'];
-        $_SESSION['admin_username'] = $admin['username'];
-        header("Location: dashboard.php");
-        exit();
+    if ($admin) {
+        $storedHash = $admin['password'];
+        $cleanHash = rtrim($storedHash, '.');
+        if (password_verify($password, $storedHash)) {
+            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_username'] = $admin['username'];
+            header("Location: dashboard.php");
+            exit();
+        } elseif (strlen($storedHash) === 61 && password_verify($password, $cleanHash)) {
+            try {
+                $update_stmt = $db->prepare("UPDATE admins SET password = ? WHERE id = ?");
+                $update_stmt->execute([$cleanHash, $admin['id']]);
+            } catch (Exception $e) {
+                // Ignore silently if database is read-only or similar
+            }
+            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_username'] = $admin['username'];
+            header("Location: dashboard.php");
+            exit();
+        } else {
+            $error = "Invalid username or password";
+        }
     } else {
         $error = "Invalid username or password";
     }
