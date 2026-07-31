@@ -160,4 +160,4 @@ INSERT INTO `users` (`mid`, `username`, `email`, `password`) VALUES
 -- Username: superadmin
 -- Password: admin123 (hashed)
 INSERT INTO `admins` (`username`, `email`, `password`) VALUES
-('superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');
+('superadmin', 'admin@mlm.com', '$2y$10$/zLTf46ntuVK9KqsBGrqBOEYzD/np0USKG8MtRXJjkESHvQXNFAPC');

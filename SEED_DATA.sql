@@ -40,12 +40,12 @@ INSERT INTO `ranks` (`id`, `name`, `matching_business`, `daily_income`, `duratio
 -- Password: admin123 (hashed)
 TRUNCATE TABLE `admins`;
 INSERT INTO `admins` (`id`, `username`, `email`, `password`) VALUES
-(1, 'superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');
+(1, 'superadmin', 'admin@mlm.com', '$2y$10$/zLTf46ntuVK9KqsBGrqBOEYzD/np0USKG8MtRXJjkESHvQXNFAPC');
 
 -- 4. Insert Default Seed Member
 -- Username: admin
 -- Password: password123 (hashed)
 -- Includes default values for physical profile columns
 DELETE FROM `users` WHERE `username` = 'admin';
-INSERT INTO `users` (`id`, `username`, `full_name`, `phone`, `address`, `post_office_number`, `state`, `country`, `email`, `password`, `sponsor_id`, `placement_id`, `position`) VALUES
-(1, 'admin', 'Optimus Developer', '+15551234', '1200 N Federal Hwy Suite 300', '33432', 'Florida', 'United States of America', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC', NULL, NULL, NULL);
+INSERT INTO `users` (`id`, `mid`, `username`, `full_name`, `phone`, `address`, `post_office_number`, `state`, `country`, `email`, `password`, `sponsor_id`, `placement_id`, `position`) VALUES
+(1, 'OPT59655', 'admin', 'Optimus Developer', '+15551234', '1200 N Federal Hwy Suite 300', '33432', 'Florida', 'United States of America', 'admin@example.com', '$2y$10$G3GMptfbJd4LAeC1l0GP4OoZpk09W/vUax70EpI5PcrX1r8wyWVRC', NULL, NULL, NULL);
