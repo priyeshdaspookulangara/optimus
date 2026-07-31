@@ -186,7 +186,8 @@ class MLMEngine {
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Match from lowest to highest slab (Ascending Order)
+        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
