@@ -83,7 +83,11 @@ include __DIR__ . '/includes/header.php';
                     <h3>TODAY %</h3>
                     <p class="text-primary mt-2">0.5%</p>
                 </div>
-                <div class="overview-box" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal" title="Click to view full breakdown">
+                <div class="overview-box" style="cursor: pointer;"
+                     data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal"
+                     data-toggle="modal" data-target="#earningsBreakdownModal"
+                     onclick="try { var myModal = new bootstrap.Modal(document.getElementById('earningsBreakdownModal')); myModal.show(); } catch(e) { try { $('#earningsBreakdownModal').modal('show'); } catch(err) { console.error('Modal failed to open', err); } }"
+                     title="Click to view full breakdown">
                     <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
                     <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
                     <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
@@ -233,7 +237,7 @@ include __DIR__ . '/includes/header.php';
                 <h5 class="modal-title text-white fw-bold" id="earningsBreakdownModalLabel">
                     <i class="fa-solid fa-chart-pie me-2 text-warning"></i> Earnings Composition
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="text-center mb-4">
@@ -302,7 +306,7 @@ include __DIR__ . '/includes/header.php';
                 </div>
             </div>
             <div class="modal-footer border-top-0 d-flex justify-content-center">
-                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
+                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" data-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
             </div>
         </div>
     </div>
