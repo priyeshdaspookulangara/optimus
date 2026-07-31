@@ -14,6 +14,17 @@ $config = require __DIR__ . '/../includes/config.php';
 
 $ranksList = $config['ranks'];
 
+// Ensure intervention_logs table exists
+$db->exec("
+    CREATE TABLE IF NOT EXISTS `intervention_logs` (
+        `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `user_id` int NOT NULL,
+        `action_taken` varchar(255) NOT NULL,
+        `details` text NOT NULL,
+        `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
+
 // Handle Auto-Fix / Cleanup of specific user's manual matching schedules/ranks
 if (isset($_POST['action']) && $_POST['action'] === 'fix_user') {
     // Validate CSRF
@@ -22,6 +33,13 @@ if (isset($_POST['action']) && $_POST['action'] === 'fix_user') {
 
         $db->beginTransaction();
         try {
+            // Fetch current user details for logging
+            $stmtUserBefore = $db->prepare("SELECT username, rank_id FROM users WHERE id = ?");
+            $stmtUserBefore->execute([$targetUserId]);
+            $userBefore = $stmtUserBefore->fetch();
+            $prevRankId = (int)($userBefore['rank_id'] ?? 0);
+            $username = $userBefore['username'] ?? "ID $targetUserId";
+
             // Get organic leg business and matched business
             $legStats = $engine->getLegsBusiness($targetUserId);
             $matchedBusiness = $legStats['matched_business'];
@@ -60,6 +78,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'fix_user') {
                     }
                 }
             }
+
+            // 3. Log this intervention
+            $prevRankName = $prevRankId > 0 ? $ranksList[$prevRankId - 1]['name'] : 'None';
+            $newRankName = $organicRankId > 0 ? $ranksList[$organicRankId - 1]['name'] : 'None';
+
+            $logDetails = "Reverted rank from '{$prevRankName}' to '{$newRankName}'. Recalculated organic matching leg business: $" . number_format($matchedBusiness, 2) . ".";
+            $logAction = "Auto-Fix Interventions for member '{$username}'";
+
+            $stmtLog = $db->prepare("INSERT INTO intervention_logs (user_id, action_taken, details) VALUES (?, ?, ?)");
+            $stmtLog->execute([$targetUserId, $logAction, $logDetails]);
 
             $db->commit();
             $successMsg = "Successfully cleaned up manual interventions for user ID " . $targetUserId;
@@ -145,6 +173,15 @@ foreach ($usersToAudit as $user) {
         ];
     }
 }
+
+// Fetch last 50 entries from intervention_logs for Audit Intervention History Report
+$loggedInterventions = $db->query("
+    SELECT il.*, u.username, u.mid
+    FROM intervention_logs il
+    LEFT JOIN users u ON il.user_id = u.id
+    ORDER BY il.created_at DESC
+    LIMIT 50
+")->fetchAll();
 
 $pageTitle = 'Audit & Manual Interventions';
 include __DIR__ . '/includes/header.php';
@@ -255,6 +292,55 @@ include __DIR__ . '/includes/header.php';
                                                         <i class="fa fa-wrench me-1"></i> Auto-Fix
                                                     </button>
                                                 </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Intervention History Report Section -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0 p-3">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 text-dark font-weight-bold"><i class="fa fa-history text-secondary me-2"></i> Audit Intervention History Report (Compliance Master Log)</h5>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($loggedInterventions)): ?>
+                        <div class="text-center py-4 text-muted">
+                            <i class="fa fa-folder-open mb-2" style="font-size: 32px;"></i>
+                            <p class="mb-0">No intervention logs registered yet. All resolved/rollbacked scan events will be logged here.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped align-middle" style="font-size: 13px;">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Affected Member</th>
+                                        <th>Action Taken / Log Context</th>
+                                        <th>Audit Log Details & Trace</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($loggedInterventions as $log): ?>
+                                        <tr>
+                                            <td style="width: 15%;"><?php echo date('Y-m-d H:i:s', strtotime($log['created_at'])); ?></td>
+                                            <td style="width: 20%;">
+                                                <strong><?php echo htmlspecialchars($log['username'] ?? 'User ID '.$log['user_id']); ?></strong><br>
+                                                <small class="text-muted"><?php echo htmlspecialchars($log['mid'] ?? 'None'); ?></small>
+                                            </td>
+                                            <td style="width: 25%;" class="font-weight-bold text-primary">
+                                                <?php echo htmlspecialchars($log['action_taken']); ?>
+                                            </td>
+                                            <td style="width: 40%;" class="text-muted">
+                                                <?php echo htmlspecialchars($log['details']); ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
