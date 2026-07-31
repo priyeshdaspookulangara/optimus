@@ -86,7 +86,7 @@ include __DIR__ . '/includes/header.php';
                 <div class="overview-box" style="cursor: pointer;"
                      data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal"
                      data-toggle="modal" data-target="#earningsBreakdownModal"
-                     onclick="try { var myModal = new bootstrap.Modal(document.getElementById('earningsBreakdownModal')); myModal.show(); } catch(e) { try { $('#earningsBreakdownModal').modal('show'); } catch(err) { console.error('Modal failed to open', err); } }"
+                     onclick="if(window.bootstrap && window.bootstrap.Modal) { try { var myModal = new window.bootstrap.Modal(document.getElementById('earningsBreakdownModal')); myModal.show(); } catch(err) {} } else if(window.jQuery && window.jQuery.fn.modal) { try { window.jQuery('#earningsBreakdownModal').modal('show'); } catch(err) {} }"
                      title="Click to view full breakdown">
                     <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
                     <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
@@ -311,5 +311,14 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('earningsBreakdownModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
