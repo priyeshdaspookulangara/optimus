@@ -3,6 +3,7 @@
       </div>
     </footer>
   </main>
+  <div class="loader d-none"></div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://optimusinfinity.com/assets/js/core/libs.min.js"></script>
   <script src="https://optimusinfinity.com/assets/js/core/external.min.js"></script>

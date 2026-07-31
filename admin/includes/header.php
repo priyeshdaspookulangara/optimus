@@ -36,6 +36,10 @@ $db = Database::getInstance()->getConnection();
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="withdrawals.php" id="link-withdrawals" class="<?php echo basename($_SERVER['PHP_SELF']) == 'withdrawals.php' ? 'active' : ''; ?>"><i class="fa fa-money-bill-wave me-2"></i> Withdrawals</a>
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
+        <a href="interventions.php" id="link-interventions" class="<?php echo basename($_SERVER['PHP_SELF']) == 'interventions.php' ? 'active' : ''; ?>"><i class="fa fa-exclamation-triangle me-2"></i> Audit Interventions</a>
+        <a href="abnormalities.php" id="link-abnormalities" class="<?php echo basename($_SERVER['PHP_SELF']) == 'abnormalities.php' ? 'active' : ''; ?>"><i class="fa fa-bug me-2"></i> System Abnormalities</a>
+        <a href="roi_performance.php" id="link-roi-performance" class="<?php echo basename($_SERVER['PHP_SELF']) == 'roi_performance.php' ? 'active' : ''; ?>"><i class="fa fa-chart-pie me-2"></i> Investment & ROI</a>
+        <a href="network_mlm.php" id="link-network-mlm" class="<?php echo basename($_SERVER['PHP_SELF']) == 'network_mlm.php' ? 'active' : ''; ?>"><i class="fa fa-network-wired me-2"></i> Network & MLM Reports</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>

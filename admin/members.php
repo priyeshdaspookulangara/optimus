@@ -89,7 +89,11 @@ $rankFilter = $_GET['rank_id'] ?? '';
 $packageFilter = $_GET['package_amount'] ?? '';
 
 // Build dynamic query
-$query = "SELECT DISTINCT u.* FROM users u";
+$query = "SELECT DISTINCT u.*,
+          (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = u.id AND type = 'ROI') as total_roi,
+          (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = u.id AND type = 'LEVEL_INCOME') as total_level,
+          (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = u.id AND type = 'RANK_INCOME') as total_rank
+          FROM users u";
 $params = [];
 $joins = [];
 $conditions = [];
@@ -184,6 +188,7 @@ $members = $stmt->fetchAll();
                         <th>Email</th>
                         <th>Rank</th>
                         <th>Total Invested</th>
+                        <th>Total Earnings</th>
                         <th>Status</th>
                         <th>Joined</th>
                         <th>Action</th>
@@ -191,6 +196,12 @@ $members = $stmt->fetchAll();
                 </thead>
                 <tbody>
                     <?php foreach($members as $m): ?>
+                    <?php
+                        $roi = (float)$m['total_roi'];
+                        $level = (float)$m['total_level'];
+                        $rank = (float)$m['total_rank'];
+                        $sumEarnings = $roi + $level + $rank;
+                    ?>
                     <tr>
                         <td><strong class="text-primary"><?php echo htmlspecialchars($m['mid'] ?? 'None'); ?></strong></td>
                         <td><strong><?php echo htmlspecialchars($m['username']); ?></strong></td>
@@ -201,6 +212,48 @@ $members = $stmt->fetchAll();
                             </span>
                         </td>
                         <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" data-bs-toggle="modal" data-bs-target="#earningsModal<?php echo $m['id']; ?>">
+                                $<?php echo number_format($sumEarnings, 2); ?> <i class="fa fa-chart-pie ms-1"></i>
+                            </button>
+
+                            <!-- Earnings Composition Modal -->
+                            <div class="modal fade" id="earningsModal<?php echo $m['id']; ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content text-dark">
+                                        <div class="modal-header bg-success text-white">
+                                            <h5 class="modal-title"><i class="fa fa-chart-pie me-2"></i> Earnings Composition Report</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4">
+                                            <div class="text-center mb-4">
+                                                <h6 class="text-muted text-uppercase mb-1" style="font-size: 12px;">Total Accumulated Earnings</h6>
+                                                <h2 class="text-success font-weight-bold">$<?php echo number_format($sumEarnings, 2); ?></h2>
+                                                <small class="text-muted">Account: <strong><?php echo htmlspecialchars($m['username']); ?></strong> (<?php echo htmlspecialchars($m['mid']); ?>)</small>
+                                            </div>
+
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    <span><i class="fa fa-circle text-primary me-2" style="font-size: 8px;"></i> Passive Trade Profits (ROI)</span>
+                                                    <span class="font-weight-bold">$<?php echo number_format($roi, 2); ?></span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    <span><i class="fa fa-circle text-success me-2" style="font-size: 8px;"></i> Unilevel Referral Commissions</span>
+                                                    <span class="font-weight-bold">$<?php echo number_format($level, 2); ?></span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    <span><i class="fa fa-circle text-warning me-2" style="font-size: 8px;"></i> Slab Matching Ranks Income</span>
+                                                    <span class="font-weight-bold">$<?php echo number_format($rank, 2); ?></span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="modal-footer bg-light">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close Report</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
                         <td>
                             <span class="badge <?php echo htmlspecialchars($m['status']) == 'active' ? 'bg-success' : 'bg-danger'; ?>">
                                 <?php echo htmlspecialchars(strtoupper($m['status'])); ?>

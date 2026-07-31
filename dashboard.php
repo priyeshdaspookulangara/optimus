@@ -55,6 +55,18 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch latest 15 income transactions for detailed modal split breakdown ("from where")
+$stmtIncomes = $db->prepare("
+    SELECT t.*, u.username as source_username, u.mid as source_mid
+    FROM transactions t
+    LEFT JOIN users u ON t.related_user_id = u.id
+    WHERE t.user_id = ? AND t.type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')
+    ORDER BY t.created_at DESC
+    LIMIT 15
+");
+$stmtIncomes->execute([$userId]);
+$recentIncomes = $stmtIncomes->fetchAll(PDO::FETCH_ASSOC);
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -71,10 +83,22 @@ include __DIR__ . '/includes/header.php';
                     <h3>TODAY %</h3>
                     <p class="text-primary mt-2">0.5%</p>
                 </div>
-                <div class="overview-box" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal" title="Click to view full breakdown">
+                <div class="overview-box" style="cursor: pointer;"
+                     onclick="document.getElementById('earningsBreakdownModal').style.display = 'flex';"
+                     title="Click to view full breakdown">
                     <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
                     <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
                     <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>TOTAL LEVEL INCOME $</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_level'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>TOTAL RANK INCOME $</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_rank'], 2); ?></p>
                 </div>
             </div>
             <div class="overview-row">
@@ -203,53 +227,96 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-<!-- Earnings Breakdown Modal -->
-<div class="modal fade" id="earningsBreakdownModal" tabindex="-1" aria-labelledby="earningsBreakdownModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-white" style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px;">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title text-white fw-bold" id="earningsBreakdownModalLabel">
-                    <i class="fa-solid fa-chart-pie me-2 text-warning"></i> Earnings Composition
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="text-center mb-4">
-                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">Lifetime Total Earnings</span>
-                    <h2 class="text-success fw-bold mt-1" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+<!-- Earnings Breakdown Modal (Independent Pure CSS/JS Modal Overlay) -->
+<div id="earningsBreakdownModal" onclick="if (event.target === this) { this.style.display = 'none'; }" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px; width: 100%; max-width: 500px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; color: white;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #504793; padding-bottom: 10px;">
+            <h5 style="color: white; font-weight: bold; margin: 0; font-size: 18px;">
+                <i class="fa-solid fa-chart-pie me-2 text-warning"></i> Earnings Composition
+            </h5>
+            <button type="button" onclick="document.getElementById('earningsBreakdownModal').style.display = 'none';" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px;">
+            <span style="text-transform: uppercase; color: #adb5bd; display: block; font-size: 12px; letter-spacing: 1px;">Lifetime Total Earnings</span>
+            <h2 style="color: #198754; font-weight: bold; margin-top: 5px; font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+        </div>
+
+        <div style="background-color: #3f2259; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div>
+                    <span style="display: block; font-weight: bold; color: white; font-size: 13px;"><i class="fa-solid fa-coins text-warning me-2"></i>Daily Trade Profit (ROI)</span>
+                    <small style="color: #adb5bd; font-size: 11px;">0.50% Daily returns from your packages</small>
                 </div>
-                <div class="p-3 rounded mb-3" style="background-color: #3f2259;">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-coins text-warning me-2"></i>Daily Trade Profit (ROI)</span>
-                            <small class="text-muted">0.50% Daily returns from your packages</small>
-                        </div>
-                        <span class="badge bg-dark text-success fs-6 fw-bold">$<?php echo number_format($stats['total_roi'], 2); ?></span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-network-wired text-info me-2"></i>Level Generation Income</span>
-                            <small class="text-muted">Commissions distributed over 12 generations</small>
-                        </div>
-                        <span class="badge bg-dark text-info fs-6 fw-bold">$<?php echo number_format($stats['total_level'], 2); ?></span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <div>
-                            <span class="d-block fw-bold text-white"><i class="fa-solid fa-award text-danger me-2"></i>Slab Matching (Rank Income)</span>
-                            <small class="text-muted">Daily rank income from matched unilevel business</small>
-                        </div>
-                        <span class="badge bg-dark text-danger fs-6 fw-bold">$<?php echo number_format($stats['total_rank'], 2); ?></span>
-                    </div>
-                </div>
-                <div class="text-center text-muted" style="font-size: 11px;">
-                    <i class="fa-solid fa-lock me-1"></i> Values are calculated in real-time from audit-logged financial events.
-                </div>
+                <span class="badge bg-dark text-success fs-6 fw-bold" style="padding: 6px 12px; border-radius: 4px;">$<?php echo number_format($stats['total_roi'], 2); ?></span>
             </div>
-            <div class="modal-footer border-top-0 d-flex justify-content-center">
-                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div>
+                    <span style="display: block; font-weight: bold; color: white; font-size: 13px;"><i class="fa-solid fa-network-wired text-info me-2"></i>Level Generation Income</span>
+                    <small style="color: #adb5bd; font-size: 11px;">Commissions distributed over 12 generations</small>
+                </div>
+                <span class="badge bg-dark text-info fs-6 fw-bold" style="padding: 6px 12px; border-radius: 4px;">$<?php echo number_format($stats['total_level'], 2); ?></span>
             </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="display: block; font-weight: bold; color: white; font-size: 13px;"><i class="fa-solid fa-award text-danger me-2"></i>Slab Matching (Rank Income)</span>
+                    <small style="color: #adb5bd; font-size: 11px;">Daily rank income from matched unilevel business</small>
+                </div>
+                <span class="badge bg-dark text-danger fs-6 fw-bold" style="padding: 6px 12px; border-radius: 4px;">$<?php echo number_format($stats['total_rank'], 2); ?></span>
+            </div>
+        </div>
+
+        <hr style="border-color: #504793; margin: 15px 0;">
+
+        <h6 style="color: white; font-weight: bold; margin-bottom: 10px; font-size: 13px;"><i class="fa-solid fa-list-check text-warning me-2"></i> Recent Earnings Trace (From Where)</h6>
+        <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
+            <?php if (empty($recentIncomes)): ?>
+                <p style="text-align: center; color: #adb5bd; font-size: 11px; margin: 15px 0;">No recent income transactions registered yet.</p>
+            <?php else: ?>
+                <?php foreach ($recentIncomes as $inc): ?>
+                    <div style="background-color: #3f2259; border: 1px solid #504793; border-radius: 6px; padding: 8px; margin-bottom: 8px; font-size: 11px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <span style="color: white; font-weight: bold;">
+                                <?php if ($inc['type'] === 'ROI'): ?>
+                                    <span class="badge bg-primary" style="font-size: 9px; padding: 2px 5px;">ROI</span>
+                                <?php elseif ($inc['type'] === 'LEVEL_INCOME'): ?>
+                                    <span class="badge bg-success" style="font-size: 9px; padding: 2px 5px;">Level <?php echo $inc['level']; ?></span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger" style="font-size: 9px; padding: 2px 5px;">Rank / Match</span>
+                                <?php endif; ?>
+                                <span style="margin-left: 5px; color: #cca354; font-weight: bold;">$<?php echo number_format($inc['amount'], 2); ?></span>
+                            </span>
+                            <span style="color: #adb5bd; font-size: 9px;"><?php echo date('d M, h:i A', strtotime($inc['created_at'])); ?></span>
+                        </div>
+                        <div style="color: #ced4da; font-size: 10px; line-height: 1.3;">
+                            <?php echo htmlspecialchars($inc['description']); ?>
+                            <?php if (!empty($inc['source_username'])): ?>
+                                <span style="color: #0dcaf0;">(From: <?php echo htmlspecialchars($inc['source_username']); ?> / <?php echo htmlspecialchars($inc['source_mid']); ?>)</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <div style="text-align: center; color: #adb5bd; font-size: 10px; margin-top: 15px;">
+            <i class="fa-solid fa-lock me-1"></i> Values are calculated in real-time from audit-logged financial events.
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 15px; border-top: 1px solid #504793; padding-top: 10px;">
+            <button type="button" onclick="document.getElementById('earningsBreakdownModal').style.display = 'none';" style="background-color: #504793; color: white; border: none; border-radius: 20px; padding: 8px 30px; font-weight: bold; cursor: pointer;">Close</button>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('earningsBreakdownModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

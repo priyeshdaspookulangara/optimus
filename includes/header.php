@@ -21,6 +21,13 @@ if ($headerUserId) {
 <!doctype html>
 <html lang="en" data-bs-theme="light">
 <head>
+  <script>
+    // Global error handler to prevent external script failures (like coinex.js or assets 404s) from halting modal triggers
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.warn("Handled background asset/script exception:", message);
+        return true;
+    };
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title><?php echo $pageTitle ?? 'App'; ?></title>
