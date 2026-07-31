@@ -12,58 +12,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($username) || empty($email)) {
         $error = "Please fill in all fields.";
     } else {
-        $db = Database::getInstance()->getConnection();
+        try {
+            $db = Database::getInstance()->getConnection();
 
-        // Find user by username and email
-        $stmt = $db->prepare("SELECT id, email, username FROM users WHERE username = ? AND email = ?");
-        $stmt->execute([$username, $email]);
-        $user = $stmt->fetch();
+            // Find user by username and email
+            $stmt = $db->prepare("SELECT id, email, username FROM users WHERE username = ? AND email = ?");
+            $stmt->execute([$username, $email]);
+            $user = $stmt->fetch();
 
-        if ($user) {
-            // Delete any existing tokens for this user
-            $stmt = $db->prepare("DELETE FROM password_resets WHERE user_id = ?");
-            $stmt->execute([$user['id']]);
+            if ($user) {
+                // Delete any existing tokens for this user
+                $stmt = $db->prepare("DELETE FROM password_resets WHERE user_id = ?");
+                $stmt->execute([$user['id']]);
 
-            // Generate a secure random token
-            $token = bin2hex(random_bytes(32));
-            $expires_at = date('Y-m-d H:i:s', time() + 3600); // 1 hour
+                // Generate a secure random token
+                $token = bin2hex(random_bytes(32));
 
-            // Insert new token
-            $stmt = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)");
-            $stmt->execute([$user['id'], $token, $expires_at]);
+                // Insert new token (using database native addition to prevent timezone mismatch bugs)
+                $stmt = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+                $stmt->execute([$user['id'], $token]);
 
-            // Construct password reset link
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
-            $host = $_SERVER['HTTP_HOST'];
-            $dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-            $reset_link = "{$protocol}://{$host}{$dir}/reset_password.php?token={$token}";
+                // Construct password reset link
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+                $host = $_SERVER['HTTP_HOST'];
+                $dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+                $reset_link = "{$protocol}://{$host}{$dir}/reset_password.php?token={$token}";
 
-            // Email details
-            require_once __DIR__ . '/includes/mailer.php';
-            $to = $user['email'];
-            $subject = "Password Recovery - MLM App";
-            $message = "Hello " . htmlspecialchars($user['username']) . ",\n\n" .
-                       "We received a request to reset your password. Click the link below to set a new password:\n\n" .
-                       $reset_link . "\n\n" .
-                       "This link will expire in 1 hour.\n\n" .
-                       "If you did not request this, please ignore this email.\n\n" .
-                       "Best regards,\nMLM App Team";
+                // Email details
+                require_once __DIR__ . '/includes/mailer.php';
+                $to = $user['email'];
+                $subject = "Password Recovery - MLM App";
+                $message = "Hello " . htmlspecialchars($user['username']) . ",\n\n" .
+                           "We received a request to reset your password. Click the link below to set a new password:\n\n" .
+                           $reset_link . "\n\n" .
+                           "This link will expire in 1 hour.\n\n" .
+                           "If you did not request this, please ignore this email.\n\n" .
+                           "Best regards,\nMLM App Team";
 
-            // Send email via SMTP (falls back to php mail if SMTP socket unavailable)
-            sendEmail($to, $subject, $message);
+                // Send email via SMTP (falls back to php mail if SMTP socket unavailable)
+                sendEmail($to, $subject, $message);
 
-            // Log the email to emails.log for sandbox/local testing
-            $log_entry = "========================================\n" .
-                         "Date: " . date('Y-m-d H:i:s') . "\n" .
-                         "To: " . $to . "\n" .
-                         "Subject: " . $subject . "\n" .
-                         "Body:\n" . $message . "\n" .
-                         "========================================\n\n";
-            file_put_contents(__DIR__ . '/emails.log', $log_entry, FILE_APPEND);
+                // Log the email to emails.log for sandbox/local testing
+                $log_entry = "========================================\n" .
+                             "Date: " . date('Y-m-d H:i:s') . "\n" .
+                             "To: " . $to . "\n" .
+                             "Subject: " . $subject . "\n" .
+                             "Body:\n" . $message . "\n" .
+                             "========================================\n\n";
+                @file_put_contents(__DIR__ . '/emails.log', $log_entry, FILE_APPEND);
 
-            $success = "A password recovery email has been sent. Please check your inbox and follow the instructions.";
-        } else {
-            $error = "No user found with the provided Username and Email combination.";
+                $success = "A password recovery email has been sent. Please check your inbox and follow the instructions.";
+            } else {
+                $error = "No user found with the provided Username and Email combination.";
+            }
+        } catch (\PDOException $e) {
+            $error = "Database Error: " . $e->getMessage();
+        } catch (\Exception $e) {
+            $error = "Error: " . $e->getMessage();
         }
     }
 }

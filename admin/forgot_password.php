@@ -12,58 +12,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($username) || empty($email)) {
         $error = "Please fill in all fields.";
     } else {
-        $db = Database::getInstance()->getConnection();
+        try {
+            $db = Database::getInstance()->getConnection();
 
-        // Find admin by username and email
-        $stmt = $db->prepare("SELECT id, email, username FROM admins WHERE username = ? AND email = ?");
-        $stmt->execute([$username, $email]);
-        $admin = $stmt->fetch();
+            // Find admin by username and email
+            $stmt = $db->prepare("SELECT id, email, username FROM admins WHERE username = ? AND email = ?");
+            $stmt->execute([$username, $email]);
+            $admin = $stmt->fetch();
 
-        if ($admin) {
-            // Delete any existing tokens for this admin
-            $stmt = $db->prepare("DELETE FROM password_resets WHERE admin_id = ?");
-            $stmt->execute([$admin['id']]);
+            if ($admin) {
+                // Delete any existing tokens for this admin
+                $stmt = $db->prepare("DELETE FROM password_resets WHERE admin_id = ?");
+                $stmt->execute([$admin['id']]);
 
-            // Generate a secure random token
-            $token = bin2hex(random_bytes(32));
-            $expires_at = date('Y-m-d H:i:s', time() + 3600); // 1 hour
+                // Generate a secure random token
+                $token = bin2hex(random_bytes(32));
 
-            // Insert new token
-            $stmt = $db->prepare("INSERT INTO password_resets (admin_id, token, expires_at) VALUES (?, ?, ?)");
-            $stmt->execute([$admin['id'], $token, $expires_at]);
+                // Insert new token (using database native addition to prevent timezone mismatch bugs)
+                $stmt = $db->prepare("INSERT INTO password_resets (admin_id, token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+                $stmt->execute([$admin['id'], $token]);
 
-            // Construct password reset link pointing to admin reset page
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
-            $host = $_SERVER['HTTP_HOST'];
-            $dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\'); // this already includes /admin
-            $reset_link = "{$protocol}://{$host}{$dir}/reset_password.php?token={$token}";
+                // Construct password reset link pointing to admin reset page
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+                $host = $_SERVER['HTTP_HOST'];
+                $dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\'); // this already includes /admin
+                $reset_link = "{$protocol}://{$host}{$dir}/reset_password.php?token={$token}";
 
-            // Email details
-            require_once __DIR__ . '/../includes/mailer.php';
-            $to = $admin['email'];
-            $subject = "Admin Password Recovery - MLM App";
-            $message = "Hello " . htmlspecialchars($admin['username']) . ",\n\n" .
-                       "We received a request to reset your admin password. Click the link below to set a new password:\n\n" .
-                       $reset_link . "\n\n" .
-                       "This link will expire in 1 hour.\n\n" .
-                       "If you did not request this, please ignore this email.\n\n" .
-                       "Best regards,\nMLM App Team";
+                // Email details
+                require_once __DIR__ . '/../includes/mailer.php';
+                $to = $admin['email'];
+                $subject = "Admin Password Recovery - MLM App";
+                $message = "Hello " . htmlspecialchars($admin['username']) . ",\n\n" .
+                           "We received a request to reset your admin password. Click the link below to set a new password:\n\n" .
+                           $reset_link . "\n\n" .
+                           "This link will expire in 1 hour.\n\n" .
+                           "If you did not request this, please ignore this email.\n\n" .
+                           "Best regards,\nMLM App Team";
 
-            // Send email via SMTP (falls back to php mail if SMTP socket unavailable)
-            sendEmail($to, $subject, $message);
+                // Send email via SMTP (falls back to php mail if SMTP socket unavailable)
+                sendEmail($to, $subject, $message);
 
-            // Log the email to emails.log for sandbox/local testing
-            $log_entry = "========================================\n" .
-                         "Date: " . date('Y-m-d H:i:s') . "\n" .
-                         "To: " . $to . "\n" .
-                         "Subject: " . $subject . "\n" .
-                         "Body:\n" . $message . "\n" .
-                         "========================================\n\n";
-            file_put_contents(__DIR__ . '/../emails.log', $log_entry, FILE_APPEND);
+                // Log the email to emails.log for sandbox/local testing
+                $log_entry = "========================================\n" .
+                             "Date: " . date('Y-m-d H:i:s') . "\n" .
+                             "To: " . $to . "\n" .
+                             "Subject: " . $subject . "\n" .
+                             "Body:\n" . $message . "\n" .
+                             "========================================\n\n";
+                @file_put_contents(__DIR__ . '/../emails.log', $log_entry, FILE_APPEND);
 
-            $success = "An admin password recovery email has been sent. Please check your inbox and follow the instructions.";
-        } else {
-            $error = "No admin found with the provided Username and Email combination.";
+                $success = "An admin password recovery email has been sent. Please check your inbox and follow the instructions.";
+            } else {
+                $error = "No admin found with the provided Username and Email combination.";
+            }
+        } catch (\PDOException $e) {
+            $error = "Database Error: " . $e->getMessage();
+        } catch (\Exception $e) {
+            $error = "Error: " . $e->getMessage();
         }
     }
 }
