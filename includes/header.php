@@ -257,6 +257,7 @@ if ($headerUserId) {
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item py-2" href="dashboard.php"><i class="fa fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                  <li><a class="dropdown-item py-2" href="edit_profile.php"><i class="fa fa-user-edit me-2 text-primary"></i>Edit Profile</a></li>
                   <li><a class="dropdown-item py-2" href="e_wallet.php"><i class="fa fa-wallet me-2 text-primary"></i>E-wallet</a></li>
                   <li><a class="dropdown-item py-2" href="withdraw_wallet.php"><i class="fa fa-credit-card me-2 text-primary"></i>Withdraw Wallet</a></li>
                   <li><a class="dropdown-item py-2" href="my_pins.php"><i class="fa fa-key me-2 text-primary"></i>My PINs</a></li>
