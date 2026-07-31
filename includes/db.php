@@ -29,6 +29,18 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure password_resets table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `password_resets` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id` INT DEFAULT NULL,
+                `admin_id` INT DEFAULT NULL,
+                `token` VARCHAR(255) UNIQUE NOT NULL,
+                `expires_at` TIMESTAMP NOT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+                FOREIGN KEY (`admin_id`) REFERENCES `admins`(`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }

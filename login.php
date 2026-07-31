@@ -24,6 +24,9 @@
       <div class="mb-3">
         <label class="form-label">Password</label>
         <input type="password" name="password" class="form-control" required>
+        <div class="text-end mt-1">
+          <a href="forgot_password.php" class="text-decoration-none text-muted"><small>Forgot Password?</small></a>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary mt-3">Login</button>
       <div class="text-center mt-3">
