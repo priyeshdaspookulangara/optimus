@@ -55,6 +55,18 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch latest 15 income transactions for detailed modal split breakdown ("from where")
+$stmtIncomes = $db->prepare("
+    SELECT t.*, u.username as source_username, u.mid as source_mid
+    FROM transactions t
+    LEFT JOIN users u ON t.related_user_id = u.id
+    WHERE t.user_id = ? AND t.type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')
+    ORDER BY t.created_at DESC
+    LIMIT 15
+");
+$stmtIncomes->execute([$userId]);
+$recentIncomes = $stmtIncomes->fetchAll(PDO::FETCH_ASSOC);
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -251,7 +263,41 @@ include __DIR__ . '/includes/header.php';
                         <span class="badge bg-dark text-danger fs-6 fw-bold">$<?php echo number_format($stats['total_rank'], 2); ?></span>
                     </div>
                 </div>
-                <div class="text-center text-muted" style="font-size: 11px;">
+
+                <hr style="border-color: #504793;">
+
+                <h6 class="text-white fw-bold mb-3"><i class="fa-solid fa-list-check text-warning me-2"></i> Recent Earnings Trace (From Where)</h6>
+                <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                    <?php if (empty($recentIncomes)): ?>
+                        <p class="text-center text-muted small my-3">No recent income transactions registered yet.</p>
+                    <?php else: ?>
+                        <?php foreach ($recentIncomes as $inc): ?>
+                            <div class="p-2 mb-2 rounded border" style="background-color: #3f2259; border-color: #504793; font-size: 12px;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-white font-weight-bold">
+                                        <?php if ($inc['type'] === 'ROI'): ?>
+                                            <span class="badge bg-primary" style="font-size: 10px;">ROI</span>
+                                        <?php elseif ($inc['type'] === 'LEVEL_INCOME'): ?>
+                                            <span class="badge bg-success" style="font-size: 10px;">Level <?php echo $inc['level']; ?></span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger" style="font-size: 10px;">Rank / Match</span>
+                                        <?php endif; ?>
+                                        <span class="ms-1 font-weight-bold" style="color: #cca354;">$<?php echo number_format($inc['amount'], 2); ?></span>
+                                    </span>
+                                    <span class="text-muted" style="font-size: 10px;"><?php echo date('d M, h:i A', strtotime($inc['created_at'])); ?></span>
+                                </div>
+                                <div class="mt-1 text-light-50" style="font-size: 11px; color: #adb5bd;">
+                                    <?php echo htmlspecialchars($inc['description']); ?>
+                                    <?php if (!empty($inc['source_username'])): ?>
+                                        <span class="text-info">(From: <?php echo htmlspecialchars($inc['source_username']); ?> / <?php echo htmlspecialchars($inc['source_mid']); ?>)</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <div class="text-center text-muted mt-3" style="font-size: 11px;">
                     <i class="fa-solid fa-lock me-1"></i> Values are calculated in real-time from audit-logged financial events.
                 </div>
             </div>
