@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $hashedPassword = $password;
 
     try {
         $db->beginTransaction();

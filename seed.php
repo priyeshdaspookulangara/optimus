@@ -26,7 +26,7 @@ try {
     // 3. Create Default User
     $username = 'admin';
     $password = 'password123';
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $hashedPassword = $password;
 
     $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
     $stmt->execute([$username]);
