@@ -314,12 +314,12 @@ class MLMEngine {
                     $consecutiveSingleCount = 0;
 
                     foreach ($uplines as $upline) {
-                        // Check if this parent has only one direct referral (single direct referral node)
+                        // Check if this parent has no second branch or referral (0 or 1 direct referral)
                         $stmtReferrals->execute([$upline['parent_id']]);
                         $refData = $stmtReferrals->fetch();
                         $refCount = (int)$refData['ref_count'];
 
-                        if ($refCount === 1) {
+                        if ($refCount <= 1) {
                             $consecutiveSingleCount++;
                         } else {
                             $consecutiveSingleCount = 0;
@@ -513,6 +513,9 @@ class MLMEngine {
         // Include the user themselves as well (if they purchased a package, their own matching legs could change)
         $targets = array_merge([['parent_id' => $userId]], $ancestors);
 
+        $consecutiveSingleCount = 0;
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+
         foreach ($targets as $target) {
             $ancestorId = $target['parent_id'];
             if (empty($ancestorId)) continue;
@@ -522,6 +525,22 @@ class MLMEngine {
             $stmtUser->execute([$ancestorId]);
             $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
             if (!$user) continue;
+
+            if ($ancestorId != $userId) {
+                $stmtReferrals->execute([$ancestorId]);
+                $refData = $stmtReferrals->fetch();
+                $refCount = (int)$refData['ref_count'];
+
+                if ($refCount <= 1) {
+                    $consecutiveSingleCount++;
+                } else {
+                    $consecutiveSingleCount = 0;
+                }
+
+                if ($consecutiveSingleCount > 3) {
+                    break;
+                }
+            }
 
             $legStats = $this->getLegsBusiness($ancestorId);
             $matchedBusiness = $legStats['matched_business'];
@@ -561,6 +580,10 @@ class MLMEngine {
                         }
                     }
                 }
+            }
+
+            if ($ancestorId != $userId && $consecutiveSingleCount === 3) {
+                break;
             }
         }
     }
