@@ -28,6 +28,72 @@ if (isset($_POST['action'])) {
         $stmt->execute([$newStatus, $userId]);
         header("Location: members.php?success=status_updated");
         exit();
+    } elseif ($_POST['action'] == 'delete_member') {
+        $userId = $_POST['user_id'];
+        if ($userId <= 1) {
+            header("Location: members.php?error=" . urlencode("Cannot delete the root admin user."));
+            exit();
+        }
+
+        $db->beginTransaction();
+        try {
+            // Disable foreign key checks
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+
+            // Clean up referencing parent/sponsor/placement ID fields in users table
+            $stmtSponsor = $db->prepare("UPDATE users SET sponsor_id = NULL WHERE sponsor_id = ?");
+            $stmtSponsor->execute([$userId]);
+
+            $stmtPlacement = $db->prepare("UPDATE users SET placement_id = NULL WHERE placement_id = ?");
+            $stmtPlacement->execute([$userId]);
+
+            // Delete from genealogy
+            $stmtGen = $db->prepare("DELETE FROM genealogy WHERE user_id = ? OR parent_id = ?");
+            $stmtGen->execute([$userId, $userId]);
+
+            // Delete from investments
+            $stmtInv = $db->prepare("DELETE FROM investments WHERE user_id = ?");
+            $stmtInv->execute([$userId]);
+
+            // Delete from transactions
+            $stmtTrans = $db->prepare("DELETE FROM transactions WHERE user_id = ? OR related_user_id = ?");
+            $stmtTrans->execute([$userId, $userId]);
+
+            // Delete from user_wallets
+            $stmtWallet = $db->prepare("DELETE FROM user_wallets WHERE user_id = ?");
+            $stmtWallet->execute([$userId]);
+
+            // Delete from matching_schedules
+            $stmtSched = $db->prepare("DELETE FROM matching_schedules WHERE user_id = ?");
+            $stmtSched->execute([$userId]);
+
+            // Delete pins
+            $stmtPins = $db->prepare("DELETE FROM pins WHERE assigned_to = ? OR used_by = ?");
+            $stmtPins->execute([$userId, $userId]);
+
+            // Delete kyc if table exists
+            try {
+                $stmtKyc = $db->prepare("DELETE FROM user_kyc WHERE user_id = ?");
+                $stmtKyc->execute([$userId]);
+            } catch (Exception $e) {
+                // Ignore if table does not exist
+            }
+
+            // Finally, delete the user
+            $stmtUser = $db->prepare("DELETE FROM users WHERE id = ?");
+            $stmtUser->execute([$userId]);
+
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            $db->commit();
+
+            header("Location: members.php?success=member_deleted");
+            exit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            header("Location: members.php?error=" . urlencode("Failed to delete member: " . $e->getMessage()));
+            exit();
+        }
     } elseif ($_POST['action'] == 'clear_system') {
         // Clear all members except root (ID 1)
         $db->beginTransaction();
@@ -165,6 +231,8 @@ $members = $stmt->fetchAll();
 
 <?php if(isset($_GET['success']) && $_GET['success'] == 'system_cleared'): ?>
     <div class="alert alert-success"><strong>System Reset Complete!</strong> All members (except root user) and their associated genealogy tree, packages, investments, and transactional data have been securely deleted.</div>
+<?php elseif(isset($_GET['success']) && $_GET['success'] == 'member_deleted'): ?>
+    <div class="alert alert-success">Member has been successfully deleted along with all their genealogy, investments, wallets, PINs, transactions, and matching schedules.</div>
 <?php elseif(isset($_GET['success'])): ?>
     <div class="alert alert-success">Action completed successfully.</div>
 <?php endif; ?>
@@ -208,16 +276,26 @@ $members = $stmt->fetchAll();
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
-                            <form method="post" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
-                                <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
-                                <input type="hidden" name="action" value="update_status">
-                                <?php if($m['status'] == 'active'): ?>
-                                    <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
-                                <?php else: ?>
-                                    <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
+                            <div class="d-flex gap-1">
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="update_status">
+                                    <?php if($m['status'] == 'active'): ?>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
+                                    <?php else: ?>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
+                                    <?php endif; ?>
+                                </form>
+                                <?php if ($m['id'] > 1): ?>
+                                <form method="post" class="d-inline" onsubmit="return confirm('Are you absolutely sure you want to delete this member and all associated genealogy, investments, wallets, PINs, transactions, and matching schedules? This action is irreversible!');">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="delete_member">
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-trash-alt me-1"></i>Delete</button>
+                                </form>
                                 <?php endif; ?>
-                            </form>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
