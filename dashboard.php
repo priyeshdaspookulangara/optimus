@@ -55,6 +55,11 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch Slab Matching Schedules grouped by slab amount & status
+$stmtSlabsCount = $db->prepare("SELECT slab_amount, status, COUNT(*) as units_count, SUM(daily_income) as total_daily FROM matching_schedules WHERE user_id = ? GROUP BY slab_amount, status ORDER BY slab_amount ASC");
+$stmtSlabsCount->execute([$userId]);
+$slabsCount = $stmtSlabsCount->fetchAll(PDO::FETCH_ASSOC);
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -98,9 +103,10 @@ include __DIR__ . '/includes/header.php';
                 </div>
             </div>
             <div class="overview-row">
-                <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
+                <div class="overview-box" style="background-color: #2d1840; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#slabMatchedModal" title="Click to view slab breakdown">
+                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS <i class="fa-solid fa-circle-info ms-1 text-success" style="font-size: 14px;"></i></h3>
                     <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">POWER CARRY FORWARD</h3>
@@ -198,6 +204,77 @@ include __DIR__ . '/includes/header.php';
                     <h3>MY TEAM MEMBERS</h3>
                     <p class="text-primary mt-2"><?php echo $team['team_count']; ?></p>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slab-Matched Business Breakdown Modal -->
+<div class="modal fade" id="slabMatchedModal" tabindex="-1" aria-labelledby="slabMatchedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-white" style="background-color: #2d1840; border: 2px solid #28a745; border-radius: 12px;">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title text-white fw-bold" id="slabMatchedModalLabel">
+                    <i class="fa-solid fa-circle-nodes me-2 text-success"></i> Slab-Matched Composition
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">Total Matched Business</span>
+                    <h2 class="text-success fw-bold mt-1" style="font-size: 32px;">$<?php echo number_format($legStats['matched_business'], 2); ?></h2>
+                </div>
+
+                <div class="p-3 rounded mb-3" style="background-color: #3f2259;">
+                    <h6 class="text-white border-bottom pb-2 mb-3" style="border-color: rgba(255,255,255,0.1) !important;">
+                        <i class="fa-solid fa-layer-group text-warning me-2"></i>Matched Slab Levels (Chronological)
+                    </h6>
+                    <?php if (empty($slabsCount)): ?>
+                        <div class="text-center text-muted py-3">No matching slabs paired yet. Build downline volume to match slabs!</div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-borderless text-white mb-0" style="font-size: 14px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                        <th class="text-muted pb-2">Slab Size</th>
+                                        <th class="text-muted pb-2 text-center">Matched Units</th>
+                                        <th class="text-muted pb-2 text-center">Status</th>
+                                        <th class="text-muted pb-2 text-end">Daily Payout</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($slabsCount as $row): ?>
+                                        <tr>
+                                            <td class="align-middle py-2 fw-bold text-white">$<?php echo number_format($row['slab_amount'], 2); ?></td>
+                                            <td class="align-middle py-2 text-center text-white"><span class="badge bg-dark"><?php echo $row['units_count']; ?> Unit(s)</span></td>
+                                            <td class="align-middle py-2 text-center text-white">
+                                                <span class="badge <?php echo ($row['status'] === 'active') ? 'bg-success' : 'bg-secondary'; ?>">
+                                                    <?php echo ucfirst($row['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="align-middle py-2 text-end text-success fw-bold">$<?php echo number_format($row['total_daily'], 2); ?>/day</td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="p-3 rounded" style="background-color: #3f2259;">
+                    <h6 class="text-white mb-2" style="font-size: 14px;"><i class="fa-solid fa-circle-info text-info me-2"></i>Carry Forward Volumes:</h6>
+                    <div class="d-flex justify-content-between text-muted" style="font-size: 13px;">
+                        <span>Power Leg Carry Forward:</span>
+                        <span class="text-warning fw-bold">$<?php echo number_format($legStats['power_carry_forward'], 2); ?></span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 13px;">
+                        <span>Weaker Leg Carry Forward:</span>
+                        <span class="text-warning fw-bold">$<?php echo number_format($legStats['rest_carry_forward'], 2); ?></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
             </div>
         </div>
     </div>
