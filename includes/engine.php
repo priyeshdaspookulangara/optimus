@@ -191,9 +191,14 @@ class MLMEngine {
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Apply Sequential Slab-Matching Hierarchy (Ascending order with immediate termination)
+        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
+        $terminated = false;
         foreach ($slabs as $slab) {
+            if ($terminated) {
+                $slabBreakdown[$slab] = 0;
+                continue;
+            }
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
                 $units = (int)floor($m / $slab);
@@ -206,6 +211,7 @@ class MLMEngine {
                 $slabBreakdown[$slab] = $units;
             } else {
                 $slabBreakdown[$slab] = 0;
+                $terminated = true; // Matchmaking is terminated immediately
             }
         }
 
