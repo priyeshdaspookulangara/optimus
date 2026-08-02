@@ -180,12 +180,18 @@ class MLMEngine {
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
-        $vPower = $powerLegRaw;
-        $vRest = $restLegRaw;
+        // Subtract already matched volume (all matching schedules created for this user) from raw leg volumes
+        $stmtMatched = $this->db->prepare("SELECT COALESCE(SUM(slab_amount), 0) as total FROM matching_schedules WHERE user_id = ?");
+        $stmtMatched->execute([$userId]);
+        $matchedRes = $stmtMatched->fetch(PDO::FETCH_ASSOC);
+        $matchedVolumeTotal = (float)($matchedRes['total'] ?? 0.00);
+
+        $vPower = max(0.00, $powerLegRaw - $matchedVolumeTotal);
+        $vRest = max(0.00, $restLegRaw - $matchedVolumeTotal);
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
+        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
         $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
@@ -203,13 +209,28 @@ class MLMEngine {
             }
         }
 
+        // Map slab breakdown to include historical matched units so that processRankIncome and updateUplineRanks can correctly sync/compare
+        $stmtHist = $this->db->prepare("SELECT slab_amount, COUNT(*) as count FROM matching_schedules WHERE user_id = ? GROUP BY slab_amount");
+        $stmtHist->execute([$userId]);
+        $histSchedules = $stmtHist->fetchAll(PDO::FETCH_ASSOC);
+        $histCounts = [];
+        foreach ($histSchedules as $hist) {
+            $histCounts[(int)$hist['slab_amount']] = (int)$hist['count'];
+        }
+
+        $cumulativeSlabBreakdown = [];
+        foreach ($slabs as $slab) {
+            $existingUnits = isset($histCounts[$slab]) ? $histCounts[$slab] : 0;
+            $cumulativeSlabBreakdown[$slab] = $existingUnits + (isset($slabBreakdown[$slab]) ? $slabBreakdown[$slab] : 0);
+        }
+
         return [
             'power_leg' => (float)$powerLegRaw,
             'matching_leg' => (float)$restLegRaw,
-            'matched_business' => (float)$totalMatched,
+            'matched_business' => (float)($matchedVolumeTotal + $totalMatched),
             'power_carry_forward' => (float)$vPower,
             'rest_carry_forward' => (float)$vRest,
-            'slab_breakdown' => $slabBreakdown
+            'slab_breakdown' => $cumulativeSlabBreakdown
         ];
     }
 
