@@ -191,7 +191,7 @@ class MLMEngine {
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        // Apply Sequential Slab-Matching Hierarchy (Ascending order with immediate termination)
+        // Apply Sequential Slab-Matching Hierarchy (Ascending order with immediate termination, strictly 1 unit max per slab)
         $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
         $terminated = false;
         foreach ($slabs as $slab) {
@@ -201,8 +201,8 @@ class MLMEngine {
             }
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                $units = 1; // Strictly 1 unit max per slab
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
