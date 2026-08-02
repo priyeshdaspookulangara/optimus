@@ -37,7 +37,7 @@ if ($headerUserId) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title><?php echo $pageTitle ?? 'App'; ?></title>
+  <title>The Future of Trading | Optimus Infinity</title>
   <link rel="shortcut icon" href="https://optimusinfinity.com/assets/fav.png">
   <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/core/libs.min.css">
   <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/coinex.min.css?v=4.1.0">
@@ -251,7 +251,8 @@ if ($headerUserId) {
           <div class="navbar-collapse-mobile-fix" id="navbarSupportedContent">
             <ul class="navbar-nav ms-auto navbar-list mb-2 mb-lg-0 align-items-center">
               <li class="nav-item">
-                <button type="button" id="copy_btn" class="text-white btn btn-sm me-2 btn-primary">
+                <button type="button" id="copy_btn" class="text-white btn btn-sm me-2 btn-primary"
+                        data-referral="https://optimusinfinity.com/register.php?ref=<?php echo htmlspecialchars($user['mid'] ?? ''); ?>">
                   Referral Link
                 </button>
               </li>
@@ -260,17 +261,21 @@ if ($headerUserId) {
                   <i class="fa-solid fa-circle-user fa-xl text-primary"></i>
                   <div class="caption text-start ms-2">
                     <h6 class="mb-0 caption-title text-dark"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></h6>
+                    <small class="text-muted d-block" style="font-size: 10px; line-height: 1;"><?php echo htmlspecialchars($user['mid'] ?? ''); ?></small>
                   </div>
                   <i class="fa fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff;">
                   <li class="px-3 py-2 text-dark">
                     <div class="fw-bold"><?php echo htmlspecialchars($user['full_name'] ?? 'Optimus Member'); ?></div>
+                    <small class="text-muted d-block">ID: <?php echo htmlspecialchars($user['mid'] ?? ''); ?></small>
                     <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
                     <span class="badge bg-primary text-white mt-1">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item py-2" href="dashboard.php"><i class="fa fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                  <li><a class="dropdown-item py-2" href="edit_profile.php"><i class="fa fa-user-edit me-2 text-primary"></i>Edit Profile</a></li>
+                  <li><a class="dropdown-item py-2" href="kyc_details.php"><i class="fa fa-id-card me-2 text-primary"></i>KYC Details</a></li>
                   <li><a class="dropdown-item py-2" href="e_wallet.php"><i class="fa fa-wallet me-2 text-primary"></i>E-wallet</a></li>
                   <li><a class="dropdown-item py-2" href="withdraw_wallet.php"><i class="fa fa-credit-card me-2 text-primary"></i>Withdraw Wallet</a></li>
                   <li><a class="dropdown-item py-2" href="my_pins.php"><i class="fa fa-key me-2 text-primary"></i>My PINs</a></li>
@@ -285,3 +290,48 @@ if ($headerUserId) {
         </div>
       </nav>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var copyBtn = document.getElementById('copy_btn');
+        if (!copyBtn) return;
+
+        copyBtn.addEventListener('click', function () {
+            var link = this.getAttribute('data-referral');
+            if (!link) return;
+
+            var btn = this;
+            var original = btn.textContent;
+
+            function showCopied() {
+                btn.textContent = 'Copied!';
+                setTimeout(function () { btn.textContent = original; }, 1500);
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(link).then(showCopied).catch(function () {
+                    fallbackCopy(link, showCopied);
+                });
+            } else {
+                fallbackCopy(link, showCopied);
+            }
+        });
+
+        function fallbackCopy(text, onSuccess) {
+            var temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            try {
+                document.execCommand('copy');
+                onSuccess();
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            document.body.removeChild(temp);
+        }
+    });
+    </script>
