@@ -12,9 +12,23 @@ if ($headerUserId) {
         $stmtHeaderUser->execute([$headerUserId]);
         $user = $stmtHeaderUser->fetch(PDO::FETCH_ASSOC);
     }
-    if (!isset($rankName) && $user) {
-        $headerConfig = require __DIR__ . '/config.php';
-        $rankName = ($user['rank_id'] > 0) ? $headerConfig['ranks'][$user['rank_id']-1]['name'] : 'None';
+    if ($user) {
+        // Self-healing synchronization for users.rank_id with conferred_ranks
+        $stmtMaxConf = $headerDb->prepare("SELECT MAX(rank_id) as max_rank FROM conferred_ranks WHERE user_id = ?");
+        $stmtMaxConf->execute([$headerUserId]);
+        $maxConf = $stmtMaxConf->fetch();
+        $maxConferredRankId = $maxConf ? (int)$maxConf['max_rank'] : 0;
+
+        if ($maxConferredRankId > $user['rank_id']) {
+            $stmtUpdateRank = $headerDb->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+            $stmtUpdateRank->execute([$maxConferredRankId, $headerUserId]);
+            $user['rank_id'] = $maxConferredRankId; // Update in-memory user object
+        }
+
+        if (!isset($rankName)) {
+            $headerConfig = require __DIR__ . '/config.php';
+            $rankName = ($user['rank_id'] > 0) ? $headerConfig['ranks'][$user['rank_id']-1]['name'] : 'None';
+        }
     }
 }
 ?>
