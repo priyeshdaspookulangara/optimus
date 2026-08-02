@@ -180,18 +180,29 @@ class MLMEngine {
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
-        $vPower = $powerLegRaw;
-        $vRest = $restLegRaw;
+        // Subtract already matched volume (all matching schedules created for this user) from raw leg volumes
+        $stmtMatched = $this->db->prepare("SELECT COALESCE(SUM(slab_amount), 0) as total FROM matching_schedules WHERE user_id = ?");
+        $stmtMatched->execute([$userId]);
+        $matchedRes = $stmtMatched->fetch(PDO::FETCH_ASSOC);
+        $matchedVolumeTotal = (float)($matchedRes['total'] ?? 0.00);
+
+        $vPower = max(0.00, $powerLegRaw - $matchedVolumeTotal);
+        $vRest = max(0.00, $restLegRaw - $matchedVolumeTotal);
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Apply Sequential Slab-Matching Hierarchy (Ascending order with immediate termination, strictly 1 unit max per slab)
+        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
+        $terminated = false;
         foreach ($slabs as $slab) {
+            if ($terminated) {
+                $slabBreakdown[$slab] = 0;
+                continue;
+            }
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                $units = 1; // Strictly 1 unit max per slab
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
@@ -200,16 +211,32 @@ class MLMEngine {
                 $slabBreakdown[$slab] = $units;
             } else {
                 $slabBreakdown[$slab] = 0;
+                $terminated = true; // Matchmaking is terminated immediately
             }
+        }
+
+        // Map slab breakdown to include historical matched units so that processRankIncome and updateUplineRanks can correctly sync/compare
+        $stmtHist = $this->db->prepare("SELECT slab_amount, COUNT(*) as count FROM matching_schedules WHERE user_id = ? GROUP BY slab_amount");
+        $stmtHist->execute([$userId]);
+        $histSchedules = $stmtHist->fetchAll(PDO::FETCH_ASSOC);
+        $histCounts = [];
+        foreach ($histSchedules as $hist) {
+            $histCounts[(int)$hist['slab_amount']] = (int)$hist['count'];
+        }
+
+        $cumulativeSlabBreakdown = [];
+        foreach ($slabs as $slab) {
+            $existingUnits = isset($histCounts[$slab]) ? $histCounts[$slab] : 0;
+            $cumulativeSlabBreakdown[$slab] = $existingUnits + (isset($slabBreakdown[$slab]) ? $slabBreakdown[$slab] : 0);
         }
 
         return [
             'power_leg' => (float)$powerLegRaw,
             'matching_leg' => (float)$restLegRaw,
-            'matched_business' => (float)$totalMatched,
+            'matched_business' => (float)($matchedVolumeTotal + $totalMatched),
             'power_carry_forward' => (float)$vPower,
             'rest_carry_forward' => (float)$vRest,
-            'slab_breakdown' => $slabBreakdown
+            'slab_breakdown' => $cumulativeSlabBreakdown
         ];
     }
 
@@ -357,6 +384,101 @@ class MLMEngine {
                 $this->db->rollBack();
             }
         }
+
+        // Process daily payouts for all active conferred ranks
+        $stmtActiveConferred = $this->db->prepare("SELECT * FROM conferred_ranks WHERE status = 'active'");
+        $stmtActiveConferred->execute();
+        $activeConferred = $stmtActiveConferred->fetchAll();
+
+        foreach ($activeConferred as $conf) {
+            $this->db->beginTransaction();
+            try {
+                $dailyIncome = (float)$conf['daily_income'];
+                $userId = $conf['user_id'];
+
+                // Verify remaining ID cap (300%)
+                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+                if ($allowable > 0) {
+                    // Get rank name
+                    $rankName = isset($this->config['ranks'][$conf['rank_id'] - 1]) ? $this->config['ranks'][$conf['rank_id'] - 1]['name'] : "Rank level " . $conf['rank_id'];
+
+                    // Log the RANK_INCOME transaction
+                    $this->logTransaction(
+                        $userId,
+                        'RANK_INCOME',
+                        $allowable,
+                        0,
+                        "Daily Conferred Rank Income for Rank " . htmlspecialchars($rankName) . " (Day " . ($conf['days_passed'] + 1) . "/100)"
+                    );
+
+                    $newDaysPassed = $conf['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $conf['max_days']) ? 'completed' : 'active';
+
+                    $stmtUpdateConf = $this->db->prepare("UPDATE conferred_ranks SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateConf->execute([$newDaysPassed, $status, $conf['id']]);
+
+                    // Propagate conferred rank income up to root (subject to each upline's active status and 300% ID Cap, with 3 consecutive orphan nodes threshold)
+                    $stmtUplines = $this->db->prepare("
+                        SELECT g.parent_id, u.username, u.status
+                        FROM genealogy g
+                        JOIN users u ON g.parent_id = u.id
+                        WHERE g.user_id = ?
+                        ORDER BY g.level ASC
+                    ");
+                    $stmtUplines->execute([$userId]);
+                    $uplines = $stmtUplines->fetchAll();
+
+                    // Get username of original matching Earner for transaction logging
+                    $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                    $stmtUser->execute([$userId]);
+                    $origUserObj = $stmtUser->fetch();
+                    $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+
+                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+                    $consecutiveSingleCount = 0;
+
+                    foreach ($uplines as $upline) {
+                        // Check if this parent has only one direct referral (single direct referral node)
+                        $stmtReferrals->execute([$upline['parent_id']]);
+                        $refData = $stmtReferrals->fetch();
+                        $refCount = (int)$refData['ref_count'];
+
+                        if ($refCount === 1) {
+                            $consecutiveSingleCount++;
+                        } else {
+                            $consecutiveSingleCount = 0;
+                        }
+
+                        // If we already went past 3 consecutive single nodes, break immediately
+                        if ($consecutiveSingleCount > 3) {
+                            break;
+                        }
+
+                        if ($upline['status'] === 'active') {
+                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
+                            if ($uplineAllowable > 0) {
+                                $this->logTransaction(
+                                    $upline['parent_id'],
+                                    'RANK_INCOME',
+                                    $uplineAllowable,
+                                    0,
+                                    "Daily Propagated Conferred Rank Income from " . $origUsername . " (Rank: " . htmlspecialchars($rankName) . ")",
+                                    $userId
+                                );
+                            }
+                        }
+
+                        // Stop propagating further if we just paid the 3rd consecutive single referral node
+                        if ($consecutiveSingleCount === 3) {
+                            break;
+                        }
+                    }
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
+            }
+        }
     }
 
     private function checkRankQualification($matchingBusiness) {
@@ -372,16 +494,8 @@ class MLMEngine {
     }
 
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        // No 300% ID Cap limit enforced (unlimited payouts)
+        return $amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
@@ -534,6 +648,9 @@ class MLMEngine {
                 $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$qualifiedRankId, $ancestorId]);
                 $user['rank_id'] = $qualifiedRankId;
+
+                // Award Conferred Ranks to all ancestors above this updated user
+                $this->awardConferredRanks($ancestorId, $qualifiedRankId);
             }
 
             // Sync/Create new matching schedules if qualified units > existing registered matching schedules
@@ -560,6 +677,50 @@ class MLMEngine {
                             $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Award Conferred Ranks to all ancestors above a user who just achieved/qualified for a rank
+     */
+    public function awardConferredRanks($userId, $rankId) {
+        // Fetch all direct unilevel ancestors (parents in genealogy tree) of the user
+        $stmt = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+        $stmt->execute([$userId]);
+        $ancestors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Find daily income for this rank
+        $dailyIncome = 0.00;
+        foreach ($this->config['ranks'] as $idx => $r) {
+            if ($idx + 1 == $rankId) {
+                $dailyIncome = (float)$r['daily_income'];
+                break;
+            }
+        }
+
+        foreach ($ancestors as $ancestor) {
+            $ancestorId = $ancestor['parent_id'];
+            if (empty($ancestorId)) continue;
+
+            // Check if the ancestor already has this rank (or higher) as a conferred rank or organic rank
+            $stmtCheck = $this->db->prepare("SELECT COUNT(*) as count FROM conferred_ranks WHERE user_id = ? AND rank_id = ?");
+            $stmtCheck->execute([$ancestorId, $rankId]);
+            $exists = $stmtCheck->fetch();
+
+            if ($exists['count'] == 0) {
+                // Insert into conferred_ranks
+                $stmtInsert = $this->db->prepare("INSERT INTO conferred_ranks (user_id, downline_id, rank_id, daily_income, status) VALUES (?, ?, ?, ?, 'active')");
+                $stmtInsert->execute([$ancestorId, $userId, $rankId, $dailyIncome]);
+
+                // Update ancestor's rank_id in users table if current rank is lower
+                $stmtUser = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+                $stmtUser->execute([$ancestorId]);
+                $u = $stmtUser->fetch();
+                if ($u && $rankId > $u['rank_id']) {
+                    $stmtUpd = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                    $stmtUpd->execute([$rankId, $ancestorId]);
                 }
             }
         }
