@@ -21,6 +21,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $db = Database::getInstance()->getConnection();
 
+    // Check if activation pin is provided and is valid/unused
+    if (empty($pinCode)) {
+        die("Activation PIN is required for registration. <a href='javascript:history.back()'>Go back</a>");
+    }
+
+    $stmtPin = $db->prepare("SELECT id, status FROM pins WHERE pin_code = ?");
+    $stmtPin->execute([$pinCode]);
+    $pinData = $stmtPin->fetch();
+    if (!$pinData) {
+        die("Invalid Activation PIN. <a href='javascript:history.back()'>Go back</a>");
+    }
+    if ($pinData['status'] !== 'unused') {
+        die("Activation PIN has already been used. <a href='javascript:history.back()'>Go back</a>");
+    }
+
     // Check if user exists (only username must be unique, email can be used by multiple users)
     $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
     $stmt->execute([$username]);

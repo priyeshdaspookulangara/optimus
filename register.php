@@ -129,8 +129,8 @@ if (!empty($sponsorQuery)) {
 
                   <!-- Activation PIN -->
                   <div class="form-group col-12 mb-3">
-                    <label class="form-label" for="pin_code">Activation PIN (Optional): </label>
-                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="OPTXXXXXX">
+                    <label class="form-label" for="pin_code">Activation PIN (Required): </label>
+                    <input type="text" class="form-control" id="pin_code" name="pin_code" required placeholder="OPTXXXXXX">
                     <div id="pin_feedback"></div>
                   </div>
 
@@ -240,21 +240,37 @@ if (!empty($sponsorQuery)) {
         }
       });
 
+      var isPinValid = false;
+
       // Real-time PIN validation
       $('#pin_code').on('input', function() {
         var pin = $(this).val().trim();
         if(pin.length >= 6) {
           $.getJSON('check_pin.php', { pin: pin }, function(data) {
             if(data.status === 'success') {
+              isPinValid = true;
               $('#pin_feedback').html('<span class="pin-status-badge bg-success text-white"><i class="fa fa-check-circle me-1"></i> Valid PIN: ' + data.package + ' ($' + data.amount + ')</span>');
             } else if(data.status === 'used') {
+              isPinValid = false;
               $('#pin_feedback').html('<span class="pin-status-badge bg-warning text-white"><i class="fa fa-exclamation-triangle me-1"></i> Used PIN</span>');
             } else {
+              isPinValid = false;
               $('#pin_feedback').html('<span class="pin-status-badge bg-danger text-white"><i class="fa fa-times-circle me-1"></i> Invalid PIN</span>');
             }
           });
         } else {
+          isPinValid = false;
           $('#pin_feedback').empty();
+        }
+      });
+
+      // Validate PIN before form submission
+      $('#regForm').on('submit', function(e) {
+        if (!isPinValid) {
+          e.preventDefault();
+          alert('Please enter a valid, unused Activation PIN.');
+          $('#pin_code').focus();
+          return false;
         }
       });
 
