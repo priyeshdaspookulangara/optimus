@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `placement_id` INT DEFAULT NULL,
   `position` ENUM('left', 'right') DEFAULT NULL,
   `rank_id` INT DEFAULT 0,
+  `pin_code` VARCHAR(20) DEFAULT NULL,
   `total_investment` DECIMAL(15, 2) DEFAULT 0.00,
   `left_leg_business` DECIMAL(15, 2) DEFAULT 0.00,
   `right_leg_business` DECIMAL(15, 2) DEFAULT 0.00,
