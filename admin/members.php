@@ -87,6 +87,7 @@ $ranksList = $config['ranks'];
 $search = $_GET['search'] ?? '';
 $rankFilter = $_GET['rank_id'] ?? '';
 $packageFilter = $_GET['package_amount'] ?? '';
+$statusFilter = $_GET['status'] ?? '';
 
 // Build dynamic query
 $query = "SELECT DISTINCT u.* FROM users u";
@@ -111,6 +112,11 @@ if ($rankFilter !== '') {
     $params[] = $rankFilter;
 }
 
+if ($statusFilter !== '') {
+    $conditions[] = "u.status = ?";
+    $params[] = $statusFilter;
+}
+
 $joinStr = implode(" ", $joins);
 $whereStr = !empty($conditions) ? "WHERE " . implode(" AND ", $conditions) : "";
 $query .= " {$joinStr} {$whereStr} ORDER BY u.created_at DESC";
@@ -132,8 +138,16 @@ $members = $stmt->fetchAll();
 
     <!-- Dynamic Filters Form -->
     <form method="get" class="row g-2 align-items-center bg-light p-3 rounded border">
-        <div class="col-md-3">
-            <input type="text" name="search" class="form-control" placeholder="Search username / email..." value="<?php echo htmlspecialchars($search); ?>">
+        <div class="col-md-2">
+            <input type="text" name="search" class="form-control" placeholder="Search username..." value="<?php echo htmlspecialchars($search); ?>">
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">-- All Statuses --</option>
+                <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>>Active</option>
+                <option value="inactive" <?php echo $statusFilter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                <option value="suspended" <?php echo $statusFilter === 'suspended' ? 'selected' : ''; ?>>Suspended</option>
+            </select>
         </div>
         <div class="col-md-3">
             <select name="rank_id" class="form-select">
@@ -146,7 +160,7 @@ $members = $stmt->fetchAll();
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <select name="package_amount" class="form-select">
                 <option value="">-- All Packages --</option>
                 <?php foreach($packagesList as $pkgAmt): ?>
@@ -202,22 +216,35 @@ $members = $stmt->fetchAll();
                         </td>
                         <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
                         <td>
-                            <span class="badge <?php echo htmlspecialchars($m['status']) == 'active' ? 'bg-success' : 'bg-danger'; ?>">
-                                <?php echo htmlspecialchars(strtoupper($m['status'])); ?>
-                            </span>
+                            <?php if ($m['status'] == 'active'): ?>
+                                <span class="badge bg-success">ACTIVE</span>
+                            <?php elseif ($m['status'] == 'inactive'): ?>
+                                <span class="badge bg-secondary text-white">INACTIVE</span>
+                            <?php else: ?>
+                                <span class="badge bg-danger"><?php echo htmlspecialchars(strtoupper($m['status'])); ?></span>
+                            <?php endif; ?>
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
-                            <form method="post" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
-                                <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
-                                <input type="hidden" name="action" value="update_status">
-                                <?php if($m['status'] == 'active'): ?>
-                                    <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
-                                <?php else: ?>
-                                    <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
-                                <?php endif; ?>
-                            </form>
+                            <?php if ($m['id'] == 1): ?>
+                                <span class="text-muted">System Root</span>
+                            <?php else: ?>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="update_status">
+                                    <?php if ($m['status'] == 'active'): ?>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger me-1">Suspend</button>
+                                        <button type="submit" name="status" value="inactive" class="btn btn-sm btn-outline-warning text-dark">Deactivate</button>
+                                    <?php elseif ($m['status'] == 'inactive'): ?>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success me-1">Activate</button>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
+                                    <?php else: ?>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success me-1">Activate</button>
+                                        <button type="submit" name="status" value="inactive" class="btn btn-sm btn-outline-warning text-dark">Deactivate</button>
+                                    <?php endif; ?>
+                                </form>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
