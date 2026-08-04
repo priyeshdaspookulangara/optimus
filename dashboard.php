@@ -60,65 +60,11 @@ include __DIR__ . '/includes/header.php';
 ?>
 
 <div class="container-fluid content-inner dashboard-inner pb-5 p-3">
-    <div class="row p-0">
-        <div class="account-overview">
-            <div class="overview-row">
-                <div class="overview-box">
-                    <h3>TODAY ROI $</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($stats['today_roi'], 2); ?></p>
-                </div>
-                <div class="overview-box">
-                    <h3>TODAY %</h3>
-                    <p class="text-primary mt-2">0.5%</p>
-                </div>
-                <div class="overview-box" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal" title="Click to view full breakdown">
-                    <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
-                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
-                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
-                </div>
-            </div>
-            <div class="overview-row">
-                <div class="overview-box">
-                    <h3>TEAM INVESTMENT $</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($team_inv['team_investment'] ?? 0, 2); ?></p>
-                </div>
-                <div class="overview-box">
-                    <h3>MY INVESTMENT</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
-                </div>
-            </div>
-            <div class="overview-row">
-                <div class="overview-box">
-                    <h3 class="text-upercase">CURRENT POWER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($legStats['power_leg'], 2); ?></p>
-                </div>
-                <div class="overview-box">
-                    <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($legStats['matching_leg'], 2); ?></p>
-                </div>
-            </div>
-            <div class="overview-row">
-                <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
-                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
-                </div>
-                <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">POWER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
-                </div>
-                <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">WEAKER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['rest_carry_forward'], 2); ?></p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Team Referral Link Share Section (Two Panes) -->
     <?php
     $midCode = !empty($user['mid']) ? $user['mid'] : $user['id'];
     ?>
-    <div class="container-fluid mb-4">
+    <div class="container-fluid mb-4 p-0">
         <div class="row">
             <div class="col-md-6 mb-3">
                 <div class="card h-100 shadow-sm" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff;">
@@ -172,6 +118,60 @@ include __DIR__ . '/includes/header.php';
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-0">
+        <div class="account-overview">
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>TODAY ROI $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($stats['today_roi'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>TODAY %</h3>
+                    <p class="text-primary mt-2">0.5%</p>
+                </div>
+                <div class="overview-box" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#earningsBreakdownModal" title="Click to view full breakdown">
+                    <h3>TOTAL EARNING $ <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo number_format($stats['total_earning'], 2); ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view composition</small>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3>TEAM INVESTMENT $</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($team_inv['team_investment'] ?? 0, 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>MY INVESTMENT</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box">
+                    <h3 class="text-upercase">CURRENT POWER LEG</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($legStats['power_leg'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
+                    <p class="text-primary mt-2"><?php echo number_format($legStats['matching_leg'], 2); ?></p>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
+                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                </div>
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">POWER CARRY FORWARD</h3>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
+                </div>
+                <div class="overview-box" style="background-color: #2d1840;">
+                    <h3 class="text-upercase">WEAKER CARRY FORWARD</h3>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['rest_carry_forward'], 2); ?></p>
                 </div>
             </div>
         </div>
