@@ -629,8 +629,13 @@ class MLMEngine {
                 break;
             }
 
-            // Sponsor must hold Conferred Rank >= matched slab's required rank to qualify
-            if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
+            if ($upline['status'] === 'active') {
+                // Conferred Rank Logic: The rank itself is dynamically conferred (assigned) to the upline sponsor
+                if ($requiredRankId > (int)$upline['rank_id']) {
+                    $stmtUpdateUserRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                    $stmtUpdateUserRank->execute([$requiredRankId, $upline['parent_id']]);
+                }
+
                 // Ensure no duplicate contract for this specific downline rank achievement
                 $stmtCheck->execute([$upline['parent_id'], $downlineId, $requiredRankId]);
                 $exists = $stmtCheck->fetch();
