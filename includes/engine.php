@@ -181,18 +181,14 @@ class MLMEngine {
         $restLegRaw = $totalVolume - $powerLegRaw;
 
         /**
-         * Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config.
+         * Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config (Single-Pass).
          *
-         * To support multiple units per slab organically, this engine runs a multi-pass sequential matching.
-         * In each pass:
-         * 1. Slabs are evaluated from the smallest to largest (e.g. Mentor $500, Pioneer $1000, Elite $2500, etc.).
-         * 2. If the user has sufficient volume to match the current slab, it matches exactly 1 unit of that slab in this pass,
+         * 1. Slabs are evaluated sequentially from smallest to largest (e.g. Mentor $500, Pioneer $1000, Elite $2500, etc.).
+         * 2. If the user has sufficient volume to match the current slab, it matches exactly 1 unit of that slab,
          *    deducts the matched volume, and proceeds to the next larger slab.
-         * 3. **Strict Sequential Restriction**: If any slab fails to match in the current pass (e.g. volume is less than the slab),
-         *    the current pass terminates immediately ("break"). This guarantees that higher-tier units cannot be matched
-         *    unless the user has already qualified for all lower-tier units sequentially in that pass.
-         * 4. Multi-Pass Execution: The engine continues to start new passes as long as at least one slab has been successfully
-         *    matched in the previous pass.
+         * 3. **Strict Sequential Restriction**: If any slab fails to match (e.g. volume is less than the slab),
+         *    the matchmaking is immediately terminated ("break"). This guarantees that higher-tier units cannot be matched
+         *    unless the user has already qualified for all lower-tier units sequentially.
          */
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
@@ -211,39 +207,19 @@ class MLMEngine {
             $slabBreakdown[$slab] = 0;
         }
 
-        // Execute sequential matching across multiple passes to organically support multiple units of lower/intermediate slabs
-        while (true) {
-            $passMatched = false;
-            $tempPower = $vPower;
-            $tempRest = $vRest;
-            $tempMatched = 0.00;
-            $tempBreakdown = [];
+        foreach ($slabs as $slab) {
+            $m = min($vPower, $vRest);
+            if ($m >= $slab) {
+                $units = 1; // Match exactly 1 unit of this slab in the ascending sequence
+                $matchedVolume = $slab;
 
-            foreach ($slabs as $slab) {
-                $m = min($tempPower, $tempRest);
-                if ($m >= $slab) {
-                    $tempMatched += $slab;
-                    $tempPower -= $slab;
-                    $tempRest -= $slab;
-                    $tempBreakdown[$slab] = 1;
-                    $passMatched = true;
-                } else {
-                    // Strict Sequential Match Requirement: if any slab fails to match in this pass,
-                    // we cannot proceed to higher-tier slabs in this pass.
-                    break;
-                }
-            }
+                $totalMatched += $matchedVolume;
+                $vPower -= $matchedVolume;
+                $vRest -= $matchedVolume;
 
-            if ($passMatched && $tempMatched > 0) {
-                // Apply the volume deductions and unit matches from this successful sequential pass
-                $vPower = $tempPower;
-                $vRest = $tempRest;
-                $totalMatched += $tempMatched;
-                foreach ($tempBreakdown as $slab => $units) {
-                    $slabBreakdown[$slab] += $units;
-                }
+                $slabBreakdown[$slab] = $units;
             } else {
-                // No matches could be made in this pass, matching is completed
+                // If any slab fails to match sequentially, matchmaking is immediately terminated
                 break;
             }
         }
