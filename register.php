@@ -2,10 +2,18 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorQuery = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['ref'] ?? $_GET['mid'] ?? $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
+
+$posParam = trim($_GET['pos'] ?? '');
+$position = null;
+if (strcasecmp($posParam, 'L') === 0 || strcasecmp($posParam, 'left') === 0) {
+    $position = 'left';
+} elseif (strcasecmp($posParam, 'R') === 0 || strcasecmp($posParam, 'right') === 0) {
+    $position = 'right';
+}
 
 if (!empty($sponsorQuery)) {
     // Search by mid first, then by auto-increment id as fallback
@@ -116,21 +124,23 @@ if (!empty($sponsorQuery)) {
 
                   <!-- Sponsor Info -->
                   <div class="form-group col-md-6 mb-3">
-                    <label class="form-label" for="mid">Sponsor Code (Sponsor ID): </label>
-                    <input type="text" class="form-control" id="mid" name="mid"
+                    <label class="form-label" for="mid">Sponsor Code (MID): </label>
+                    <input type="text" class="form-control" id="mid" name="sponsor_mid_display"
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
+                    <input type="hidden" id="position" name="position"
+                      value="<?php echo htmlspecialchars($position); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
-                    <input type="text" class="form-control" id="sponsor_name" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly style="background-color: #e9ecef !important; color: #495057 !important;">
+                    <input type="text" class="form-control" id="sponsor_name" name="sponsor_name_display" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly style="background-color: #e9ecef !important; color: #495057 !important;">
                   </div>
 
                   <!-- Activation PIN -->
                   <div class="form-group col-12 mb-3">
-                    <label class="form-label" for="pin_code">Activation PIN (Optional): </label>
-                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="OPTXXXXXX">
+                    <label class="form-label" for="pin_code">Activation PIN (Required): </label>
+                    <input type="text" class="form-control" id="pin_code" name="pin_code" required placeholder="OPTXXXXXX">
                     <div id="pin_feedback"></div>
                   </div>
 
@@ -240,21 +250,44 @@ if (!empty($sponsorQuery)) {
         }
       });
 
+      var isPinValid = false;
+
       // Real-time PIN validation
       $('#pin_code').on('input', function() {
         var pin = $(this).val().trim();
         if(pin.length >= 6) {
           $.getJSON('check_pin.php', { pin: pin }, function(data) {
             if(data.status === 'success') {
+              isPinValid = true;
               $('#pin_feedback').html('<span class="pin-status-badge bg-success text-white"><i class="fa fa-check-circle me-1"></i> Valid PIN: ' + data.package + ' ($' + data.amount + ')</span>');
             } else if(data.status === 'used') {
+              isPinValid = false;
               $('#pin_feedback').html('<span class="pin-status-badge bg-warning text-white"><i class="fa fa-exclamation-triangle me-1"></i> Used PIN</span>');
             } else {
+              isPinValid = false;
               $('#pin_feedback').html('<span class="pin-status-badge bg-danger text-white"><i class="fa fa-times-circle me-1"></i> Invalid PIN</span>');
             }
           });
         } else {
+          isPinValid = false;
           $('#pin_feedback').empty();
+        }
+      });
+
+      // Validate Sponsor and PIN before form submission
+      $('#regForm').on('submit', function(e) {
+        var refId = $('#referral_id').val().trim();
+        if (!refId) {
+          e.preventDefault();
+          alert('Please enter a valid Sponsor Code.');
+          $('#mid').focus();
+          return false;
+        }
+        if (!isPinValid) {
+          e.preventDefault();
+          alert('Please enter a valid, unused Activation PIN.');
+          $('#pin_code').focus();
+          return false;
         }
       });
 

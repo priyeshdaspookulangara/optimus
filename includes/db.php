@@ -29,6 +29,13 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure pin_code column exists in users table
+            try {
+                $this->connection->exec("ALTER TABLE `users` ADD COLUMN `pin_code` VARCHAR(20) DEFAULT NULL AFTER `rank_id`");
+            } catch (PDOException $e) {
+                // Column probably already exists, which is fine
+            }
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
