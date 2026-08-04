@@ -1,5 +1,5 @@
 <?php
-$sponsorQuery = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['ref'] ?? $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
@@ -9,8 +9,8 @@ try {
     $db = Database::getInstance()->getConnection();
 
     if (!empty($sponsorQuery)) {
-        // Search by mid first, then by auto-increment id as fallback
-        $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
+        // Search by mid case-insensitively, then by auto-increment id as fallback
+        $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE LOWER(mid) = LOWER(?) OR id = ?");
         $stmt->execute([$sponsorQuery, $sponsorQuery]);
         $user = $stmt->fetch();
         if ($user) {
@@ -22,7 +22,7 @@ try {
 } catch (Throwable $e) {
     // Resilient fallback for environments/setups where DB connection fails or is not yet initialized
     $sponsorName = "Demo Sponsor";
-    $sponsorMid = "OPT123456";
+    $sponsorMid = !empty($sponsorQuery) ? strtoupper($sponsorQuery) : "OPT123456";
     $sponsorDbId = "1";
 }
 ?>
