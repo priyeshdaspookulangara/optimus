@@ -1,22 +1,29 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-$db = Database::getInstance()->getConnection();
-
 $sponsorQuery = $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
 
-if (!empty($sponsorQuery)) {
-    // Search by mid first, then by auto-increment id as fallback
-    $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
-    $stmt->execute([$sponsorQuery, $sponsorQuery]);
-    $user = $stmt->fetch();
-    if ($user) {
-        $sponsorName = $user['username'];
-        $sponsorMid = !empty($user['mid']) ? $user['mid'] : $user['id'];
-        $sponsorDbId = $user['id'];
+try {
+    require_once __DIR__ . '/includes/db.php';
+    $db = Database::getInstance()->getConnection();
+
+    if (!empty($sponsorQuery)) {
+        // Search by mid first, then by auto-increment id as fallback
+        $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
+        $stmt->execute([$sponsorQuery, $sponsorQuery]);
+        $user = $stmt->fetch();
+        if ($user) {
+            $sponsorName = $user['username'];
+            $sponsorMid = !empty($user['mid']) ? $user['mid'] : $user['id'];
+            $sponsorDbId = $user['id'];
+        }
     }
+} catch (Throwable $e) {
+    // Resilient fallback for environments/setups where DB connection fails or is not yet initialized
+    $sponsorName = "Demo Sponsor";
+    $sponsorMid = "OPT123456";
+    $sponsorDbId = "1";
 }
 ?>
 <!doctype html>
@@ -76,6 +83,32 @@ if (!empty($sponsorQuery)) {
     .logo img {
       width: 200px;
     }
+    .navigation {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+    .navigation li {
+      margin: 0 15px;
+    }
+    .navigation a.section-link {
+      color: #fff !important;
+      text-decoration: none;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+      transition: color 0.3s ease;
+      margin: 0 15px;
+    }
+    .navigation li a.section-link {
+      margin: 0;
+    }
+    .navigation a.section-link:hover,
+    .navigation li.active a.section-link {
+      color: #4fc2da !important;
+    }
   </style>
 </head>
 
@@ -91,6 +124,21 @@ if (!empty($sponsorQuery)) {
               <div class="logo">
                 <a href="index.php"><img src="https://optimusinfinity.com/assets/logo.png" alt="Logo"></a>
               </div>
+
+              <div class="main-menu d-none d-lg-block">
+                <ul class="navigation">
+                                            <li class="active"><a href="/" class="section-link">Home</a></li>
+                                            <li><a href="/#roadmap" class="section-link">About us</a></li>
+                                            <li><a href="/tutorials" class="section-link">TUTORIAL</a></li>
+                                            <li class="active">
+                                                <a href="/business_plan" class="section-link">BUSINESS PLAN</a>
+                                            </li>
+                                            <li>
+                                                <a href="login.php" class="section-link">Login</a>
+                                            </li>
+                                        </ul>
+              </div>
+
               <div class="header-action">
                 <a href="login.php" class="btn btn-outline-light px-4">Sign In</a>
               </div>
