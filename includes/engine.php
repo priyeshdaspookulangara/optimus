@@ -344,19 +344,19 @@ class MLMEngine {
                     $consecutiveSingleCount = 0;
 
                     foreach ($uplines as $upline) {
-                        // Check if this parent has only one direct referral (single direct referral node)
+                        // Check if this parent has fewer than two direct referral branches (no two branches / direct joinings)
                         $stmtReferrals->execute([$upline['parent_id']]);
                         $refData = $stmtReferrals->fetch();
                         $refCount = (int)$refData['ref_count'];
 
-                        if ($refCount === 1) {
+                        if ($refCount < 2) {
                             $consecutiveSingleCount++;
                         } else {
                             $consecutiveSingleCount = 0;
                         }
 
-                        // If we already went past 3 consecutive single nodes, break immediately
-                        if ($consecutiveSingleCount > 3) {
+                        // Stop propagation immediately if we encounter the consecutive 2nd parent with no two branches
+                        if ($consecutiveSingleCount >= 2) {
                             break;
                         }
 
@@ -373,11 +373,6 @@ class MLMEngine {
                                     $userId
                                 );
                             }
-                        }
-
-                        // Stop propagating further if we just paid the 3rd consecutive single referral node
-                        if ($consecutiveSingleCount === 3) {
-                            break;
                         }
                     }
                 } else {
