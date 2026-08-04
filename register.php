@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorQuery = $_GET['mid'] ?? $_GET['id'] ?? '';
+$sponsorQuery = $_GET['ref'] ?? $_GET['mid'] ?? $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
@@ -116,15 +116,15 @@ if (!empty($sponsorQuery)) {
 
                   <!-- Sponsor Info -->
                   <div class="form-group col-md-6 mb-3">
-                    <label class="form-label" for="mid">Sponsor Code (Sponsor ID): </label>
-                    <input type="text" class="form-control" id="mid" name="mid"
+                    <label class="form-label" for="mid">Sponsor Code (MID): </label>
+                    <input type="text" class="form-control" id="mid" name="sponsor_mid_display"
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
-                    <input type="text" class="form-control" id="sponsor_name" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly style="background-color: #e9ecef !important; color: #495057 !important;">
+                    <input type="text" class="form-control" id="sponsor_name" name="sponsor_name_display" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly style="background-color: #e9ecef !important; color: #495057 !important;">
                   </div>
 
                   <!-- Activation PIN -->
@@ -264,8 +264,15 @@ if (!empty($sponsorQuery)) {
         }
       });
 
-      // Validate PIN before form submission
+      // Validate Sponsor and PIN before form submission
       $('#regForm').on('submit', function(e) {
+        var refId = $('#referral_id').val().trim();
+        if (!refId) {
+          e.preventDefault();
+          alert('Please enter a valid Sponsor Code.');
+          $('#mid').focus();
+          return false;
+        }
         if (!isPinValid) {
           e.preventDefault();
           alert('Please enter a valid, unused Activation PIN.');

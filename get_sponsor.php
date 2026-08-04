@@ -2,7 +2,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/includes/db.php';
 
-$sponsorId = trim($_GET['id'] ?? '');
+$sponsorId = trim($_GET['id'] ?? $_GET['ref'] ?? $_GET['mid'] ?? '');
 
 if (empty($sponsorId)) {
     echo json_encode(['status' => 'not_found', 'username' => 'Not Found']);
