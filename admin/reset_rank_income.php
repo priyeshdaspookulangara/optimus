@@ -195,8 +195,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                         $consecutiveSingleCount = 0;
                                     }
 
-                                    // Terminate propagation immediately on the consecutive 2nd parent with no dual branches
-                                    if ($consecutiveSingleCount >= 2) {
+                                    // Terminate propagation immediately on the consecutive 3rd parent with no dual branches
+                                    if ($consecutiveSingleCount >= 3) {
                                         break;
                                     }
 
