@@ -349,7 +349,7 @@ class MLMEngine {
                         $refData = $stmtReferrals->fetch();
                         $refCount = (int)$refData['ref_count'];
 
-                        if ($refCount < 2) {
+                        if ($refCount <= 1) {
                             $consecutiveSingleCount++;
                         } else {
                             $consecutiveSingleCount = 0;
