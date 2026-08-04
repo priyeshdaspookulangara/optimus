@@ -1,6 +1,77 @@
 <?php
 require_once __DIR__ . '/includes/engine.php';
 
+/**
+ * Binary Tree Placement Spillover Logic
+ */
+function getBinaryPlacement($db, $sponsorId, $preferredPosition) {
+    if ($preferredPosition !== 'left' && $preferredPosition !== 'right') {
+        $preferredPosition = 'left';
+    }
+
+    // Step 1: Check if the preferred spot under sponsor is empty
+    $stmt = $db->prepare("SELECT id FROM users WHERE placement_id = ? AND position = ?");
+    $stmt->execute([$sponsorId, $preferredPosition]);
+    $existing = $stmt->fetch();
+
+    if (!$existing) {
+        // Preferred position under sponsor is empty! Place them directly here.
+        return [
+            'placement_id' => $sponsorId,
+            'position' => $preferredPosition
+        ];
+    }
+
+    // Step 2: The preferred position is occupied. Traverse down the subtree rooted at this occupied node.
+    // BFS level-order traversal to find the first node with an empty child spot (either left or right).
+    $queue = [$existing['id']];
+
+    while (!empty($queue)) {
+        $currentId = array_shift($queue);
+
+        // Fetch children of the current node
+        $stmt = $db->prepare("SELECT id, position FROM users WHERE placement_id = ?");
+        $stmt->execute([$currentId]);
+        $children = $stmt->fetchAll();
+
+        $leftNodeId = null;
+        $rightNodeId = null;
+
+        foreach ($children as $child) {
+            if ($child['position'] === 'left') {
+                $leftNodeId = $child['id'];
+            } elseif ($child['position'] === 'right') {
+                $rightNodeId = $child['id'];
+            }
+        }
+
+        // Check if Left is empty
+        if ($leftNodeId === null) {
+            return [
+                'placement_id' => $currentId,
+                'position' => 'left'
+            ];
+        }
+
+        // Check if Right is empty
+        if ($rightNodeId === null) {
+            return [
+                'placement_id' => $currentId,
+                'position' => 'right'
+            ];
+        }
+
+        // Both are occupied, queue both for level-order traversal
+        $queue[] = $leftNodeId;
+        $queue[] = $rightNodeId;
+    }
+
+    return [
+        'placement_id' => $sponsorId,
+        'position' => $preferredPosition
+    ];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $fullName = trim($_POST['name'] ?? '');
@@ -62,6 +133,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Resolve binary tree placement (spillover logic) if we have a sponsor
+    $resolvedPlacementId = null;
+    $resolvedPosition = null;
+
+    if ($sponsorDbId) {
+        $placement = getBinaryPlacement($db, $sponsorDbId, $position);
+        $resolvedPlacementId = $placement['placement_id'];
+        $resolvedPosition = $placement['position'];
+    }
+
     // Generate unique alphanumeric mid code (OPTxxxxx)
     $newMid = '';
     $midExists = true;
@@ -80,12 +161,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->beginTransaction();
 
         $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, pin_code, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId, $pinCode, $position]);
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $resolvedPlacementId, $pinCode, $resolvedPosition]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorDbId) {
             $engine = new MLMEngine();
-            $engine->addToGenealogy($newUserId, $sponsorDbId);
+            $engine->addToGenealogy($newUserId, $sponsorDbId, $resolvedPlacementId, $resolvedPosition);
         }
 
         // If a PIN code was provided during registration, activate the package instantly!
