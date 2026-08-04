@@ -14,6 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirmPassword = $_POST['password_confirmation'] ?? '';
     $sponsorRef = trim($_POST['referral_id'] ?? '');
     $pinCode = trim($_POST['pin_code'] ?? '');
+    $position = trim($_POST['position'] ?? '');
+    if ($position !== 'left' && $position !== 'right') {
+        $position = null;
+    }
 
     if ($password !== $confirmPassword) {
         die("Passwords do not match. <a href='javascript:history.back()'>Go back</a>");
@@ -75,8 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, pin_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId, $pinCode]);
+        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, pin_code, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId, $pinCode, $position]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorDbId) {

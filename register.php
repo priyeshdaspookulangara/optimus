@@ -7,6 +7,14 @@ $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
 
+$posParam = trim($_GET['pos'] ?? '');
+$position = null;
+if (strcasecmp($posParam, 'L') === 0 || strcasecmp($posParam, 'left') === 0) {
+    $position = 'left';
+} elseif (strcasecmp($posParam, 'R') === 0 || strcasecmp($posParam, 'right') === 0) {
+    $position = 'right';
+}
+
 if (!empty($sponsorQuery)) {
     // Search by mid first, then by auto-increment id as fallback
     $stmt = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
@@ -121,6 +129,8 @@ if (!empty($sponsorQuery)) {
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
+                    <input type="hidden" id="position" name="position"
+                      value="<?php echo htmlspecialchars($position); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
