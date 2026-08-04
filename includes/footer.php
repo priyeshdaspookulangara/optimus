@@ -20,7 +20,7 @@
             $baseUrl = $protocol . "://" . $host . $dir;
             $baseUrl = rtrim($baseUrl, '/\\');
           ?>
-          var textToCopy = "<?php echo $baseUrl; ?>/registration_new.php?id=<?php echo !empty($user['mid']) ? $user['mid'] : ($user['id'] ?? '0'); ?>";
+          var textToCopy = "<?php echo $baseUrl; ?>/registration_new.php?mid=<?php echo !empty($user['mid']) ? $user['mid'] : ($user['id'] ?? '0'); ?>";
 
           // Use modern clipboard API first, fallback to textarea method
           if (navigator.clipboard && navigator.clipboard.writeText) {

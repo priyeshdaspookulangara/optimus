@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorQuery = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['mid'] ?? $_GET['id'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
