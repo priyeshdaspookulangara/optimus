@@ -314,9 +314,18 @@ class MLMEngine {
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
 
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+                    // Find the matching rank level corresponding to this slab to verify qualifications
+                    $requiredRankId = 0;
+                    foreach ($this->config['ranks'] as $idx => $rankConf) {
+                        if ($rankConf['matching'] == $sched['slab_amount']) {
+                            $requiredRankId = $idx + 1;
+                            break;
+                        }
+                    }
+
+                    // Propagate rank income up to root (subject to upline's active status and Conferred Rank qualification)
                     $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status
+                        SELECT g.parent_id, u.username, u.status, u.rank_id
                         FROM genealogy g
                         JOIN users u ON g.parent_id = u.id
                         WHERE g.user_id = ?
@@ -351,7 +360,8 @@ class MLMEngine {
                             break;
                         }
 
-                        if ($upline['status'] === 'active') {
+                        // Sponsor must have Conferred Rank >= the matched slab's required rank to receive propagation
+                        if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
                             $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
                             if ($uplineAllowable > 0) {
                                 $this->logTransaction(
