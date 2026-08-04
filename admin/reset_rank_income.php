@@ -121,9 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                     }
                 }
 
-                // Step 6: Restore days_passed, status, and regenerate sequential transaction payout histories
-                $recalc_log[] = "Restoring matching schedule progression and daily payout histories from backup...";
-                $stmtAllScheds = $db->query("SELECT * FROM matching_schedules ORDER BY id ASC");
+                // Step 6: Restore days_passed, status, and regenerate sequential transaction payout histories with proper upward propagation
+                $recalc_log[] = "Restoring matching schedule progression and propagating daily payout histories upwards...";
+                $stmtAllScheds = $db->query("
+                    SELECT ms.*, u.username
+                    FROM matching_schedules ms
+                    JOIN users u ON ms.user_id = u.id
+                    ORDER BY ms.id ASC
+                ");
                 $newSchedules = $stmtAllScheds->fetchAll(PDO::FETCH_ASSOC);
 
                 $restoredCount = 0;
@@ -131,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
                 foreach ($newSchedules as $ns) {
                     $uid = $ns['user_id'];
+                    $uname = $ns['username'];
                     $slab = (int)$ns['slab_amount'];
 
                     if (!isset($userSlabCounters[$uid][$slab])) {
@@ -143,14 +149,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                         $stmtUpdate = $db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                         $stmtUpdate->execute([$bData['days_passed'], $bData['status'], $ns['id']]);
 
-                        // Regenerate the deleted RANK_INCOME daily ledger payouts to perfectly restore balances
+                        // Regenerate the deleted RANK_INCOME daily ledger payouts and propagate them upwards
                         $daysPassed = (int)$bData['days_passed'];
                         $dailyIncome = (float)$ns['daily_income'];
                         if ($daysPassed > 0) {
-                            $stmtTx = $db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description, created_at) VALUES (?, NULL, NULL, 0, 'RANK_INCOME', ?, 0.00, ?, ?, NOW())");
-                            for ($i = 1; $i <= $daysPassed; $i++) {
-                                $desc = "Slab \$" . number_format($slab, 2) . " matching payout - Day " . $i . "/" . $ns['max_days'];
-                                $stmtTx->execute([$uid, $dailyIncome, $dailyIncome, $desc]);
+                            // Find matching rank level corresponding to this slab for verification
+                            $requiredRankId = 0;
+                            foreach ($config['ranks'] as $idx => $rankConf) {
+                                if ($rankConf['matching'] == $slab) {
+                                    $requiredRankId = $idx + 1;
+                                    break;
+                                }
+                            }
+
+                            // Fetch qualified uplines for propagation
+                            $stmtUplines = $db->prepare("
+                                SELECT g.parent_id, u.username, u.status, u.rank_id
+                                FROM genealogy g
+                                JOIN users u ON g.parent_id = u.id
+                                WHERE g.user_id = ?
+                                ORDER BY g.level ASC
+                            ");
+                            $stmtUplines->execute([$uid]);
+                            $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+
+                            $stmtReferrals = $db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+                            $stmtTx = $db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description, created_at) VALUES (?, ?, NULL, 0, 'RANK_INCOME', ?, 0.00, ?, ?, NOW())");
+
+                            for ($day = 1; $day <= $daysPassed; $day++) {
+                                // 1. Pay the qualifying user
+                                $desc = "Slab \$" . number_format($slab, 2) . " matching payout - Day " . $day . "/" . $ns['max_days'];
+                                $stmtTx->execute([$uid, null, $dailyIncome, $dailyIncome, $desc]);
+
+                                // 2. Propagate up to active & qualified sponsor uplines
+                                $consecutiveSingleCount = 0;
+                                foreach ($uplines as $upline) {
+                                    // Check if this parent has fewer than two direct referral branches
+                                    $stmtReferrals->execute([$upline['parent_id']]);
+                                    $refData = $stmtReferrals->fetch();
+                                    $refCount = (int)$refData['ref_count'];
+
+                                    if ($refCount < 2) {
+                                        $consecutiveSingleCount++;
+                                    } else {
+                                        $consecutiveSingleCount = 0;
+                                    }
+
+                                    // Terminate propagation immediately on the consecutive 2nd parent with no dual branches
+                                    if ($consecutiveSingleCount >= 2) {
+                                        break;
+                                    }
+
+                                    // Sponsor must hold Conferred Rank >= the matched slab's required rank to receive propagation
+                                    if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
+                                        $pDesc = "Daily Propagated Match Income from " . $uname . " (Slab \$" . number_format($slab, 2) . ")";
+                                        $stmtTx->execute([$upline['parent_id'], $uid, $dailyIncome, $dailyIncome, $pDesc]);
+                                    }
+                                }
                             }
                         }
                         $restoredCount++;
@@ -159,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                     $userSlabCounters[$uid][$slab]++;
                 }
 
-                $recalc_log[] = "Restored " . $restoredCount . " matching contract(s) progression and regenerated all historical daily rank payouts successfully.";
+                $recalc_log[] = "Restored " . $restoredCount . " matching contract(s) progression and regenerated all historical daily rank payouts with recursive upward propagation successfully.";
 
                 $db->commit();
                 $success_msg = "Recursive Rank and Rank Income reset completed successfully!";
