@@ -180,13 +180,26 @@ class MLMEngine {
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
 
-        // Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config
+        /**
+         * Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config.
+         *
+         * To support multiple units per slab organically, this engine runs a multi-pass sequential matching.
+         * In each pass:
+         * 1. Slabs are evaluated from the smallest to largest (e.g. Mentor $500, Pioneer $1000, Elite $2500, etc.).
+         * 2. If the user has sufficient volume to match the current slab, it matches exactly 1 unit of that slab in this pass,
+         *    deducts the matched volume, and proceeds to the next larger slab.
+         * 3. **Strict Sequential Restriction**: If any slab fails to match in the current pass (e.g. volume is less than the slab),
+         *    the current pass terminates immediately ("break"). This guarantees that higher-tier units cannot be matched
+         *    unless the user has already qualified for all lower-tier units sequentially in that pass.
+         * 4. Multi-Pass Execution: The engine continues to start new passes as long as at least one slab has been successfully
+         *    matched in the previous pass.
+         */
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        // Dynamically fetch and sort matching slabs from config ranks
+        // Dynamically fetch and sort matching slabs from config ranks in ascending order
         $slabs = [];
         foreach ($this->config['ranks'] as $rankConf) {
             $slabs[] = (int)$rankConf['matching'];
@@ -198,19 +211,39 @@ class MLMEngine {
             $slabBreakdown[$slab] = 0;
         }
 
-        foreach ($slabs as $slab) {
-            $m = min($vPower, $vRest);
-            if ($m >= $slab) {
-                $units = 1; // Match 1 unit of this slab in the ascending sequence
-                $matchedVolume = $slab;
+        // Execute sequential matching across multiple passes to organically support multiple units of lower/intermediate slabs
+        while (true) {
+            $passMatched = false;
+            $tempPower = $vPower;
+            $tempRest = $vRest;
+            $tempMatched = 0.00;
+            $tempBreakdown = [];
 
-                $totalMatched += $matchedVolume;
-                $vPower -= $matchedVolume;
-                $vRest -= $matchedVolume;
+            foreach ($slabs as $slab) {
+                $m = min($tempPower, $tempRest);
+                if ($m >= $slab) {
+                    $tempMatched += $slab;
+                    $tempPower -= $slab;
+                    $tempRest -= $slab;
+                    $tempBreakdown[$slab] = 1;
+                    $passMatched = true;
+                } else {
+                    // Strict Sequential Match Requirement: if any slab fails to match in this pass,
+                    // we cannot proceed to higher-tier slabs in this pass.
+                    break;
+                }
+            }
 
-                $slabBreakdown[$slab] = $units;
+            if ($passMatched && $tempMatched > 0) {
+                // Apply the volume deductions and unit matches from this successful sequential pass
+                $vPower = $tempPower;
+                $vRest = $tempRest;
+                $totalMatched += $tempMatched;
+                foreach ($tempBreakdown as $slab => $units) {
+                    $slabBreakdown[$slab] += $units;
+                }
             } else {
-                // If any slab fails to match sequentially, matchmaking is immediately terminated
+                // No matches could be made in this pass, matching is completed
                 break;
             }
         }
@@ -383,17 +416,20 @@ class MLMEngine {
         return $qualifiedRankId;
     }
 
+    /**
+     * Earning Limiter Check (ID Cap):
+     *
+     * Previously, this method checked and limited daily payouts based on a 300% ID Cap
+     * relative to the user's total investment. To ensure there is completely no limitation
+     * in total earnings and the 300% ID Cap is removed, this function has been updated to
+     * always return the full amount to add directly without any caps or limits.
+     *
+     * @param int $userId The ID of the user.
+     * @param float $amountToAdd The pending commission/ROI payout amount.
+     * @return float The allowable amount to pay (unlimited/uncapped).
+     */
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        return (float)$amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
