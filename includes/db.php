@@ -30,7 +30,7 @@ class Database {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
         } catch (PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
+            throw new RuntimeException("Connection failed: " . $e->getMessage());
         }
     }
 
