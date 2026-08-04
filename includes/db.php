@@ -29,6 +29,21 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure conferred_ranks table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `conferred_ranks` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id` INT NOT NULL,
+                `downline_id` INT NOT NULL,
+                `rank_id` INT NOT NULL,
+                `daily_income` DECIMAL(15, 2) NOT NULL,
+                `days_passed` INT DEFAULT 0,
+                `max_days` INT DEFAULT 100,
+                `status` ENUM('active', 'completed') DEFAULT 'active',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
+                FOREIGN KEY (`downline_id`) REFERENCES `users`(`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }

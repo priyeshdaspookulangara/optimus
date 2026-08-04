@@ -279,6 +279,9 @@ class MLMEngine {
                         $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
                         for ($i = 0; $i < $newUnits; $i++) {
                             $stmtInsert->execute([$user['id'], $slab, $dailyIncome]);
+
+                            // Propagate rank upward to conferred_ranks table
+                            $this->propagateConferredRank($user['id'], $slab);
                         }
                     }
                 }
@@ -313,70 +316,47 @@ class MLMEngine {
 
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
+            }
+        }
 
-                    // Find the matching rank level corresponding to this slab to verify qualifications
-                    $requiredRankId = 0;
-                    foreach ($this->config['ranks'] as $idx => $rankConf) {
-                        if ($rankConf['matching'] == $sched['slab_amount']) {
-                            $requiredRankId = $idx + 1;
-                            break;
-                        }
-                    }
+        // Process daily payouts for all active conferred ranks contracts
+        $stmtActiveConferred = $this->db->prepare("
+            SELECT cr.*, u.username as sponsor_username, d.username as downline_username
+            FROM conferred_ranks cr
+            JOIN users u ON cr.user_id = u.id
+            JOIN users d ON cr.downline_id = d.id
+            WHERE cr.status = 'active'
+        ");
+        $stmtActiveConferred->execute();
+        $activeConferred = $stmtActiveConferred->fetchAll();
 
-                    // Propagate rank income up to root (subject to upline's active status and Conferred Rank qualification)
-                    $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status, u.rank_id
-                        FROM genealogy g
-                        JOIN users u ON g.parent_id = u.id
-                        WHERE g.user_id = ?
-                        ORDER BY g.level ASC
-                    ");
-                    $stmtUplines->execute([$userId]);
-                    $uplines = $stmtUplines->fetchAll();
+        foreach ($activeConferred as $cr) {
+            $this->db->beginTransaction();
+            try {
+                $dailyIncome = (float)$cr['daily_income'];
+                $userId = $cr['user_id'];
 
-                    // Get username of the original matching Earner for transaction logging
-                    $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
-                    $stmtUser->execute([$userId]);
-                    $origUserObj = $stmtUser->fetch();
-                    $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+                if ($allowable > 0) {
+                    // Log the RANK_INCOME transaction for the propagated sponsor
+                    $this->logTransaction(
+                        $userId,
+                        'RANK_INCOME',
+                        $allowable,
+                        0,
+                        "Daily Propagated Match Income from " . $cr['downline_username'] . " (Rank ID " . $cr['rank_id'] . ") (Day " . ($cr['days_passed'] + 1) . "/100)",
+                        $cr['downline_id']
+                    );
 
-                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-                    $consecutiveSingleCount = 0;
+                    $newDaysPassed = $cr['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $cr['max_days']) ? 'completed' : 'active';
 
-                    foreach ($uplines as $upline) {
-                        // Check if this parent has fewer than two direct referral branches (no two branches / direct joinings)
-                        $stmtReferrals->execute([$upline['parent_id']]);
-                        $refData = $stmtReferrals->fetch();
-                        $refCount = (int)$refData['ref_count'];
-
-                        if ($refCount <= 1) {
-                            $consecutiveSingleCount++;
-                        } else {
-                            $consecutiveSingleCount = 0;
-                        }
-
-                        // Stop propagation immediately if we encounter the consecutive 3rd parent with no two branches
-                        if ($consecutiveSingleCount >= 3) {
-                            break;
-                        }
-
-                        // Sponsor must have Conferred Rank >= the matched slab's required rank to receive propagation
-                        if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
-                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
-                            if ($uplineAllowable > 0) {
-                                $this->logTransaction(
-                                    $upline['parent_id'],
-                                    'RANK_INCOME',
-                                    $uplineAllowable,
-                                    0,
-                                    "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
-                                    $userId
-                                );
-                            }
-                        }
-                    }
-                } else {
-                    // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
+                    $stmtUpdateConferred = $this->db->prepare("UPDATE conferred_ranks SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateConferred->execute([$newDaysPassed, $status, $cr['id']]);
                 }
                 $this->db->commit();
             } catch (Exception $e) {
@@ -587,8 +567,75 @@ class MLMEngine {
                         $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
                         for ($i = 0; $i < $newUnits; $i++) {
                             $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
+
+                            // Propagate rank upward to conferred_ranks table
+                            $this->propagateConferredRank($ancestorId, $slab);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Propagate a matched slab achievement upwards to all active qualified uplines
+     * by creating active contracts in the 'conferred_ranks' table.
+     */
+    public function propagateConferredRank($downlineId, $slabAmount) {
+        // Find matching rank level corresponding to this slab
+        $requiredRankId = 0;
+        $dailyIncome = 0.00;
+        foreach ($this->config['ranks'] as $idx => $rankConf) {
+            if ($rankConf['matching'] == $slabAmount) {
+                $requiredRankId = $idx + 1;
+                $dailyIncome = $rankConf['daily_income'];
+                break;
+            }
+        }
+
+        if ($requiredRankId === 0) return;
+
+        // Fetch sponsor uplines
+        $stmtUplines = $this->db->prepare("
+            SELECT g.parent_id, u.username, u.status, u.rank_id
+            FROM genealogy g
+            JOIN users u ON g.parent_id = u.id
+            WHERE g.user_id = ?
+            ORDER BY g.level ASC
+        ");
+        $stmtUplines->execute([$downlineId]);
+        $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+        $stmtCheck = $this->db->prepare("SELECT COUNT(*) as count FROM conferred_ranks WHERE user_id = ? AND downline_id = ? AND rank_id = ?");
+        $stmtInsert = $this->db->prepare("INSERT INTO conferred_ranks (user_id, downline_id, rank_id, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, ?, 0, 100, 'active')");
+
+        $consecutiveSingleCount = 0;
+
+        foreach ($uplines as $upline) {
+            // Check if this parent has fewer than two direct referral branches
+            $stmtReferrals->execute([$upline['parent_id']]);
+            $refData = $stmtReferrals->fetch();
+            $refCount = (int)$refData['ref_count'];
+
+            if ($refCount <= 1) {
+                $consecutiveSingleCount++;
+            } else {
+                $consecutiveSingleCount = 0;
+            }
+
+            // Stop propagation immediately on the consecutive 3rd parent with no two branches
+            if ($consecutiveSingleCount >= 3) {
+                break;
+            }
+
+            // Sponsor must hold Conferred Rank >= matched slab's required rank to qualify
+            if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
+                // Ensure no duplicate contract for this specific downline rank achievement
+                $stmtCheck->execute([$upline['parent_id'], $downlineId, $requiredRankId]);
+                $exists = $stmtCheck->fetch();
+                if ((int)$exists['count'] === 0) {
+                    $stmtInsert->execute([$upline['parent_id'], $downlineId, $requiredRankId, $dailyIncome]);
                 }
             }
         }
