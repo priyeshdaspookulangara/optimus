@@ -145,40 +145,56 @@ class MLMEngine {
     }
 
     /**
-     * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
+     * Helper to recursively compute the total investment volume of a placement subtree.
+     */
+    private function getPlacementDescendantsVolume($parentId) {
+        $total = 0.00;
+        $queue = [$parentId];
+
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+
+            // Fetch direct placement children of the current node
+            $stmt = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ?");
+            $stmt->execute([$currentId]);
+            $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($children as $child) {
+                $total += (float)$child['total_investment'];
+                $queue[] = $child['id'];
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Calculate binary placement leg business volumes (Left placement subtree vs. Right placement subtree)
+     * and apply the Sequential Slab-Matching Hierarchy (Single-Pass).
      */
     public function getLegsBusiness($userId) {
-        $stmt = $this->db->prepare("
-            SELECT u.id, u.username,
-                   (u.total_investment + COALESCE((
-                       SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
-                   ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.sponsor_id = ?
-        ");
-        $stmt->execute([$userId]);
-        $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Find direct placement child for Left position
+        $stmtLeft = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ? AND position = 'left'");
+        $stmtLeft->execute([$userId]);
+        $leftUser = $stmtLeft->fetch(PDO::FETCH_ASSOC);
 
-        if (empty($legs)) {
-            return [
-                'power_leg' => 0.00,
-                'matching_leg' => 0.00,
-                'matched_business' => 0.00,
-                'power_carry_forward' => 0.00,
-                'rest_carry_forward' => 0.00,
-                'slab_breakdown' => []
-            ];
+        // Find direct placement child for Right position
+        $stmtRight = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ? AND position = 'right'");
+        $stmtRight->execute([$userId]);
+        $rightUser = $stmtRight->fetch(PDO::FETCH_ASSOC);
+
+        $leftVolume = 0.00;
+        if ($leftUser) {
+            $leftVolume = (float)$leftUser['total_investment'] + $this->getPlacementDescendantsVolume($leftUser['id']);
         }
 
-        // Raw Legs Calculation
-        $volumes = array_column($legs, 'total_leg_business');
-        $powerLegRaw = max($volumes);
-        $totalVolume = array_sum($volumes);
-        $restLegRaw = $totalVolume - $powerLegRaw;
+        $rightVolume = 0.00;
+        if ($rightUser) {
+            $rightVolume = (float)$rightUser['total_investment'] + $this->getPlacementDescendantsVolume($rightUser['id']);
+        }
+
+        // Left leg volume and Right leg volume matching
+        $powerLegRaw = max($leftVolume, $rightVolume);
+        $restLegRaw = min($leftVolume, $rightVolume);
 
         /**
          * Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config (Single-Pass).
