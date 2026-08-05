@@ -1,5 +1,5 @@
 <?php
-// PHP CLI Test Suite for MLM Application Logic
+// PHP CLI Test Suite for MLM Application Logic (Server-aligned version)
 
 class TestDatabase {
     private $connection;
@@ -108,7 +108,7 @@ try {
     $sqlite->exec("CREATE TABLE conferred_ranks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,
-      downline_user_id INTEGER,
+      downline_id INTEGER,
       rank_id INTEGER,
       daily_income REAL,
       days_passed INTEGER DEFAULT 0,
@@ -190,13 +190,12 @@ try {
     if ($legs['matched_business'] !== 500.0) {
         throw new Exception("FAIL: Matched business should be 500.0, got: " . $legs['matched_business']);
     }
-    echo "✅ getLegsBusiness() calculated power leg and matching leg business correctly based on placement_id!\n";
+    echo "✅ getLegsBusiness() calculated power and matching leg business correctly based on placement subtree recursion!\n";
 
     // 5. Test Rank Upgrade & Conferred Ranks generation
     echo "--- Testing Rank Upgrades & awardConferredRanks() ---\n";
 
-    // User 2 qualifies for Mentor rank (matching business = 500)
-    // We update upline ranks for User 3
+    // We trigger dynamic slab contract and upward propagation
     $engine->updateUplineRanks(3);
 
     // User 2 rank_id should be updated to 1 (Mentor)
@@ -207,7 +206,7 @@ try {
     echo "✅ User 2 rank upgraded to Mentor automatically!\n";
 
     // Admin 1 (upline of User 2) should be awarded Mentor as a conferred rank!
-    $stmtConf = $sqlite->prepare("SELECT * FROM conferred_ranks WHERE user_id = 1 AND downline_user_id = 2 AND rank_id = 1");
+    $stmtConf = $sqlite->prepare("SELECT * FROM conferred_ranks WHERE user_id = 1 AND downline_id = 2 AND rank_id = 1");
     $stmtConf->execute();
     $confRank = $stmtConf->fetch();
     if (!$confRank) {
@@ -228,8 +227,7 @@ try {
 
     // Verify transaction logs
     // User 2 should have received standard matching daily income (0.25)
-    // Admin 1 should have received conferred matching daily income (0.25)
-    // Admin 1 should have also received propagated match income from User 2 (0.25)
+    // Admin 1 should have received conferred matching daily income (0.25) as "Daily Propagated Match Income from user2"
     $stmtTx = $sqlite->prepare("SELECT user_id, amount, description FROM transactions ORDER BY id DESC LIMIT 5");
     $stmtTx->execute();
     $txs = $stmtTx->fetchAll();

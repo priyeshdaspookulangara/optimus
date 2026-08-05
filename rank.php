@@ -28,7 +28,7 @@ $matching_schedules = $stmtSched->fetchAll();
 $stmtConferred = $db->prepare("
     SELECT cr.*, u.username as downline_username
     FROM conferred_ranks cr
-    JOIN users u ON cr.downline_user_id = u.id
+    JOIN users u ON cr.downline_id = u.id
     WHERE cr.user_id = ?
     ORDER BY cr.status ASC, cr.rank_id DESC
 ");
