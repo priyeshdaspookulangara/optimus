@@ -158,7 +158,7 @@ class MLMEngine {
                        WHERE g.parent_id = u.id
                    ), 0)) as total_leg_business
             FROM users u
-            WHERE u.sponsor_id = ?
+            WHERE u.placement_id = ?
         ");
         $stmt->execute([$userId]);
         $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -234,6 +234,9 @@ class MLMEngine {
                 $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$currentRankId, $user['id']]);
                 $user['rank_id'] = $currentRankId;
+
+                // Award conferred ranks to all unilevel uplines recursively
+                $this->awardConferredRanks($user['id'], $currentRankId);
             }
 
             // Sync/Create new matching schedules if currently qualified units > existing registered matching schedules
@@ -319,7 +322,7 @@ class MLMEngine {
                         $refData = $stmtReferrals->fetch();
                         $refCount = (int)$refData['ref_count'];
 
-                        if ($refCount === 1) {
+                        if ($refCount <= 1) {
                             $consecutiveSingleCount++;
                         } else {
                             $consecutiveSingleCount = 0;
@@ -357,6 +360,95 @@ class MLMEngine {
                 $this->db->rollBack();
             }
         }
+
+        // Process daily payouts for all active conferred ranks
+        $stmtActiveConferred = $this->db->prepare("SELECT * FROM conferred_ranks WHERE status = 'active'");
+        $stmtActiveConferred->execute();
+        $activeConferred = $stmtActiveConferred->fetchAll();
+
+        foreach ($activeConferred as $sched) {
+            $this->db->beginTransaction();
+            try {
+                $dailyIncome = (float)$sched['daily_income'];
+                $userId = $sched['user_id'];
+
+                // Check if user is active
+                $stmtCheckUser = $this->db->prepare("SELECT status, username FROM users WHERE id = ?");
+                $stmtCheckUser->execute([$userId]);
+                $userRow = $stmtCheckUser->fetch();
+
+                if ($userRow && $userRow['status'] === 'active') {
+                    // Fetch original downline username and rank name
+                    $stmtDownline = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                    $stmtDownline->execute([$sched['downline_user_id']]);
+                    $downlineUsername = $stmtDownline->fetchColumn() ?: "Downline ID {$sched['downline_user_id']}";
+
+                    $rankName = isset($this->config['ranks'][$sched['rank_id'] - 1]) ? $this->config['ranks'][$sched['rank_id'] - 1]['name'] : "Rank ID {$sched['rank_id']}";
+
+                    // Log the RANK_INCOME transaction for this conferred rank
+                    $this->logTransaction(
+                        $userId,
+                        'RANK_INCOME',
+                        $dailyIncome,
+                        0,
+                        "Daily Conferred Rank Income ({$rankName}) from downline {$downlineUsername} (Day " . ($sched['days_passed'] + 1) . "/100)"
+                    );
+
+                    $newDaysPassed = $sched['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $sched['max_days']) ? 'completed' : 'active';
+
+                    $stmtUpdateSched = $this->db->prepare("UPDATE conferred_ranks SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
+
+                    // Propagate rank income up to root, subject to active status and 3-consecutive orphan nodes threshold
+                    $stmtUplines = $this->db->prepare("
+                        SELECT g.parent_id, u.username, u.status
+                        FROM genealogy g
+                        JOIN users u ON g.parent_id = u.id
+                        WHERE g.user_id = ?
+                        ORDER BY g.level ASC
+                    ");
+                    $stmtUplines->execute([$userId]);
+                    $uplines = $stmtUplines->fetchAll();
+
+                    $consecutiveOrphans = 0;
+                    foreach ($uplines as $upline) {
+                        // Check if parent is orphan
+                        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+                        $stmtReferrals->execute([$upline['parent_id']]);
+                        $refCount = (int)$stmtReferrals->fetchColumn();
+
+                        if ($refCount <= 1) {
+                            $consecutiveOrphans++;
+                        } else {
+                            $consecutiveOrphans = 0;
+                        }
+
+                        if ($consecutiveOrphans > 3) {
+                            break;
+                        }
+
+                        if ($upline['status'] === 'active') {
+                            $this->logTransaction(
+                                $upline['parent_id'],
+                                'RANK_INCOME',
+                                $dailyIncome,
+                                0,
+                                "Daily Propagated Conferred Rank Income ({$rankName}) originating from {$downlineUsername}",
+                                $userId
+                            );
+                        }
+
+                        if ($consecutiveOrphans === 3) {
+                            break;
+                        }
+                    }
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
+            }
+        }
     }
 
     private function checkRankQualification($matchingBusiness) {
@@ -372,16 +464,7 @@ class MLMEngine {
     }
 
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        return $amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
@@ -405,14 +488,35 @@ class MLMEngine {
     /**
      * Add user to genealogy tree (Unilevel tree up to 12 generations)
      */
-    public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {
-        // Direct sponsor as Level 1 in genealogy (unilevel style for commission)
-        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
-        $stmt->execute([$userId, $sponsorId]);
+    public function addToGenealogy($userId, $sponsorId = null, $placementId = null, $position = null) {
+        // Fetch placement_id and sponsor_id from database if not explicitly passed
+        if ($sponsorId === null || $placementId === null) {
+            $stmt = $this->db->prepare("SELECT sponsor_id, placement_id FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $userRow = $stmt->fetch();
+            if ($userRow) {
+                if ($sponsorId === null) {
+                    $sponsorId = $userRow['sponsor_id'];
+                }
+                if ($placementId === null) {
+                    $placementId = $userRow['placement_id'];
+                }
+            }
+        }
 
-        // Inherit parents from sponsor for unilevel commissions
+        // Fallback to sponsor_id if placement_id is empty/null
+        $parentId = (!empty($placementId)) ? $placementId : $sponsorId;
+        if (empty($parentId)) {
+            return;
+        }
+
+        // Direct parent (placement parent or fallback sponsor) as Level 1 in genealogy
+        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
+        $stmt->execute([$userId, $parentId]);
+
+        // Inherit parents from parent for placement tree climbing up to 12 generations
         $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
-        $stmt->execute([$userId, $sponsorId]);
+        $stmt->execute([$userId, $parentId]);
     }
 
     /**
@@ -534,6 +638,9 @@ class MLMEngine {
                 $updateRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
                 $updateRank->execute([$qualifiedRankId, $ancestorId]);
                 $user['rank_id'] = $qualifiedRankId;
+
+                // Award conferred ranks to all unilevel uplines recursively
+                $this->awardConferredRanks($ancestorId, $qualifiedRankId);
             }
 
             // Sync/Create new matching schedules if qualified units > existing registered matching schedules
@@ -561,6 +668,64 @@ class MLMEngine {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Award Conferred Ranks recursively up the upline unilevel tree,
+     * adhering strictly to active status and 3-consecutive orphan nodes threshold.
+     */
+    public function awardConferredRanks($downlineUserId, $rankId) {
+        $stmt = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+        $stmt->execute([$downlineUserId]);
+        $uplines = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $dailyIncome = 0.00;
+        if (isset($this->config['ranks'][$rankId - 1])) {
+            $dailyIncome = $this->config['ranks'][$rankId - 1]['daily_income'];
+        }
+
+        $consecutiveOrphans = 0;
+        foreach ($uplines as $upline) {
+            $uplineId = $upline['parent_id'];
+
+            // Check if parent is orphan (direct referral count <= 1)
+            $stmtRef = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE sponsor_id = ?");
+            $stmtRef->execute([$uplineId]);
+            $refCount = (int)$stmtRef->fetchColumn();
+
+            if ($refCount <= 1) {
+                $consecutiveOrphans++;
+            } else {
+                $consecutiveOrphans = 0;
+            }
+
+            // Propagation must terminate after traversing 3 consecutive orphan nodes
+            if ($consecutiveOrphans > 3) {
+                break;
+            }
+
+            // Check if this conferred rank is already awarded to this upline for this specific downline and rank_id
+            $stmtCheck = $this->db->prepare("SELECT id FROM conferred_ranks WHERE user_id = ? AND downline_user_id = ? AND rank_id = ?");
+            $stmtCheck->execute([$uplineId, $downlineUserId, $rankId]);
+            if (!$stmtCheck->fetch()) {
+                $stmtInsert = $this->db->prepare("INSERT INTO conferred_ranks (user_id, downline_user_id, rank_id, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, ?, 0, 100, 'active')");
+                $stmtInsert->execute([$uplineId, $downlineUserId, $rankId, $dailyIncome]);
+            }
+
+            // Update user rank_id if current is lower
+            $stmtUser = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+            $stmtUser->execute([$uplineId]);
+            $userRank = (int)$stmtUser->fetchColumn();
+            if ($rankId > $userRank) {
+                $stmtUpdate = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                $stmtUpdate->execute([$rankId, $uplineId]);
+            }
+
+            // Stop propagating further if we just traversed the 3rd consecutive orphan node
+            if ($consecutiveOrphans === 3) {
+                break;
             }
         }
     }

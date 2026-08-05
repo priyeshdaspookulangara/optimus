@@ -57,16 +57,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
+    // Normalize and handle position
+    $position = trim($_POST['position'] ?? '');
+    if (strtolower($position) === 'l') $position = 'left';
+    if (strtolower($position) === 'r') $position = 'right';
+    if ($position !== 'left' && $position !== 'right') {
+        $position = null;
+    }
+
+    // Determine binary placement_id based on sponsor and position (extreme leg placement)
+    $placementDbId = $sponsorDbId;
+    if ($sponsorDbId) {
+        if ($position) {
+            $currId = $sponsorDbId;
+            while (true) {
+                $stmtCheckLeg = $db->prepare("SELECT id FROM users WHERE placement_id = ? AND position = ?");
+                $stmtCheckLeg->execute([$currId, $position]);
+                $legUser = $stmtCheckLeg->fetch();
+                if ($legUser) {
+                    $currId = $legUser['id'];
+                } else {
+                    $placementDbId = $currId;
+                    break;
+                }
+            }
+        } else {
+            // No position specified: check if Left is free first, then Right, else default to Left traversal
+            $stmtCheckLeft = $db->prepare("SELECT id FROM users WHERE placement_id = ? AND position = 'left'");
+            $stmtCheckLeft->execute([$sponsorDbId]);
+            if (!$stmtCheckLeft->fetch()) {
+                $position = 'left';
+                $placementDbId = $sponsorDbId;
+            } else {
+                $stmtCheckRight = $db->prepare("SELECT id FROM users WHERE placement_id = ? AND position = 'right'");
+                $stmtCheckRight->execute([$sponsorDbId]);
+                if (!$stmtCheckRight->fetch()) {
+                    $position = 'right';
+                    $placementDbId = $sponsorDbId;
+                } else {
+                    // Both taken, default to Left and traverse extreme left
+                    $position = 'left';
+                    $currId = $sponsorDbId;
+                    while (true) {
+                        $stmtCheckLeg = $db->prepare("SELECT id FROM users WHERE placement_id = ? AND position = ?");
+                        $stmtCheckLeg->execute([$currId, $position]);
+                        $legUser = $stmtCheckLeg->fetch();
+                        if ($legUser) {
+                            $currId = $legUser['id'];
+                        } else {
+                            $placementDbId = $currId;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId]);
+        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $placementDbId, $position]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorDbId) {
             $engine = new MLMEngine();
-            $engine->addToGenealogy($newUserId, $sponsorDbId);
+            $engine->addToGenealogy($newUserId, $sponsorDbId, $placementDbId, $position);
         }
 
         // If a PIN code was provided during registration, activate the package instantly!

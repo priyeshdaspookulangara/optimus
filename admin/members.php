@@ -41,6 +41,7 @@ if (isset($_POST['action'])) {
             $db->exec("DELETE FROM transactions WHERE user_id > 1 OR related_user_id > 1");
             $db->exec("DELETE FROM user_wallets WHERE user_id > 1");
             $db->exec("DELETE FROM matching_schedules WHERE user_id > 1");
+            $db->exec("DELETE FROM conferred_ranks");
 
             // Delete unused/used PINs created for or by non-root users
             $db->exec("DELETE FROM pins WHERE used_by > 1 OR assigned_to > 1");
