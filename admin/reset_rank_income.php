@@ -162,16 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                 }
                             }
 
-                            // Fetch qualified uplines for propagation
-                            $stmtUplines = $db->prepare("
-                                SELECT g.parent_id, u.username, u.status, u.rank_id
-                                FROM genealogy g
-                                JOIN users u ON g.parent_id = u.id
-                                WHERE g.user_id = ?
-                                ORDER BY g.level ASC
-                            ");
-                            $stmtUplines->execute([$uid]);
-                            $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+                            // Fetch qualified sponsor uplines all the way to root (with no level limit)
+                            $uplines = $engine->getAllSponsorUplines($uid);
 
                             $stmtReferrals = $db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
                             $stmtTx = $db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description, created_at) VALUES (?, ?, NULL, 0, 'RANK_INCOME', ?, 0.00, ?, ?, NOW())");

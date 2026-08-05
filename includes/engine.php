@@ -594,6 +594,40 @@ class MLMEngine {
     }
 
     /**
+     * Fetch all sponsor uplines recursively all the way to root (with no level limit).
+     */
+    public function getAllSponsorUplines($userId) {
+        $uplines = [];
+        $currentUserId = $userId;
+
+        while (true) {
+            $stmt = $this->db->prepare("
+                SELECT u.sponsor_id, parent.id as parent_id, parent.username, parent.status, parent.rank_id
+                FROM users u
+                LEFT JOIN users parent ON u.sponsor_id = parent.id
+                WHERE u.id = ?
+            ");
+            $stmt->execute([$currentUserId]);
+            $res = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$res || empty($res['sponsor_id']) || empty($res['parent_id'])) {
+                break;
+            }
+
+            $uplines[] = [
+                'parent_id' => (int)$res['parent_id'],
+                'username' => $res['username'],
+                'status' => $res['status'],
+                'rank_id' => (int)$res['rank_id']
+            ];
+
+            $currentUserId = (int)$res['sponsor_id'];
+        }
+
+        return $uplines;
+    }
+
+    /**
      * Propagate a matched slab achievement upwards to all active qualified uplines
      * by creating active contracts in the 'conferred_ranks' table.
      */
@@ -611,16 +645,8 @@ class MLMEngine {
 
         if ($requiredRankId === 0) return;
 
-        // Fetch sponsor uplines
-        $stmtUplines = $this->db->prepare("
-            SELECT g.parent_id, u.username, u.status, u.rank_id
-            FROM genealogy g
-            JOIN users u ON g.parent_id = u.id
-            WHERE g.user_id = ?
-            ORDER BY g.level ASC
-        ");
-        $stmtUplines->execute([$downlineId]);
-        $uplines = $stmtUplines->fetchAll(PDO::FETCH_ASSOC);
+        // Fetch sponsor uplines all the way up to root (no level limit)
+        $uplines = $this->getAllSponsorUplines($downlineId);
 
         $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
         $stmtCheck = $this->db->prepare("SELECT COUNT(*) as count FROM conferred_ranks WHERE user_id = ? AND downline_id = ? AND rank_id = ?");
