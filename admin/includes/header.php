@@ -36,6 +36,8 @@ $db = Database::getInstance()->getConnection();
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="withdrawals.php" id="link-withdrawals" class="<?php echo basename($_SERVER['PHP_SELF']) == 'withdrawals.php' ? 'active' : ''; ?>"><i class="fa fa-money-bill-wave me-2"></i> Withdrawals</a>
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
+        <a href="recalculate.php" id="link-recalculate" class="<?php echo basename($_SERVER['PHP_SELF']) == 'recalculate.php' ? 'active' : ''; ?>"><i class="fa fa-sync-alt me-2"></i> Recalculate</a>
+        <a href="reset_rank_income.php" id="link-reset-rank" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reset_rank_income.php' ? 'active' : ''; ?>"><i class="fa fa-history me-2"></i> Reset Rank Income</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>
