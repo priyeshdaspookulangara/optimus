@@ -55,6 +55,37 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Conferred Rank Details
+$conferredRankName = 'None';
+$conferredRankMatching = 0.00;
+if ($user['rank_id'] > 0 && isset($config['ranks'][$user['rank_id'] - 1])) {
+    $conferredRankName = $config['ranks'][$user['rank_id'] - 1]['name'];
+    $conferredRankMatching = (float)$config['ranks'][$user['rank_id'] - 1]['matching'];
+}
+
+// Biggest Matching Slab
+$stmtSlab = $db->prepare("SELECT COALESCE(MAX(slab_amount), 0) as max_slab FROM matching_schedules WHERE user_id = ?");
+$stmtSlab->execute([$userId]);
+$slabRes = $stmtSlab->fetch();
+$biggestSlab = (float)($slabRes['max_slab'] ?? 0);
+
+// Determine the biggest of them
+$biggestOfAllType = 'None';
+$biggestOfAllName = 'None';
+$biggestOfAllVal = 0.00;
+
+if ($conferredRankMatching > 0 || $biggestSlab > 0) {
+    if ($conferredRankMatching >= $biggestSlab) {
+        $biggestOfAllType = 'Conferred Rank';
+        $biggestOfAllName = $conferredRankName . " (\$" . number_format($conferredRankMatching, 2) . ")";
+        $biggestOfAllVal = $conferredRankMatching;
+    } else {
+        $biggestOfAllType = 'Matching Slab';
+        $biggestOfAllName = "\$" . number_format($biggestSlab, 2) . " Slab";
+        $biggestOfAllVal = $biggestSlab;
+    }
+}
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -85,6 +116,23 @@ include __DIR__ . '/includes/header.php';
                 <div class="overview-box">
                     <h3>MY INVESTMENT</h3>
                     <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
+                </div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-box" style="background-color: #2a1740; border: 1px solid #cca354;">
+                    <h3 class="text-uppercase">BIGGEST CONFERRED RANK</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo htmlspecialchars($conferredRankName); ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Target: $<?php echo number_format($conferredRankMatching, 2); ?></small>
+                </div>
+                <div class="overview-box" style="background-color: #2a1740; border: 1px solid #cca354;">
+                    <h3 class="text-uppercase">BIGGEST MATCHING SLAB</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo $biggestSlab > 0 ? '$' . number_format($biggestSlab, 2) : 'None'; ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Active/Completed Contract</small>
+                </div>
+                <div class="overview-box" style="background: linear-gradient(135deg, #3f2259 0%, #2d1840 100%); border: 2px solid #cca354;">
+                    <h3 class="text-warning fw-bold text-uppercase"><i class="fa-solid fa-crown text-warning me-1"></i> BIGGEST OF ALL</h3>
+                    <p class="text-success mt-2 fw-bold" style="color: #4fc2da !important;"><?php echo htmlspecialchars($biggestOfAllName); ?></p>
+                    <small class="text-white d-block mt-1" style="font-size: 11px; font-weight: 500;">Type: <?php echo htmlspecialchars($biggestOfAllType); ?></small>
                 </div>
             </div>
             <div class="overview-row">
