@@ -666,8 +666,8 @@ class MLMEngine {
                 $consecutiveSingleCount = 0;
             }
 
-            // Stop propagation immediately on the consecutive 3rd parent with no two branches
-            if ($consecutiveSingleCount >= 3) {
+            // Stop propagation immediately on the consecutive 4th parent with no two branches
+            if ($consecutiveSingleCount >= 4) {
                 break;
             }
 
