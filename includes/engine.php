@@ -403,16 +403,27 @@ class MLMEngine {
     }
 
     /**
-     * Add user to genealogy tree (Unilevel tree up to 12 generations)
+     * Add user to genealogy tree (Placement tree up to 12 generations)
      */
     public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {
-        // Direct sponsor as Level 1 in genealogy (unilevel style for commission)
-        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
-        $stmt->execute([$userId, $sponsorId]);
+        // If placementId is not passed, fetch it from database or fallback to sponsorId
+        if ($placementId === null) {
+            $stmt = $this->db->prepare("SELECT placement_id FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $placementId = $stmt->fetchColumn() ?: null;
+        }
 
-        // Inherit parents from sponsor for unilevel commissions
-        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
-        $stmt->execute([$userId, $sponsorId]);
+        $parentId = $placementId ?: $sponsorId;
+
+        if ($parentId) {
+            // Direct parent (placement) as Level 1 in genealogy
+            $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
+            $stmt->execute([$userId, $parentId]);
+
+            // Inherit parents from placement for genealogy commissions/tracking
+            $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
+            $stmt->execute([$userId, $parentId]);
+        }
     }
 
     /**
