@@ -335,6 +335,17 @@ function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel) {
     if ($node) {
         $isActive = ($node['status'] == 'active');
         $rankName = ($node['rank_id'] > 0 && isset($ranksList[$node['rank_id'] - 1])) ? $ranksList[$node['rank_id'] - 1]['name'] : 'None';
+
+        $placementMid = null;
+        if (!empty($node['placement_id'])) {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT mid, username FROM users WHERE id = ?");
+            $stmt->execute([$node['placement_id']]);
+            $placementUser = $stmt->fetch();
+            if ($placementUser) {
+                $placementMid = $placementUser['mid'] ?: 'ID: ' . $node['placement_id'];
+            }
+        }
         ?>
         <div class="node-card-body text-center">
             <div class="d-flex align-items-center justify-content-between mb-1">
@@ -354,9 +365,15 @@ function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel) {
             <div class="my-2 border-top border-bottom py-1" style="font-size: 11px; background-color: #fafafa;">
                 <div class="text-dark">Invested: <strong>$<?php echo number_format($node['total_investment'], 0); ?></strong></div>
                 <?php if ($node['rank_id'] > 0): ?>
-                    <div class="text-warning fw-bold"><i class="fa fa-trophy me-1"></i><?php echo htmlspecialchars($rankName); ?></div>
+                    <div class="text-warning fw-bold mb-1"><i class="fa fa-trophy me-1"></i><?php echo htmlspecialchars($rankName); ?></div>
                 <?php else: ?>
-                    <div class="text-secondary">Rank: None</div>
+                    <div class="text-secondary mb-1">Rank: None</div>
+                <?php endif; ?>
+                <?php if (!empty($node['position'])): ?>
+                    <div class="text-info" style="font-size: 10px;">Position: <strong><?php echo strtoupper($node['position']); ?></strong></div>
+                <?php endif; ?>
+                <?php if ($placementMid): ?>
+                    <div class="text-muted" style="font-size: 10px;">Placement: <strong><?php echo htmlspecialchars($placementMid); ?></strong></div>
                 <?php endif; ?>
             </div>
 
