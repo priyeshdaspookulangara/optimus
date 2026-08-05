@@ -24,6 +24,17 @@ $stmtSched = $db->prepare("
 $stmtSched->execute([$userId]);
 $matching_schedules = $stmtSched->fetchAll();
 
+// Fetch Active/Completed conferred ranks
+$stmtConferred = $db->prepare("
+    SELECT cr.*, u.username as downline_username
+    FROM conferred_ranks cr
+    JOIN users u ON cr.downline_id = u.id
+    WHERE cr.user_id = ?
+    ORDER BY cr.status ASC, cr.rank_id DESC
+");
+$stmtConferred->execute([$userId]);
+$conferred_ranks = $stmtConferred->fetchAll();
+
 // Fetch Rank Income Transactions
 $stmt = $db->prepare("
     SELECT * FROM transactions
@@ -32,6 +43,9 @@ $stmt = $db->prepare("
 ");
 $stmt->execute([$userId]);
 $rank_transactions = $stmt->fetchAll();
+
+// Load central configuration for ranks names
+$config = require __DIR__ . '/includes/config.php';
 
 $pageTitle = 'Rank & Matching Contracts';
 include __DIR__ . '/includes/header.php';
@@ -87,6 +101,63 @@ include __DIR__ . '/includes/header.php';
                           <?php endif; ?>
                         </td>
                         <td><?php echo date('d M, Y', strtotime($sched['created_at'])); ?></td>
+                      </tr>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: My Conferred Ranks -->
+    <div class="row mb-4">
+      <div class="col-lg-12">
+        <div class="card p-2">
+          <div class="card-header">
+            <h4 class="card-title mb-0">My Conferred Ranks</h4>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped" style="width:100%">
+                <thead>
+                  <tr style="background-color: #3f2259; color: white;">
+                    <th>#</th>
+                    <th>Conferred Rank</th>
+                    <th>Qualified By Downline</th>
+                    <th>Daily ROI (USD)</th>
+                    <th>Days Passed</th>
+                    <th>Max Days</th>
+                    <th>Status</th>
+                    <th>Conferred Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php if(empty($conferred_ranks)): ?>
+                    <tr>
+                      <td colspan="8" class="text-center text-muted">No conferred ranks achieved yet. Help your downlines qualify for ranks to earn conferred ranks!</td>
+                    </tr>
+                  <?php else: ?>
+                    <?php foreach($conferred_ranks as $index => $cr):
+                      $rankName = isset($config['ranks'][$cr['rank_id']-1]) ? $config['ranks'][$cr['rank_id']-1]['name'] : "Rank " . $cr['rank_id'];
+                    ?>
+                      <tr>
+                        <td><?php echo $index + 1; ?></td>
+                        <td><span class="badge bg-warning text-dark" style="font-size: 14px;"><?php echo htmlspecialchars($rankName); ?></span></td>
+                        <td><strong><?php echo htmlspecialchars($cr['downline_username']); ?></strong></td>
+                        <td class="text-success font-weight-bold">$<?php echo number_format($cr['daily_income'], 2); ?> / day</td>
+                        <td><?php echo $cr['days_passed']; ?></td>
+                        <td><?php echo $cr['max_days']; ?></td>
+                        <td>
+                          <?php if($cr['status'] == 'active'): ?>
+                            <span class="badge bg-success">Active</span>
+                          <?php else: ?>
+                            <span class="badge bg-secondary">Completed</span>
+                          <?php endif; ?>
+                        </td>
+                        <td><?php echo date('d M, Y', strtotime($cr['created_at'])); ?></td>
                       </tr>
                     <?php endforeach; ?>
                   <?php endif; ?>

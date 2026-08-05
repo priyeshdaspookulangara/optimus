@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorQuery = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['id'] ?? $_GET['ref'] ?? '';
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
@@ -121,6 +121,8 @@ if (!empty($sponsorQuery)) {
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
+                    <input type="hidden" id="position" name="position"
+                      value="<?php echo htmlspecialchars($_GET['pos'] ?? ''); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>

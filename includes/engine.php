@@ -145,53 +145,89 @@ class MLMEngine {
     }
 
     /**
-     * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
+     * Helper to recursively compute the total investment volume of a placement subtree.
+     */
+    private function getPlacementDescendantsVolume($parentId) {
+        $total = 0.00;
+        $queue = [$parentId];
+
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+
+            // Fetch direct placement children of the current node
+            $stmt = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ?");
+            $stmt->execute([$currentId]);
+            $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($children as $child) {
+                $total += (float)$child['total_investment'];
+                $queue[] = $child['id'];
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Calculate binary placement leg business volumes (Left placement subtree vs. Right placement subtree)
+     * and apply the Sequential Slab-Matching Hierarchy (Single-Pass).
      */
     public function getLegsBusiness($userId) {
-        $stmt = $this->db->prepare("
-            SELECT u.id, u.username,
-                   (u.total_investment + COALESCE((
-                       SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
-                   ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.sponsor_id = ?
-        ");
-        $stmt->execute([$userId]);
-        $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Find direct placement child for Left position
+        $stmtLeft = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ? AND position = 'left'");
+        $stmtLeft->execute([$userId]);
+        $leftUser = $stmtLeft->fetch(PDO::FETCH_ASSOC);
 
-        if (empty($legs)) {
-            return [
-                'power_leg' => 0.00,
-                'matching_leg' => 0.00,
-                'matched_business' => 0.00,
-                'power_carry_forward' => 0.00,
-                'rest_carry_forward' => 0.00,
-                'slab_breakdown' => []
-            ];
+        // Find direct placement child for Right position
+        $stmtRight = $this->db->prepare("SELECT id, total_investment FROM users WHERE placement_id = ? AND position = 'right'");
+        $stmtRight->execute([$userId]);
+        $rightUser = $stmtRight->fetch(PDO::FETCH_ASSOC);
+
+        $leftVolume = 0.00;
+        if ($leftUser) {
+            $leftVolume = (float)$leftUser['total_investment'] + $this->getPlacementDescendantsVolume($leftUser['id']);
         }
 
-        // Raw Legs Calculation
-        $volumes = array_column($legs, 'total_leg_business');
-        $powerLegRaw = max($volumes);
-        $totalVolume = array_sum($volumes);
-        $restLegRaw = $totalVolume - $powerLegRaw;
+        $rightVolume = 0.00;
+        if ($rightUser) {
+            $rightVolume = (float)$rightUser['total_investment'] + $this->getPlacementDescendantsVolume($rightUser['id']);
+        }
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
+        // Left leg volume and Right leg volume matching
+        $powerLegRaw = max($leftVolume, $rightVolume);
+        $restLegRaw = min($leftVolume, $rightVolume);
+
+        /**
+         * Apply Sequential Slab-Matching Hierarchy in Ascending Order from Config (Single-Pass).
+         *
+         * 1. Slabs are evaluated sequentially from smallest to largest (e.g. Mentor $500, Pioneer $1000, Elite $2500, etc.).
+         * 2. If the user has sufficient volume to match the current slab, it matches exactly 1 unit of that slab,
+         *    deducts the matched volume, and proceeds to the next larger slab.
+         * 3. **Strict Sequential Restriction**: If any slab fails to match (e.g. volume is less than the slab),
+         *    the matchmaking is immediately terminated ("break"). This guarantees that higher-tier units cannot be matched
+         *    unless the user has already qualified for all lower-tier units sequentially.
+         */
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Dynamically fetch and sort matching slabs from config ranks in ascending order
+        $slabs = [];
+        foreach ($this->config['ranks'] as $rankConf) {
+            $slabs[] = (int)$rankConf['matching'];
+        }
+        sort($slabs); // Ensure sorted in ascending order
+
+        // Pre-populate slab breakdown with 0 to prevent notice issues downstream
+        foreach ($slabs as $slab) {
+            $slabBreakdown[$slab] = 0;
+        }
+
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                $units = 1; // Match exactly 1 unit of this slab in the ascending sequence
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
@@ -199,7 +235,8 @@ class MLMEngine {
 
                 $slabBreakdown[$slab] = $units;
             } else {
-                $slabBreakdown[$slab] = 0;
+                // If any slab fails to match sequentially, matchmaking is immediately terminated
+                break;
             }
         }
 
@@ -258,6 +295,9 @@ class MLMEngine {
                         $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
                         for ($i = 0; $i < $newUnits; $i++) {
                             $stmtInsert->execute([$user['id'], $slab, $dailyIncome]);
+
+                            // Propagate rank upward to conferred_ranks table
+                            $this->propagateConferredRank($user['id'], $slab);
                         }
                     }
                 }
@@ -292,65 +332,47 @@ class MLMEngine {
 
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
+            }
+        }
 
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
-                    $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status
-                        FROM genealogy g
-                        JOIN users u ON g.parent_id = u.id
-                        WHERE g.user_id = ?
-                        ORDER BY g.level ASC
-                    ");
-                    $stmtUplines->execute([$userId]);
-                    $uplines = $stmtUplines->fetchAll();
+        // Process daily payouts for all active conferred ranks contracts
+        $stmtActiveConferred = $this->db->prepare("
+            SELECT cr.*, u.username as sponsor_username, d.username as downline_username
+            FROM conferred_ranks cr
+            JOIN users u ON cr.user_id = u.id
+            JOIN users d ON cr.downline_id = d.id
+            WHERE cr.status = 'active'
+        ");
+        $stmtActiveConferred->execute();
+        $activeConferred = $stmtActiveConferred->fetchAll();
 
-                    // Get username of the original matching Earner for transaction logging
-                    $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
-                    $stmtUser->execute([$userId]);
-                    $origUserObj = $stmtUser->fetch();
-                    $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+        foreach ($activeConferred as $cr) {
+            $this->db->beginTransaction();
+            try {
+                $dailyIncome = (float)$cr['daily_income'];
+                $userId = $cr['user_id'];
 
-                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-                    $consecutiveSingleCount = 0;
+                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+                if ($allowable > 0) {
+                    // Log the RANK_INCOME transaction for the propagated sponsor
+                    $this->logTransaction(
+                        $userId,
+                        'RANK_INCOME',
+                        $allowable,
+                        0,
+                        "Daily Propagated Match Income from " . $cr['downline_username'] . " (Rank ID " . $cr['rank_id'] . ") (Day " . ($cr['days_passed'] + 1) . "/100)",
+                        $cr['downline_id']
+                    );
 
-                    foreach ($uplines as $upline) {
-                        // Check if this parent has only one direct referral (single direct referral node)
-                        $stmtReferrals->execute([$upline['parent_id']]);
-                        $refData = $stmtReferrals->fetch();
-                        $refCount = (int)$refData['ref_count'];
+                    $newDaysPassed = $cr['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $cr['max_days']) ? 'completed' : 'active';
 
-                        if ($refCount === 1) {
-                            $consecutiveSingleCount++;
-                        } else {
-                            $consecutiveSingleCount = 0;
-                        }
-
-                        // If we already went past 3 consecutive single nodes, break immediately
-                        if ($consecutiveSingleCount > 3) {
-                            break;
-                        }
-
-                        if ($upline['status'] === 'active') {
-                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
-                            if ($uplineAllowable > 0) {
-                                $this->logTransaction(
-                                    $upline['parent_id'],
-                                    'RANK_INCOME',
-                                    $uplineAllowable,
-                                    0,
-                                    "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
-                                    $userId
-                                );
-                            }
-                        }
-
-                        // Stop propagating further if we just paid the 3rd consecutive single referral node
-                        if ($consecutiveSingleCount === 3) {
-                            break;
-                        }
-                    }
-                } else {
-                    // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
+                    $stmtUpdateConferred = $this->db->prepare("UPDATE conferred_ranks SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateConferred->execute([$newDaysPassed, $status, $cr['id']]);
                 }
                 $this->db->commit();
             } catch (Exception $e) {
@@ -371,17 +393,20 @@ class MLMEngine {
         return $qualifiedRankId;
     }
 
+    /**
+     * Earning Limiter Check (ID Cap):
+     *
+     * Previously, this method checked and limited daily payouts based on a 300% ID Cap
+     * relative to the user's total investment. To ensure there is completely no limitation
+     * in total earnings and the 300% ID Cap is removed, this function has been updated to
+     * always return the full amount to add directly without any caps or limits.
+     *
+     * @param int $userId The ID of the user.
+     * @param float $amountToAdd The pending commission/ROI payout amount.
+     * @return float The allowable amount to pay (unlimited/uncapped).
+     */
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        return (float)$amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
@@ -403,16 +428,27 @@ class MLMEngine {
     }
 
     /**
-     * Add user to genealogy tree (Unilevel tree up to 12 generations)
+     * Add user to genealogy tree (Placement tree up to 12 generations)
      */
     public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {
-        // Direct sponsor as Level 1 in genealogy (unilevel style for commission)
-        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
-        $stmt->execute([$userId, $sponsorId]);
+        // If placementId is not passed, fetch it from database or fallback to sponsorId
+        if ($placementId === null) {
+            $stmt = $this->db->prepare("SELECT placement_id FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $placementId = $stmt->fetchColumn() ?: null;
+        }
 
-        // Inherit parents from sponsor for unilevel commissions
-        $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
-        $stmt->execute([$userId, $sponsorId]);
+        $parentId = $placementId ?: $sponsorId;
+
+        if ($parentId) {
+            // Direct parent (placement) as Level 1 in genealogy
+            $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
+            $stmt->execute([$userId, $parentId]);
+
+            // Inherit parents from placement for genealogy commissions/tracking
+            $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
+            $stmt->execute([$userId, $parentId]);
+        }
     }
 
     /**
@@ -558,8 +594,106 @@ class MLMEngine {
                         $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
                         for ($i = 0; $i < $newUnits; $i++) {
                             $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
+
+                            // Propagate rank upward to conferred_ranks table
+                            $this->propagateConferredRank($ancestorId, $slab);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Fetch all sponsor uplines recursively all the way to root (with no level limit).
+     */
+    public function getAllSponsorUplines($userId) {
+        $uplines = [];
+        $currentUserId = $userId;
+
+        while (true) {
+            $stmt = $this->db->prepare("
+                SELECT u.sponsor_id, parent.id as parent_id, parent.username, parent.status, parent.rank_id
+                FROM users u
+                LEFT JOIN users parent ON u.sponsor_id = parent.id
+                WHERE u.id = ?
+            ");
+            $stmt->execute([$currentUserId]);
+            $res = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$res || empty($res['sponsor_id']) || empty($res['parent_id'])) {
+                break;
+            }
+
+            $uplines[] = [
+                'parent_id' => (int)$res['parent_id'],
+                'username' => $res['username'],
+                'status' => $res['status'],
+                'rank_id' => (int)$res['rank_id']
+            ];
+
+            $currentUserId = (int)$res['sponsor_id'];
+        }
+
+        return $uplines;
+    }
+
+    /**
+     * Propagate a matched slab achievement upwards to all active qualified uplines
+     * by creating active contracts in the 'conferred_ranks' table.
+     */
+    public function propagateConferredRank($downlineId, $slabAmount) {
+        // Find matching rank level corresponding to this slab
+        $requiredRankId = 0;
+        $dailyIncome = 0.00;
+        foreach ($this->config['ranks'] as $idx => $rankConf) {
+            if ($rankConf['matching'] == $slabAmount) {
+                $requiredRankId = $idx + 1;
+                $dailyIncome = $rankConf['daily_income'];
+                break;
+            }
+        }
+
+        if ($requiredRankId === 0) return;
+
+        // Fetch sponsor uplines all the way up to root (no level limit)
+        $uplines = $this->getAllSponsorUplines($downlineId);
+
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+        $stmtCheck = $this->db->prepare("SELECT COUNT(*) as count FROM conferred_ranks WHERE user_id = ? AND downline_id = ? AND rank_id = ?");
+        $stmtInsert = $this->db->prepare("INSERT INTO conferred_ranks (user_id, downline_id, rank_id, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, ?, 0, 100, 'active')");
+
+        $consecutiveSingleCount = 0;
+
+        foreach ($uplines as $upline) {
+            // Check if this parent has fewer than two direct referral branches
+            $stmtReferrals->execute([$upline['parent_id']]);
+            $refData = $stmtReferrals->fetch();
+            $refCount = (int)$refData['ref_count'];
+
+            if ($refCount <= 1) {
+                $consecutiveSingleCount++;
+            } else {
+                $consecutiveSingleCount = 0;
+            }
+
+            // Stop propagation immediately on the consecutive 4th parent with no two branches
+            if ($consecutiveSingleCount >= 4) {
+                break;
+            }
+
+            if ($upline['status'] === 'active') {
+                // Conferred Rank Logic: The rank itself is dynamically conferred (assigned) to the upline sponsor
+                if ($requiredRankId > (int)$upline['rank_id']) {
+                    $stmtUpdateUserRank = $this->db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+                    $stmtUpdateUserRank->execute([$requiredRankId, $upline['parent_id']]);
+                }
+
+                // Ensure no duplicate contract for this specific downline rank achievement
+                $stmtCheck->execute([$upline['parent_id'], $downlineId, $requiredRankId]);
+                $exists = $stmtCheck->fetch();
+                if ((int)$exists['count'] === 0) {
+                    $stmtInsert->execute([$upline['parent_id'], $downlineId, $requiredRankId, $dailyIncome]);
                 }
             }
         }
