@@ -371,7 +371,7 @@ function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel) {
                 <?php endif; ?>
                 <?php if (!empty($node['position'])): ?>
                     <div class="text-info" style="font-size: 10px;">Position: <strong><?php echo strtoupper($node['position']); ?></strong></div>
-                <?php else: ?>
+                <?php elseif (!empty($node['placement_id'])): ?>
                     <div class="text-info" style="font-size: 10px;">
                         Position: <a href="javascript:void(0);" class="text-primary btn-set-position fw-bold" data-user-id="<?php echo $node['id']; ?>" data-username="<?php echo htmlspecialchars($node['username']); ?>" style="text-decoration: underline;">Set Postion</a>
                     </div>
