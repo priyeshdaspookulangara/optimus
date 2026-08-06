@@ -120,6 +120,7 @@ include __DIR__ . '/includes/header.php';
                     <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
                 </div>
             </div>
+            <?php if ($conferredRankMatching > 0 || $biggestSlab > 0): ?>
             <div class="overview-row">
                 <div class="overview-box" style="background-color: #2a1740; border: 1px solid #cca354;">
                     <h3 class="text-uppercase">BIGGEST CONFERRED RANK</h3>
@@ -137,6 +138,7 @@ include __DIR__ . '/includes/header.php';
                     <small class="text-white d-block mt-1" style="font-size: 11px; font-weight: 500;">Type: <?php echo htmlspecialchars($biggestOfAllType); ?></small>
                 </div>
             </div>
+            <?php endif; ?>
             <div class="overview-row">
                 <div class="overview-box">
                     <h3 class="text-upercase">CURRENT POWER LEG</h3>
