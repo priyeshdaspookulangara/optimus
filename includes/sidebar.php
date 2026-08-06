@@ -26,7 +26,39 @@
           <li class="nav-item"><a class="nav-link" href="level_income.php"><i class="icon fa fa-users"></i><span class="item-name">Level Income</span></a></li>
           <li class="nav-item"><a class="nav-link" href="rank.php"><i class="icon fa fa-trophy"></i><span class="item-name">Rank</span></a></li>
           <li class="nav-item"><a class="nav-link" href="propagated_incomes.php"><i class="icon fa fa-network-wired"></i><span class="item-name">Matches From Others</span></a></li>
-          <li class="nav-item"><a class="nav-link" href="my_team.php"><i class="icon fa fa-users-cog"></i><span class="item-name">My Team</span></a></li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-network" role="button" aria-expanded="false" aria-controls="sidebar-network">
+              <i class="icon fa fa-network-wired"></i>
+              <span class="item-name">Network</span>
+              <i class="right-icon fa fa-chevron-right ms-auto" style="font-size: 0.8rem;"></i>
+            </a>
+            <ul class="sub-nav collapse" id="sidebar-network" data-bs-parent="#sidebar">
+              <li class="nav-item">
+                <a class="nav-link" href="genealogy.php">
+                  <i class="icon fa fa-sitemap"></i>
+                  <span class="item-name">Genealogy</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="binary_tree.php">
+                  <i class="icon fa fa-tree"></i>
+                  <span class="item-name">Reference Tree</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="members.php">
+                  <i class="icon fa fa-users"></i>
+                  <span class="item-name">Members</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="my_team.php">
+                  <i class="icon fa fa-users-cog"></i>
+                  <span class="item-name">My Team</span>
+                </a>
+              </li>
+            </ul>
+          </li>
           <li class="nav-item"><a class="nav-link" href="team_ranks.php"><i class="icon fa fa-medal"></i><span class="item-name">Team Ranks</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_wallet.php"><i class="icon fa fa-credit-card"></i><span class="item-name">Withdraw Wallet</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_fund.php"><i class="icon fa fa-money-bill-wave"></i><span class="item-name">Withdraw Fund</span></a></li>
