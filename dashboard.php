@@ -47,9 +47,11 @@ $config = require __DIR__ . '/includes/config.php';
 $rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
 
 // Ceiling Limit Calculation (300% of total investment)
-$maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-$ceilingBalance = max(0, $maxCap - $stats['total_earning']);
-$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
+// Ceiling Limit Calculation (200% of total investment, depending only on ROI)
+$maxCap = $user['total_investment'] * $config['roi']['cap_multiplier'];
+$ceilingBalance = max(0, $maxCap - $stats['total_roi']);
+$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 100) : 0;
+
 
 // Fetch dynamic unilevel legs business
 $engine = new MLMEngine();
@@ -162,9 +164,72 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 
+    <!-- Team Referral Link Share Section (Two Panes) -->
+    <?php
+    $midCode = !empty($user['mid']) ? $user['mid'] : $user['id'];
+    ?>
+    <div class="container-fluid mb-4">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 shadow-sm" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff;">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <h4 class="card-title text-white mb-2" style="font-size: 1.2rem; font-weight: 700; text-transform: uppercase !important;">
+                                <i class="fa-solid fa-arrow-left text-warning me-2"></i> Left Link Share Section
+                            </h4>
+                            <p class="mb-4" style="font-size: 0.85rem; color: #cca354 !important;">
+                                Use this link to recruit and place new members into your Left Unilevel/Binary Team.
+                            </p>
+                        </div>
+                        <div>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control text-white border-0" id="left_share_url" value="https://optimusinfinity.com/register.php?ref=<?php echo htmlspecialchars($midCode); ?>&pos=L" readonly style="background-color: #2d1840 !important; font-size: 0.85rem; font-family: monospace;">
+                                <button class="btn btn-outline-warning" type="button" id="copy_left_btn" style="border-top-right-radius: 5px; border-bottom-right-radius: 5px; font-weight: 600;">
+                                    <i class="fa-solid fa-copy me-1"></i> Copy Left
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="https://api.whatsapp.com/send?text=Join%20my%20Left%20Team%20on%20Optimus%20Infinity!%20Register%20here:%20https%3A%2F%2Foptimusinfinity.com%2Fregister.php%3Fref%3D<?php echo urlencode($midCode); ?>%26pos%3DL" target="_blank" class="btn btn-sm btn-success w-100 py-2 fw-bold" style="border-radius: 6px;">
+                                    <i class="fa-brands fa-whatsapp me-1"></i> Share on WhatsApp
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 shadow-sm" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff;">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <h4 class="card-title text-white mb-2" style="font-size: 1.2rem; font-weight: 700; text-transform: uppercase !important;">
+                                <i class="fa-solid fa-arrow-right text-warning me-2"></i> Right Link Share Section
+                            </h4>
+                            <p class="mb-4" style="font-size: 0.85rem; color: #cca354 !important;">
+                                Use this link to recruit and place new members into your Right Unilevel/Binary Team.
+                            </p>
+                        </div>
+                        <div>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control text-white border-0" id="right_share_url" value="https://optimusinfinity.com/register.php?ref=<?php echo htmlspecialchars($midCode); ?>&pos=R" readonly style="background-color: #2d1840 !important; font-size: 0.85rem; font-family: monospace;">
+                                <button class="btn btn-outline-warning" type="button" id="copy_right_btn" style="border-top-right-radius: 5px; border-bottom-right-radius: 5px; font-weight: 600;">
+                                    <i class="fa-solid fa-copy me-1"></i> Copy Right
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="https://api.whatsapp.com/send?text=Join%20my%20Right%20Team%20on%20Optimus%20Infinity!%20Register%20here:%20https%3A%2F%2Foptimusinfinity.com%2Fregister.php%3Fref%3D<?php echo urlencode($midCode); ?>%26pos%3DR" target="_blank" class="btn btn-sm btn-success w-100 py-2 fw-bold" style="border-radius: 6px;">
+                                    <i class="fa-brands fa-whatsapp me-1"></i> Share on WhatsApp
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-fluid">
         <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase ceiling-limit-btn" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
-            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #3f2259 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
+            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #3f2259 !important;">ROI CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
             <div class="progress" style="height: 50px">
                 <div class="progress-bar text-bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
             </div>
@@ -299,5 +364,64 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var copyLeftBtn = document.getElementById('copy_left_btn');
+    var copyRightBtn = document.getElementById('copy_right_btn');
+
+    if (copyLeftBtn) {
+        copyLeftBtn.addEventListener('click', function () {
+            var textToCopy = document.getElementById('left_share_url').value;
+            copyTextToClipboard(textToCopy, copyLeftBtn, '<i class="fa-solid fa-copy me-1"></i> Copy Left');
+        });
+    }
+
+    if (copyRightBtn) {
+        copyRightBtn.addEventListener('click', function () {
+            var textToCopy = document.getElementById('right_share_url').value;
+            copyTextToClipboard(textToCopy, copyRightBtn, '<i class="fa-solid fa-copy me-1"></i> Copy Right');
+        });
+    }
+
+    function copyTextToClipboard(text, btn, originalHtml) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                showFeedback(btn, originalHtml);
+            }).catch(function () {
+                fallbackCopy(text, btn, originalHtml);
+            });
+        } else {
+            fallbackCopy(text, btn, originalHtml);
+        }
+    }
+
+    function fallbackCopy(text, btn, originalHtml) {
+        var tempTextarea = document.createElement("textarea");
+        tempTextarea.value = text;
+        tempTextarea.style.position = "fixed";
+        document.body.appendChild(tempTextarea);
+        tempTextarea.select();
+        try {
+            document.execCommand("copy");
+            showFeedback(btn, originalHtml);
+        } catch (err) {
+            console.error("Fallback copy failed", err);
+        }
+        document.body.removeChild(tempTextarea);
+    }
+
+    function showFeedback(btn, originalHtml) {
+        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Copied!';
+        btn.classList.remove('btn-outline-warning');
+        btn.classList.add('btn-success', 'text-white');
+        setTimeout(function () {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success', 'text-white');
+            btn.classList.add('btn-outline-warning');
+        }, 2000);
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
