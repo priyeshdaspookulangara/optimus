@@ -183,20 +183,20 @@ if (!empty($sponsorQuery)) {
                 <div class="row">
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="password">Password: </label>
-                    <div class="input-group">
-                      <input type="password" class="form-control" id="password" name="password" required placeholder="Password" style="border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none;">
-                      <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border: 1px solid #504793; border-left: none; background-color: #3f2259; color: #ccc; border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 15px; padding-right: 15px;">
+                    <div class="position-relative">
+                      <input type="password" class="form-control" id="password" name="password" required placeholder="Password" style="padding-right: 40px;">
+                      <span id="togglePassword" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #ccc; z-index: 10;">
                         <i class="fa-solid fa-eye-slash"></i>
-                      </button>
+                      </span>
                     </div>
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="password_confirmation">Confirm Password: </label>
-                    <div class="input-group">
-                      <input type="password" class="form-control" id="password_confirmation" required name="password_confirmation" placeholder="Repeat Password" style="border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none;">
-                      <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm" style="border: 1px solid #504793; border-left: none; background-color: #3f2259; color: #ccc; border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 15px; padding-right: 15px;">
+                    <div class="position-relative">
+                      <input type="password" class="form-control" id="password_confirmation" required name="password_confirmation" placeholder="Repeat Password" style="padding-right: 40px;">
+                      <span id="togglePasswordConfirm" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #ccc; z-index: 10;">
                         <i class="fa-solid fa-eye-slash"></i>
-                      </button>
+                      </span>
                     </div>
                   </div>
                 </div>
