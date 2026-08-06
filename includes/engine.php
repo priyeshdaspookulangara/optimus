@@ -158,7 +158,7 @@ class MLMEngine {
                        WHERE g.parent_id = u.id
                    ), 0)) as total_leg_business
             FROM users u
-            WHERE u.sponsor_id = ?
+            WHERE u.placement_id = ?
         ");
         $stmt->execute([$userId]);
         $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -406,13 +406,14 @@ class MLMEngine {
      * Add user to genealogy tree (Unilevel tree up to 12 generations)
      */
     public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {
-        // Direct sponsor as Level 1 in genealogy (unilevel style for commission)
+        $parent = $placementId ? $placementId : $sponsorId;
+        // Direct parent as Level 1 in genealogy (placement style for binary tree volume)
         $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) VALUES (?, ?, 1)");
-        $stmt->execute([$userId, $sponsorId]);
+        $stmt->execute([$userId, $parent]);
 
-        // Inherit parents from sponsor for unilevel commissions
+        // Inherit parents from parent
         $stmt = $this->db->prepare("INSERT INTO genealogy (user_id, parent_id, level) SELECT ?, parent_id, level + 1 FROM genealogy WHERE user_id = ? AND level < 12");
-        $stmt->execute([$userId, $sponsorId]);
+        $stmt->execute([$userId, $parent]);
     }
 
     /**

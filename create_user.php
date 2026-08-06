@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($sponsorDbId) {
             $engine = new MLMEngine();
-            $engine->addToGenealogy($newUserId, $sponsorDbId);
+            $engine->addToGenealogy($newUserId, $sponsorDbId, $sponsorDbId);
         }
 
         // If a PIN code was provided during registration, activate the package instantly!
