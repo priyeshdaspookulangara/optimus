@@ -58,19 +58,52 @@ $pageTitle = 'PIN Management';
 include __DIR__ . '/includes/header.php';
 
 $statusFilter = $_GET['status'] ?? '';
+$searchPin = trim($_GET['pin'] ?? '');
+$searchUser = trim($_GET['user'] ?? '');
+$searchDate = trim($_GET['date'] ?? '');
+$searchAmount = trim($_GET['amount'] ?? '');
+
+$conditions = [];
+$params = [];
+
+if ($statusFilter === 'used') {
+    $conditions[] = "p.status = 'used'";
+} elseif ($statusFilter === 'unused') {
+    $conditions[] = "p.status = 'unused'";
+}
+
+if ($searchPin !== '') {
+    $conditions[] = "p.pin_code LIKE ?";
+    $params[] = "%$searchPin%";
+}
+
+if ($searchUser !== '') {
+    $conditions[] = "(u.username LIKE ? OR u.mid LIKE ? OR u_ass.username LIKE ? OR u_ass.mid LIKE ?)";
+    $params[] = "%$searchUser%";
+    $params[] = "%$searchUser%";
+    $params[] = "%$searchUser%";
+    $params[] = "%$searchUser%";
+}
+
+if ($searchDate !== '') {
+    $conditions[] = "DATE(p.created_at) = ?";
+    $params[] = $searchDate;
+}
+
+if ($searchAmount !== '') {
+    $conditions[] = "pkg.amount = ?";
+    $params[] = (float)$searchAmount;
+}
 
 // Build dynamic query
-$query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u.mid as used_by_mid, u_ass.username as assigned_to_user, u_ass.mid as assigned_to_mid
+$query = "SELECT p.*, pkg.name as package_name, pkg.amount as package_amount, u.username as used_by_user, u.mid as used_by_mid, u_ass.username as assigned_to_user, u_ass.mid as assigned_to_mid
           FROM pins p
           JOIN packages pkg ON p.package_id = pkg.id
           LEFT JOIN users u ON p.used_by = u.id
           LEFT JOIN users u_ass ON p.assigned_to = u_ass.id";
 
-$params = [];
-if ($statusFilter === 'used') {
-    $query .= " WHERE p.status = 'used'";
-} elseif ($statusFilter === 'unused') {
-    $query .= " WHERE p.status = 'unused'";
+if (!empty($conditions)) {
+    $query .= " WHERE " . implode(" AND ", $conditions);
 }
 
 $query .= " ORDER BY p.created_at DESC";
@@ -90,11 +123,76 @@ $packages = $stmt->fetchAll();
     </button>
 </div>
 
-<!-- Filters Bar -->
+<!-- Search and Filters Bar -->
+<div class="card mb-4">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fa fa-search me-2"></i>Filter & Search PINs</h5>
+        <div class="d-flex gap-2">
+            <a href="pins.php?status=<?php echo htmlspecialchars($statusFilter); ?>" class="btn btn-sm btn-outline-light"><i class="fa fa-undo me-1"></i>Reset Form Only</a>
+            <a href="pins.php" class="btn btn-sm btn-outline-warning"><i class="fa fa-refresh me-1"></i>Reset All Filters</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <input type="hidden" name="status" value="<?php echo htmlspecialchars($statusFilter); ?>">
+
+            <div class="col-md-3">
+                <label class="form-label font-weight-bold">PIN Code</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa fa-key text-muted"></i></span>
+                    <input type="text" name="pin" class="form-control" placeholder="Search PIN e.g. OPT..." value="<?php echo htmlspecialchars($searchPin); ?>">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label font-weight-bold">Member / User</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa fa-user text-muted"></i></span>
+                    <input type="text" name="user" class="form-control" placeholder="Username or Member ID (MID)" value="<?php echo htmlspecialchars($searchUser); ?>">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label font-weight-bold">Created Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa fa-calendar text-muted"></i></span>
+                    <input type="date" name="date" class="form-control" value="<?php echo htmlspecialchars($searchDate); ?>">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label font-weight-bold">Package Amount ($)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa fa-dollar-sign text-muted"></i></span>
+                    <input type="number" step="0.01" name="amount" class="form-control" placeholder="Exact package amount (e.g. 100)" value="<?php echo htmlspecialchars($searchAmount); ?>">
+                </div>
+            </div>
+
+            <div class="col-12 d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex gap-2">
+                    <a href="pins.php?status=<?php echo $statusFilter === '' ? '' : $statusFilter; ?>&pin=<?php echo urlencode($searchPin); ?>&user=<?php echo urlencode($searchUser); ?>&date=<?php echo urlencode($searchDate); ?>&amount=<?php echo urlencode($searchAmount); ?>" class="btn btn-sm btn-primary">Active Search View</a>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4"><i class="fa fa-filter me-2"></i>Apply Filters</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    <?php
+    $qs = http_build_query(array_filter([
+        'pin' => $searchPin,
+        'user' => $searchUser,
+        'date' => $searchDate,
+        'amount' => $searchAmount
+    ]));
+    $qs = $qs ? '&' . $qs : '';
+    ?>
+    <a href="pins.php?status=<?php echo $qs; ?>" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+    <a href="pins.php?status=unused<?php echo $qs; ?>" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+    <a href="pins.php?status=used<?php echo $qs; ?>" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
 </div>
 
 <div class="card">
