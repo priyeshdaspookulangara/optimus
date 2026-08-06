@@ -12,6 +12,12 @@ $config = require __DIR__ . '/includes/config.php';
 $ranksList = $config['ranks'];
 $loggedInUserId = $_SESSION['user_id'];
 
+// Fetch logged-in user's mid
+$stmtMe = $db->prepare("SELECT mid FROM users WHERE id = ?");
+$stmtMe->execute([$loggedInUserId]);
+$meData = $stmtMe->fetch();
+$loggedInUserMid = $meData ? $meData['mid'] : '';
+
 // Resolve focused user ID
 $focusedUserId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : $loggedInUserId;
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -285,7 +291,7 @@ include __DIR__ . '/includes/header.php';
                         <!-- LEVEL 1: Root Node -->
                         <div class="tree-row mb-2">
                             <div class="node-card-wrap">
-                                <?php renderNodeCard($Node1, $ranksList, $loggedInUserId, 'Root (Top)'); ?>
+                                <?php renderNodeCard($Node1, $ranksList, $loggedInUserId, 'Root (Top)', null, null, $loggedInUserMid); ?>
                             </div>
                         </div>
 
@@ -299,10 +305,10 @@ include __DIR__ . '/includes/header.php';
                         <!-- LEVEL 2: Left and Right -->
                         <div class="tree-row mb-2 gap-md-5">
                             <div class="node-card-wrap mx-2">
-                                <?php renderNodeCard($Node2, $ranksList, $loggedInUserId, 'LEFT TEAM'); ?>
+                                <?php renderNodeCard($Node2, $ranksList, $loggedInUserId, 'LEFT TEAM', $focusedUserId, 'left', $loggedInUserMid); ?>
                             </div>
                             <div class="node-card-wrap mx-2">
-                                <?php renderNodeCard($Node3, $ranksList, $loggedInUserId, 'RIGHT TEAM'); ?>
+                                <?php renderNodeCard($Node3, $ranksList, $loggedInUserId, 'RIGHT TEAM', $focusedUserId, 'right', $loggedInUserMid); ?>
                             </div>
                         </div>
 
@@ -317,16 +323,16 @@ include __DIR__ . '/includes/header.php';
                         <!-- LEVEL 3: 4 Leaf Nodes -->
                         <div class="tree-row gap-2 gap-md-4">
                             <div class="node-card-wrap mx-1">
-                                <?php renderNodeCard($Node4, $ranksList, $loggedInUserId, 'LEFT/LEFT'); ?>
+                                <?php renderNodeCard($Node4, $ranksList, $loggedInUserId, 'LEFT/LEFT', $Node2 ? $Node2['id'] : null, 'left', $loggedInUserMid); ?>
                             </div>
                             <div class="node-card-wrap mx-1">
-                                <?php renderNodeCard($Node5, $ranksList, $loggedInUserId, 'LEFT/RIGHT'); ?>
+                                <?php renderNodeCard($Node5, $ranksList, $loggedInUserId, 'LEFT/RIGHT', $Node2 ? $Node2['id'] : null, 'right', $loggedInUserMid); ?>
                             </div>
                             <div class="node-card-wrap mx-1">
-                                <?php renderNodeCard($Node6, $ranksList, $loggedInUserId, 'RIGHT/LEFT'); ?>
+                                <?php renderNodeCard($Node6, $ranksList, $loggedInUserId, 'RIGHT/LEFT', $Node3 ? $Node3['id'] : null, 'left', $loggedInUserMid); ?>
                             </div>
                             <div class="node-card-wrap mx-1">
-                                <?php renderNodeCard($Node7, $ranksList, $loggedInUserId, 'RIGHT/RIGHT'); ?>
+                                <?php renderNodeCard($Node7, $ranksList, $loggedInUserId, 'RIGHT/RIGHT', $Node3 ? $Node3['id'] : null, 'right', $loggedInUserMid); ?>
                             </div>
                         </div>
 
@@ -340,7 +346,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php
 // Function to render single node card inside the tree
-function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel) {
+function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel, $parentId = null, $position = null, $loggedInUserMid = '') {
     if ($node) {
         $isActive = ($node['status'] == 'active');
         $rankName = ($node['rank_id'] > 0 && isset($ranksList[$node['rank_id'] - 1])) ? $ranksList[$node['rank_id'] - 1]['name'] : 'None';
@@ -414,6 +420,13 @@ function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel) {
             <i class="fa fa-user-plus text-muted fs-4 mb-2"></i>
             <h6 class="text-muted fw-bold mb-0" style="font-size: 12px;"><?php echo htmlspecialchars($positionLabel); ?></h6>
             <div class="text-secondary font-monospace mt-1" style="font-size: 10px;">EMPTY POSITION</div>
+            <?php if ($parentId && $position): ?>
+                <div class="mt-2">
+                    <a href="register.php?id=<?php echo urlencode($loggedInUserMid); ?>&placement_id=<?php echo $parentId; ?>&position=<?php echo $position; ?>" class="btn btn-xs btn-outline-success py-1 px-2" style="font-size: 10px;">
+                        <i class="fa fa-plus me-1"></i>Add Member
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
     }
