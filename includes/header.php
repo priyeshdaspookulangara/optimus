@@ -21,6 +21,9 @@ if ($headerUserId) {
 <!doctype html>
 <html lang="en" data-bs-theme="light">
 <head>
+  <?php if (isset($baseHref)): ?>
+    <base href="<?php echo htmlspecialchars($baseHref); ?>">
+  <?php endif; ?>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title><?php echo $pageTitle ?? 'App'; ?></title>

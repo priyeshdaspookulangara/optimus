@@ -18,6 +18,24 @@ if (!empty($sponsorQuery)) {
         $sponsorDbId = $user['id'];
     }
 }
+
+$placementIdQuery = $_GET['placement_id'] ?? '';
+$positionQuery = $_GET['position'] ?? ''; // 'left' or 'right'
+
+$placementName = "";
+$placementMid = "";
+$placementDbId = "";
+
+if (!empty($placementIdQuery)) {
+    $stmtPlacement = $db->prepare("SELECT id, username, mid FROM users WHERE id = ? OR mid = ?");
+    $stmtPlacement->execute([$placementIdQuery, $placementIdQuery]);
+    $pUser = $stmtPlacement->fetch();
+    if ($pUser) {
+        $placementName = $pUser['username'];
+        $placementMid = !empty($pUser['mid']) ? $pUser['mid'] : $pUser['id'];
+        $placementDbId = $pUser['id'];
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -112,7 +130,24 @@ if (!empty($sponsorQuery)) {
             </div>
             <div class="card-body">
               <form action="create_user.php" method="post" id="regForm">
+                <?php if (!empty($placementDbId)): ?>
+                  <input type="hidden" name="placement_id" value="<?php echo htmlspecialchars($placementDbId); ?>">
+                  <input type="hidden" name="position" value="<?php echo htmlspecialchars($positionQuery); ?>">
+                <?php endif; ?>
                 <div class="row">
+
+                  <?php if (!empty($placementDbId)): ?>
+                    <div class="form-group col-12 mb-3">
+                      <div class="alert alert-info bg-light text-dark border-info mb-0 d-flex align-items-center">
+                        <i class="fa fa-sitemap me-3 text-info fs-4"></i>
+                        <div>
+                          <strong>Placement Position Reserved:</strong> You are registering under placement parent
+                          <strong><?php echo htmlspecialchars($placementName); ?> (<?php echo htmlspecialchars($placementMid); ?>)</strong>
+                          on the <strong><?php echo strtoupper($positionQuery); ?></strong> side of the binary tree.
+                        </div>
+                      </div>
+                    </div>
+                  <?php endif; ?>
 
                   <!-- Sponsor Info -->
                   <div class="form-group col-md-6 mb-3">

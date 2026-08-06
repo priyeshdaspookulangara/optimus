@@ -15,6 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sponsorRef = trim($_POST['referral_id'] ?? '');
     $pinCode = trim($_POST['pin_code'] ?? '');
 
+    // Explicit placement and position from vacant spot clicks
+    $placementDbId = $_POST['placement_id'] ?? null;
+    $position = $_POST['position'] ?? null;
+
     if ($password !== $confirmPassword) {
         die("Passwords do not match. <a href='javascript:history.back()'>Go back</a>");
     }
@@ -43,6 +47,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Resolve placement parent ID
+    if (!empty($placementDbId)) {
+        $placementDbId = (int)$placementDbId;
+    } else {
+        $placementDbId = $sponsorDbId; // Fallback to sponsor_id as placement parent
+    }
+
+    if (empty($position) || !in_array($position, ['left', 'right'])) {
+        $position = null; // Default to NULL if no explicit position
+    }
+
     // Generate unique alphanumeric mid code (OPTxxxxx)
     $newMid = '';
     $midExists = true;
@@ -60,8 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId]);
+        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $placementDbId, $position]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorDbId) {
