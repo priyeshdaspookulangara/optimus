@@ -94,6 +94,41 @@ if ($conferredTableName) {
     } catch (Exception $e) {}
 }
 
+// Fallback calculations for Slab-Matched Business box
+$displayMatchedBusiness = (float)$legStats['matched_business'];
+$isConferredFallback = false;
+$maxConferredMatching = 0.00;
+
+if (!empty($conferredRecords)) {
+    foreach ($conferredRecords as $rec) {
+        if (isset($rec['slab_amount'])) {
+            $maxConferredMatching = max($maxConferredMatching, (float)$rec['slab_amount']);
+        } elseif (isset($rec['matching_business'])) {
+            $maxConferredMatching = max($maxConferredMatching, (float)$rec['matching_business']);
+        } elseif (isset($rec['matching'])) {
+            $maxConferredMatching = max($maxConferredMatching, (float)$rec['matching']);
+        } elseif (isset($rec['rank_id']) && $rec['rank_id'] > 0 && isset($config['ranks'][$rec['rank_id']-1])) {
+            $maxConferredMatching = max($maxConferredMatching, (float)$config['ranks'][$rec['rank_id']-1]['matching']);
+        } elseif (isset($rec['rank_level']) && $rec['rank_level'] > 0 && isset($config['ranks'][$rec['rank_level']-1])) {
+            $maxConferredMatching = max($maxConferredMatching, (float)$config['ranks'][$rec['rank_level']-1]['matching']);
+        } else {
+            $dailyInc = (float)($rec['daily_income'] ?? 0.00);
+            foreach ($config['ranks'] as $rConf) {
+                if (abs((float)$rConf['daily_income'] - $dailyInc) < 0.01) {
+                    if ((float)$rConf['matching'] > $maxConferredMatching) {
+                        $maxConferredMatching = (float)$rConf['matching'];
+                    }
+                }
+            }
+        }
+    }
+}
+
+if ($displayMatchedBusiness <= 0.00 && $maxConferredMatching > 0.00) {
+    $displayMatchedBusiness = $maxConferredMatching;
+    $isConferredFallback = true;
+}
+
 // Conferred Rank Details
 $conferredRankName = 'None';
 $conferredRankMatching = 0.00;
@@ -189,8 +224,10 @@ include __DIR__ . '/includes/header.php';
             <div class="overview-row">
                 <div class="overview-box" style="background-color: #2d1840; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#slabMatchedModal" title="Click to view full slab matched details">
                     <h3 class="text-uppercase">SLAB-MATCHED BUSINESS <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
-                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
-                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view breakdown</small>
+                    <p class="text-success mt-2 fw-bold"><?php echo number_format($displayMatchedBusiness, 2); ?></p>
+                    <small class="<?php echo $isConferredFallback ? 'text-warning fw-bold' : 'text-muted'; ?> d-block mt-1" style="font-size: 11px;">
+                        <?php echo $isConferredFallback ? '<i class="fa-solid fa-award text-warning me-1"></i> Conferred Fallback' : 'Click to view breakdown'; ?>
+                    </small>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-uppercase">POWER CARRY FORWARD</h3>
