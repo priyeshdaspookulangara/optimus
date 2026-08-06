@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/engine.php';
+require_once __DIR__ . '/includes/engine.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
+    header("Location: login.php");
     exit();
 }
 
@@ -124,8 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $pageTitle = 'Registration Success';
-        $baseHref = '../'; // Set base href to parent folder so assets and side links resolve perfectly!
-        include __DIR__ . '/../includes/header.php';
+        include __DIR__ . '/includes/header.php';
         ?>
 
         <div class="container-fluid content-inner pb-0">
@@ -196,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <?php
-        include __DIR__ . '/../includes/footer.php';
+        include __DIR__ . '/includes/footer.php';
 
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();

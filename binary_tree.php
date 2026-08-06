@@ -438,7 +438,7 @@ function renderNodeCard($node, $ranksList, $loggedInUserId, $positionLabel, $par
             <div class="text-secondary font-monospace mt-1" style="font-size: 10px;">EMPTY POSITION</div>
             <?php if ($parentId && $position): ?>
                 <div class="mt-2">
-                    <a href="members/register_member.php?id=<?php echo urlencode($loggedInUserId); ?>&placement_id=<?php echo $parentId; ?>&position=<?php echo $position; ?>" class="btn btn-xs btn-outline-success py-1 px-2" style="font-size: 10px;">
+                    <a href="register_member.php?id=<?php echo urlencode($loggedInUserId); ?>&placement_id=<?php echo $parentId; ?>&position=<?php echo $position; ?>" class="btn btn-xs btn-outline-success py-1 px-2" style="font-size: 10px;">
                         <i class="fa fa-plus me-1"></i>Add Member
                     </a>
                 </div>

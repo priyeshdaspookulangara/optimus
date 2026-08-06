@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/engine.php';
+require_once __DIR__ . '/includes/engine.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
+    header("Location: login.php");
     exit();
 }
 
@@ -45,8 +45,7 @@ if (!empty($placementIdQuery)) {
 }
 
 $pageTitle = 'Register New Member';
-$baseHref = '../'; // Set base href to parent folder so assets and side links resolve perfectly!
-include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/includes/header.php';
 ?>
 
 <div class="container-fluid content-inner pb-0">
@@ -59,7 +58,7 @@ include __DIR__ . '/../includes/header.php';
                 </div>
 
                 <div class="card-body">
-                    <form action="members/create_member.php" method="post" id="regFormInner">
+                    <form action="create_member.php" method="post" id="regFormInner">
                         <?php if (!empty($placementDbId)): ?>
                             <input type="hidden" name="placement_id" value="<?php echo htmlspecialchars($placementDbId); ?>">
                             <input type="hidden" name="position" value="<?php echo htmlspecialchars($positionQuery); ?>">
@@ -235,4 +234,4 @@ $(document).ready(function () {
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>
