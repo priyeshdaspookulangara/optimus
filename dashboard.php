@@ -57,6 +57,43 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 10
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Check for Conferred Table dynamically and fetch records
+$conferredRecords = [];
+$conferredTableName = null;
+try {
+    $stmtCheck = $db->query("SHOW TABLES LIKE 'conferred_ranks'");
+    if ($stmtCheck->rowCount() > 0) {
+        $conferredTableName = 'conferred_ranks';
+    } else {
+        $stmtCheck2 = $db->query("SHOW TABLES LIKE 'conferred'");
+        if ($stmtCheck2->rowCount() > 0) {
+            $conferredTableName = 'conferred';
+        }
+    }
+} catch (Exception $e) {}
+
+if ($conferredTableName) {
+    try {
+        $colsStmt = $db->query("SHOW COLUMNS FROM {$conferredTableName}");
+        $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $userIdCol = in_array('user_id', $cols) ? 'user_id' : (in_array('member_id', $cols) ? 'member_id' : null);
+        $downlineCol = in_array('downline_id', $cols) ? 'downline_id' : null;
+
+        if ($userIdCol) {
+            $sql = "SELECT c.*" . ($downlineCol ? ", u.username as downline_username" : "") . " FROM {$conferredTableName} c";
+            if ($downlineCol) {
+                $sql .= " LEFT JOIN users u ON c.{$downlineCol} = u.id";
+            }
+            $sql .= " WHERE c.{$userIdCol} = ? ORDER BY c.id DESC";
+
+            $stmtConf = $db->prepare($sql);
+            $stmtConf->execute([$userId]);
+            $conferredRecords = $stmtConf->fetchAll();
+        }
+    } catch (Exception $e) {}
+}
+
 // Conferred Rank Details
 $conferredRankName = 'None';
 $conferredRankMatching = 0.00;
@@ -150,12 +187,13 @@ include __DIR__ . '/includes/header.php';
                 </div>
             </div>
             <div class="overview-row">
-                <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
+                <div class="overview-box" style="background-color: #2d1840; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#slabMatchedModal" title="Click to view full slab matched details">
+                    <h3 class="text-uppercase">SLAB-MATCHED BUSINESS <i class="fa-solid fa-circle-info ms-1 text-info" style="font-size: 14px;"></i></h3>
                     <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Click to view breakdown</small>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
-                    <h3 class="text-upercase">POWER CARRY FORWARD</h3>
+                    <h3 class="text-uppercase">POWER CARRY FORWARD</h3>
                     <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
@@ -358,6 +396,130 @@ include __DIR__ . '/includes/header.php';
                 </div>
                 <div class="text-center text-muted" style="font-size: 11px;">
                     <i class="fa-solid fa-lock me-1"></i> Values are calculated in real-time from audit-logged financial events.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-secondary px-4 text-white" data-bs-dismiss="modal" style="background-color: #504793; border: none; border-radius: 20px;">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slab Matched Business Modal -->
+<div class="modal fade" id="slabMatchedModal" tabindex="-1" aria-labelledby="slabMatchedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content text-white" style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px;">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title text-white fw-bold" id="slabMatchedModalLabel">
+                    <i class="fa-solid fa-chart-line me-2 text-warning"></i> Slab-Matched Business Breakdown
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Summary of Leg Volumes -->
+                <div class="row g-2 text-center mb-4">
+                    <div class="col-4">
+                        <div class="p-2 rounded" style="background-color: #3f2259;">
+                            <span class="text-uppercase text-muted d-block" style="font-size: 11px;">Power Leg</span>
+                            <span class="text-warning fw-bold fs-6">$<?php echo number_format($legStats['power_leg'], 2); ?></span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 rounded" style="background-color: #3f2259;">
+                            <span class="text-uppercase text-muted d-block" style="font-size: 11px;">Weaker Leg</span>
+                            <span class="text-warning fw-bold fs-6">$<?php echo number_format($legStats['matching_leg'], 2); ?></span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 rounded" style="background-color: #3f2259; border: 1px solid #28a745;">
+                            <span class="text-uppercase text-success d-block" style="font-size: 11px; font-weight: bold;">Slab Matched</span>
+                            <span class="text-success fw-bold fs-6">$<?php echo number_format($legStats['matched_business'], 2); ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Slab Matches Breakdown -->
+                <h6 class="text-white fw-bold mb-3"><i class="fa-solid fa-cubes text-info me-2"></i> Unilevel Slab Breakdown</h6>
+                <div class="p-3 rounded mb-4" style="background-color: #3f2259;">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-borderless mb-0 align-middle">
+                            <thead>
+                                <tr class="text-muted" style="font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <th>Slab Tier</th>
+                                    <th class="text-center">Matched Units</th>
+                                    <th class="text-end">Total Volume</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $hasAnySlab = false;
+                                if (!empty($legStats['slab_breakdown'])):
+                                    foreach ($legStats['slab_breakdown'] as $slab => $units):
+                                        if ($units > 0):
+                                            $hasAnySlab = true;
+                                ?>
+                                            <tr>
+                                                <td><span class="badge bg-primary">$<?php echo number_format($slab); ?> Slab</span></td>
+                                                <td class="text-center fw-bold text-warning"><?php echo $units; ?> Unit(s)</td>
+                                                <td class="text-end text-success fw-bold">$<?php echo number_format($units * $slab, 2); ?></td>
+                                            </tr>
+                                <?php
+                                        endif;
+                                    endforeach;
+                                endif;
+
+                                if (!$hasAnySlab):
+                                ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-3" style="font-size: 13px;">
+                                            No active slab matches found in your placement tree yet.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Conferred Rank Fallback Details -->
+                <h6 class="text-white fw-bold mb-3"><i class="fa-solid fa-medal text-danger me-2"></i> Conferred Rank & Propagation History</h6>
+                <div class="p-3 rounded" style="background-color: #3f2259;">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-borderless mb-0 align-middle">
+                            <thead>
+                                <tr class="text-muted" style="font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <th>Conferred ID</th>
+                                    <th>Date</th>
+                                    <th>Downline Origin</th>
+                                    <th class="text-end">Daily Income</th>
+                                    <th class="text-end">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($conferredRecords)): ?>
+                                    <?php foreach ($conferredRecords as $rec): ?>
+                                        <tr>
+                                            <td><span class="badge bg-secondary">#<?php echo htmlspecialchars($rec['id']); ?></span></td>
+                                            <td><small class="text-muted"><?php echo isset($rec['created_at']) ? date('d M, Y', strtotime($rec['created_at'])) : 'N/A'; ?></small></td>
+                                            <td><strong class="text-info"><?php echo htmlspecialchars($rec['downline_username'] ?? ('User ID ' . ($rec['downline_id'] ?? 'N/A'))); ?></strong></td>
+                                            <td class="text-end text-success fw-bold">$<?php echo number_format($rec['daily_income'] ?? 0.00, 2); ?></td>
+                                            <td class="text-end">
+                                                <span class="badge <?php echo (isset($rec['status']) && $rec['status'] == 'active') ? 'bg-success' : 'bg-secondary'; ?>">
+                                                    <?php echo htmlspecialchars(strtoupper($rec['status'] ?? 'completed')); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3" style="font-size: 13px;">
+                                            No record exists in the conferred table.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top-0 d-flex justify-content-center">
