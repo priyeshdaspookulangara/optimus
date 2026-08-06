@@ -84,65 +84,81 @@ function getBinaryNode($db, $userId) {
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
-function getChildNode($db, $parentId, $position) {
-    if (!$parentId) return null;
+function getChildrenNodes($db, $parentId) {
+    if (!$parentId) return ['left' => null, 'right' => null];
 
-    // 1. Try to find a child with explicit binary placement column (if populated in future)
+    // Fetch all potential candidates who either:
+    // a) have placement_id = $parentId (explicit placement)
+    // b) have sponsor_id = $parentId AND placement_id IS NULL (unilevel fallback candidates)
     $stmt = $db->prepare("
         SELECT u.*,
                (SELECT COUNT(*) FROM users WHERE sponsor_id = u.id) as direct_count
         FROM users u
-        WHERE u.placement_id = ? AND u.position = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$parentId, $position]);
-    $node = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($node) {
-        return $node;
-    }
-
-    // Check if there are any explicit binary placements under this parent.
-    // If there is even one explicit placement under this parent, we MUST NOT use fallback.
-    $stmtCheck = $db->prepare("SELECT COUNT(*) FROM users WHERE placement_id = ?");
-    $stmtCheck->execute([$parentId]);
-    $hasPlacements = (int)$stmtCheck->fetchColumn() > 0;
-    if ($hasPlacements) {
-        return null;
-    }
-
-    // 2. Fallback to unilevel direct sponsor downline:
-    // Only pick children who don't have an explicit placement elsewhere to avoid duplicates!
-    $stmt = $db->prepare("
-        SELECT u.*,
-               (SELECT COUNT(*) FROM users WHERE sponsor_id = u.id) as direct_count
-        FROM users u
-        WHERE u.sponsor_id = ? AND u.placement_id IS NULL
+        WHERE u.placement_id = ?
+           OR (u.sponsor_id = ? AND u.placement_id IS NULL)
         ORDER BY u.id ASC
     ");
-    $stmt->execute([$parentId]);
-    $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$parentId, $parentId]);
+    $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if ($position === 'left' && isset($children[0])) {
-        return $children[0];
-    }
-    if ($position === 'right' && isset($children[1])) {
-        return $children[1];
+    $leftNode = null;
+    $rightNode = null;
+
+    // First pass: Assign explicit positions to their corresponding slots
+    foreach ($candidates as $cand) {
+        if ($cand['placement_id'] == $parentId && !empty($cand['position'])) {
+            if ($cand['position'] === 'left' && !$leftNode) {
+                $leftNode = $cand;
+            } elseif ($cand['position'] === 'right' && !$rightNode) {
+                $rightNode = $cand;
+            }
+        }
     }
 
-    return null;
+    // Second pass: Assign fallback (unpositioned/unilevel) candidates to remaining empty slots
+    foreach ($candidates as $cand) {
+        // Skip candidates who have already been placed in the first pass
+        if ($leftNode && $leftNode['id'] == $cand['id']) continue;
+        if ($rightNode && $rightNode['id'] == $cand['id']) continue;
+
+        // Also, if this candidate has an explicit placement elsewhere, skip them entirely to avoid duplicates!
+        if (!empty($cand['placement_id']) && $cand['placement_id'] != $parentId) {
+            continue;
+        }
+
+        // If a candidate has an explicit position, they should NOT be placed as fallback in the other slot!
+        if (!empty($cand['position'])) {
+            continue;
+        }
+
+        // Place them in the first vacant slot
+        if (!$leftNode) {
+            $leftNode = $cand;
+        } elseif (!$rightNode) {
+            $rightNode = $cand;
+        }
+    }
+
+    return [
+        'left' => $leftNode,
+        'right' => $rightNode
+    ];
 }
 
 // Fetch all 7 nodes of our 3-level binary tree
 $Node1 = getBinaryNode($db, $focusedUserId);
 
-$Node2 = getChildNode($db, $focusedUserId, 'left');
-$Node3 = getChildNode($db, $focusedUserId, 'right');
+$Level2 = getChildrenNodes($db, $focusedUserId);
+$Node2 = $Level2['left'];
+$Node3 = $Level2['right'];
 
-$Node4 = getChildNode($db, $Node2 ? $Node2['id'] : null, 'left');
-$Node5 = getChildNode($db, $Node2 ? $Node2['id'] : null, 'right');
+$Level3_Left = getChildrenNodes($db, $Node2 ? $Node2['id'] : null);
+$Node4 = $Level3_Left['left'];
+$Node5 = $Level3_Left['right'];
 
-$Node6 = getChildNode($db, $Node3 ? $Node3['id'] : null, 'left');
-$Node7 = getChildNode($db, $Node3 ? $Node3['id'] : null, 'right');
+$Level3_Right = getChildrenNodes($db, $Node3 ? $Node3['id'] : null);
+$Node6 = $Level3_Right['left'];
+$Node7 = $Level3_Right['right'];
 
 // Determine parent ID of the current focused root user for the "Navigate Up" button
 $upUserId = null;
