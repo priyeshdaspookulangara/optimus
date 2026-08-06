@@ -22,7 +22,10 @@
         <input type="text" name="user_id" class="form-control" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Password</label>
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label mb-0">Password</label>
+          <a href="forgot_password.php" class="text-primary text-decoration-none" style="font-size: 0.85rem; font-weight: 500;">Forgot Password?</a>
+        </div>
         <input type="password" name="password" class="form-control" required>
       </div>
       <button type="submit" class="btn btn-primary mt-3">Login</button>
