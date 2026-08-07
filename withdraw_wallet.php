@@ -97,8 +97,8 @@ include __DIR__ . '/includes/header.php';
                       <td><?php echo $index + 1; ?></td>
                       <td><?php echo date('d M, Y h:i:s a', strtotime($w['created_at'])); ?></td>
                       <td>$<?php echo number_format($w['amount'], 2); ?></td>
-                      <td>$<?php echo number_format($w['fee'], 2); ?></td>
-                      <td class="text-danger">$<?php echo number_format($w['amount'] - $w['fee'], 2); ?></td>
+                      <td>$<?php echo number_format($w['amount'] * 0.05, 2); ?></td>
+                      <td class="text-danger">$<?php echo number_format($w['amount'] * 0.95, 2); ?></td>
                       <td><?php echo htmlspecialchars($w['description']); ?></td>
                     </tr>
                   <?php endforeach; ?>
