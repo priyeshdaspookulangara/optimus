@@ -67,27 +67,25 @@ $withdrawals = $stmt->fetchAll();
                     <tr class="table-dark">
                         <th>Transaction ID</th>
                         <th>Date & Time</th>
-                        <th>Member (MID)</th>
+                        <th>Username</th>
                         <th>Requested Amount</th>
-                        <th>Gas Fee</th>
-                        <th>Net Amount Paid</th>
+
                         <th>Description</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($withdrawals)): ?>
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">No withdrawals requested yet.</td>
+                            <td colspan="5" class="text-center text-muted py-4">No withdrawals requested yet.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach($withdrawals as $w): ?>
                         <tr>
                             <td>#<?php echo $w['id']; ?></td>
                             <td><?php echo date('Y-m-d H:i:s', strtotime($w['created_at'])); ?></td>
-                            <td><strong><?php echo htmlspecialchars($w['username']); ?></strong> <span class="badge bg-secondary" style="font-size: 11px;"><?php echo htmlspecialchars($w['mid'] ?? 'None'); ?></span></td>
+                            <td><strong><?php echo htmlspecialchars($w['username']); ?></strong> (<?php echo htmlspecialchars($w['mid'] ?? 'None'); ?>)</td>
                             <td class="text-danger">$<?php echo number_format($w['amount'], 2); ?></td>
-                            <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
-                            <td class="fw-bold text-success">$<?php echo number_format($w['amount'] - $w['fee'], 2); ?></td>
+
                             <td><?php echo htmlspecialchars($w['description']); ?></td>
                         </tr>
                         <?php endforeach; ?>
