@@ -18,6 +18,13 @@ if (!empty($sponsorQuery)) {
         $sponsorDbId = $user['id'];
     }
 }
+
+$position = $_GET['pos'] ?? '';
+if ($position === 'L') {
+    $position = 'left';
+} elseif ($position === 'R') {
+    $position = 'right';
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -121,6 +128,8 @@ if (!empty($sponsorQuery)) {
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
+                    <input type="hidden" id="position" name="position"
+                      value="<?php echo htmlspecialchars($position); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
