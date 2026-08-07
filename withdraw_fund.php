@@ -10,6 +10,10 @@ if (!isset($_SESSION['user_id'])) {
 $db = Database::getInstance()->getConnection();
 $userId = $_SESSION['user_id'];
 
+$config = require __DIR__ . '/includes/config.php';
+$minWithdrawal = $config['withdrawal']['min_amount'] ?? 25.00;
+$fee = $config['withdrawal']['fee'] ?? 10.00;
+
 // Fetch Wallet Balance
 $stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as wallet_balance FROM transactions WHERE user_id = ?");
 $stmt->execute([$userId]);
@@ -47,8 +51,8 @@ include __DIR__ . '/includes/header.php';
         <form method="post" class="mt-4" style="max-width: 500px;">
             <div class="mb-3">
                 <label class="form-label">Amount to Withdraw ($)</label>
-                <input type="number" step="any" name="amount" class="form-control" required min="25">
-                <small class="text-info">Minimum withdrawal: $25.00. A flat fee of $10.00 will be deducted.</small>
+                <input type="number" step="any" name="amount" class="form-control" required min="<?php echo htmlspecialchars($minWithdrawal); ?>">
+                <small class="text-info">Minimum withdrawal: $<?php echo number_format($minWithdrawal, 2); ?>. A flat fee of $<?php echo number_format($fee, 2); ?> will be deducted.</small>
             </div>
             <button type="submit" class="btn btn-primary">Request Withdrawal</button>
         </form>

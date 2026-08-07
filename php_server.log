@@ -1,0 +1,40 @@
+[Fri Aug  7 12:24:07 2026] PHP 8.3.6 Development Server (http://localhost:8000) started
+[Fri Aug  7 12:24:18 2026] [::1]:38616 Accepted
+[Fri Aug  7 12:24:18 2026] [::1]:38616 [200]: HEAD /login.php
+[Fri Aug  7 12:24:18 2026] [::1]:38616 Closing
+[Fri Aug  7 12:25:41 2026] [::1]:55978 Accepted
+[Fri Aug  7 12:25:41 2026] [::1]:55978 [200]: GET /login.php
+[Fri Aug  7 12:25:41 2026] [::1]:55978 Closing
+[Fri Aug  7 12:26:55 2026] [::1]:51022 Accepted
+[Fri Aug  7 12:26:55 2026] [::1]:51022 [200]: GET /login.php
+[Fri Aug  7 12:26:55 2026] [::1]:51022 Closing
+[Fri Aug  7 12:26:58 2026] [::1]:51032 Accepted
+[Fri Aug  7 12:26:58 2026] [::1]:51032 [302]: POST /authenticate.php
+[Fri Aug  7 12:26:58 2026] [::1]:51032 Closing
+[Fri Aug  7 12:26:58 2026] [::1]:51040 Accepted
+[Fri Aug  7 12:26:58 2026] [::1]:51040 [200]: GET /dashboard.php
+[Fri Aug  7 12:26:58 2026] [::1]:51040 Closing
+[Fri Aug  7 12:27:00 2026] [::1]:51044 Accepted
+[Fri Aug  7 12:27:00 2026] [::1]:51044 [200]: GET /withdraw_fund.php
+[Fri Aug  7 12:27:00 2026] [::1]:51044 Closing
+[Fri Aug  7 12:27:05 2026] [::1]:48664 Accepted
+[Fri Aug  7 12:27:05 2026] [::1]:48664 [302]: POST /withdraw_fund.php
+[Fri Aug  7 12:27:05 2026] [::1]:48664 Closing
+[Fri Aug  7 12:27:05 2026] [::1]:48680 Accepted
+[Fri Aug  7 12:27:05 2026] [::1]:48680 [200]: GET /e_wallet_history.php?success=withdrawal_requested
+[Fri Aug  7 12:27:05 2026] [::1]:48680 Closing
+[Fri Aug  7 12:28:19 2026] [::1]:54722 Accepted
+[Fri Aug  7 12:28:19 2026] [::1]:54722 [200]: GET /login.php
+[Fri Aug  7 12:28:19 2026] [::1]:54722 Closing
+[Fri Aug  7 12:28:22 2026] [::1]:54724 Accepted
+[Fri Aug  7 12:28:22 2026] [::1]:54724 [302]: POST /authenticate.php
+[Fri Aug  7 12:28:22 2026] [::1]:54724 Closing
+[Fri Aug  7 12:28:22 2026] [::1]:54736 Accepted
+[Fri Aug  7 12:28:22 2026] [::1]:54736 [200]: GET /dashboard.php
+[Fri Aug  7 12:28:22 2026] [::1]:54736 Closing
+[Fri Aug  7 12:28:24 2026] [::1]:34724 Accepted
+[Fri Aug  7 12:28:24 2026] [::1]:34724 [200]: GET /my_withdrawals.php
+[Fri Aug  7 12:28:24 2026] [::1]:34724 Closing
+[Fri Aug  7 12:28:36 2026] [::1]:45192 Accepted
+[Fri Aug  7 12:28:36 2026] [::1]:45192 [200]: GET /withdraw_wallet.php
+[Fri Aug  7 12:28:36 2026] [::1]:45192 Closing
