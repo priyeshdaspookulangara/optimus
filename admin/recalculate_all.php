@@ -19,11 +19,12 @@ if (php_sapi_name() !== 'cli' && !isset($_SESSION['admin_id'])) {
     }
 }
 
-require_once __DIR__ . '/includes/engine.php';
+// Correct parent directory paths since this file is inside the admin/ directory
+require_once dirname(__DIR__) . '/includes/engine.php';
 
 $db = Database::getInstance()->getConnection();
 $engine = new MLMEngine();
-$config = require __DIR__ . '/includes/config.php';
+$config = require dirname(__DIR__) . '/includes/config.php';
 
 echo "========================================================\n";
 echo "Starting Global MLM Recalculation & Reconciliation Engine\n";
