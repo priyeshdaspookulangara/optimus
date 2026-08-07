@@ -63,6 +63,16 @@ CREATE TABLE IF NOT EXISTS `matching_schedules` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `cron_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `command` VARCHAR(255) NOT NULL,
+  `start_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `end_time` TIMESTAMP NULL DEFAULT NULL,
+  `status` ENUM('running', 'success', 'failed') DEFAULT 'running',
+  `output` LONGTEXT DEFAULT NULL,
+  `error_message` TEXT DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default superadmin if not exists
 INSERT IGNORE INTO `admins` (`username`, `email`, `password`) VALUES
 ('superadmin', 'admin@mlm.com', '$2y$10$zprF16ZAl9c6GLhYrCxSqulSpN1D.fI0NAh5EUkL0MTfd58mg7Uyy');

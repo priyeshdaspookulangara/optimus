@@ -29,6 +29,17 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure cron_logs table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `cron_logs` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `command` VARCHAR(255) NOT NULL,
+                `start_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `end_time` TIMESTAMP NULL DEFAULT NULL,
+                `status` ENUM('running', 'success', 'failed') DEFAULT 'running',
+                `output` LONGTEXT DEFAULT NULL,
+                `error_message` TEXT DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
