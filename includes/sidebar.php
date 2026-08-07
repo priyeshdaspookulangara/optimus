@@ -1,4 +1,22 @@
 <aside class="sidebar sidebar-default navs-rounded sidebar-mini on-resize">
+    <style>
+      /* Slight shadow to elements in the sidebar logically */
+      .sidebar-default {
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
+      }
+      .sidebar-default .navbar-nav .nav-item .nav-link:hover,
+      .sidebar-default .navbar-nav .nav-item .nav-link.active,
+      .sidebar-default .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+        border-radius: 8px;
+      }
+      .sidebar-default .navbar-nav .nav-item .sub-nav {
+        background: rgba(0, 0, 0, 0.01);
+        border-radius: 8px;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.03);
+        padding: 5px 0;
+      }
+    </style>
     <div class="sidebar-header d-flex align-items-center justify-content-center">
       <a href="dashboard.php" class="navbar-brand dis-none align-items-center">
         <img src="https://optimusinfinity.com/assets/logo.png" class="img-fluid " alt="logo" style="height: 30px;">
@@ -17,6 +35,39 @@
       <div class="navbar-collapse pe-3" id="sidebar">
         <ul class="navbar-nav iq-main-menu">
           <li class="nav-item"><a class="nav-link" href="dashboard.php"><i class="icon fa fa-home"></i><span class="item-name">Dashboard</span></a></li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-network" role="button" aria-expanded="false" aria-controls="sidebar-network">
+              <i class="icon fa fa-network-wired"></i>
+              <span class="item-name">Network</span>
+              <i class="right-icon fa fa-chevron-right ms-auto" style="font-size: 0.8rem;"></i>
+            </a>
+            <ul class="sub-nav collapse" id="sidebar-network" data-bs-parent="#sidebar">
+              <li class="nav-item">
+                <a class="nav-link" href="genealogy.php">
+                  <i class="icon fa fa-sitemap"></i>
+                  <span class="item-name">Genealogy</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="binary_tree.php">
+                  <i class="icon fa fa-tree"></i>
+                  <span class="item-name">Reference Tree</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="members.php">
+                  <i class="icon fa fa-users"></i>
+                  <span class="item-name">Members</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="my_team.php">
+                  <i class="icon fa fa-users-cog"></i>
+                  <span class="item-name">My Team</span>
+                </a>
+              </li>
+            </ul>
+          </li>
           <li class="nav-item"><a class="nav-link" href="e_wallet.php"><i class="icon fa fa-wallet"></i><span class="item-name">E-wallet</span></a></li>
           <li class="nav-item"><a class="nav-link" href="e_wallet_history.php"><i class="icon fa fa-history"></i><span class="item-name">E-Wallet History</span></a></li>
           <li class="nav-item"><a class="nav-link" href="invest.php"><i class="icon fa fa-plus-circle"></i><span class="item-name">Invest</span></a></li>
@@ -26,7 +77,6 @@
           <li class="nav-item"><a class="nav-link" href="level_income.php"><i class="icon fa fa-users"></i><span class="item-name">Level Income</span></a></li>
           <li class="nav-item"><a class="nav-link" href="rank.php"><i class="icon fa fa-trophy"></i><span class="item-name">Rank</span></a></li>
           <li class="nav-item"><a class="nav-link" href="propagated_incomes.php"><i class="icon fa fa-network-wired"></i><span class="item-name">Matches From Others</span></a></li>
-          <li class="nav-item"><a class="nav-link" href="my_team.php"><i class="icon fa fa-users-cog"></i><span class="item-name">My Team</span></a></li>
           <li class="nav-item"><a class="nav-link" href="team_ranks.php"><i class="icon fa fa-medal"></i><span class="item-name">Team Ranks</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_wallet.php"><i class="icon fa fa-credit-card"></i><span class="item-name">Withdraw Wallet</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_fund.php"><i class="icon fa fa-money-bill-wave"></i><span class="item-name">Withdraw Fund</span></a></li>
