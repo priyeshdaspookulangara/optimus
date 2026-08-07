@@ -5,6 +5,7 @@
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
       }
       .sidebar-default .navbar-nav .nav-item .nav-link:hover,
+      .sidebar-default .navbar-nav .nav-item .nav-link.active,
       .sidebar-default .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
         border-radius: 8px;
