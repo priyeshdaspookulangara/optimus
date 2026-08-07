@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_cron'])) {
     require_once __DIR__ . '/../includes/engine.php';
 
     // Insert initial run log
-    $stmt = $db->prepare("INSERT INTO cron_logs (command, status, start_time) VALUES (?, ?, CURRENT_TIMESTAMP)");
+    $stmt = $db->prepare("INSERT INTO cron_logs (command, status, start_time) VALUES (?, ?, NOW())");
     $stmt->execute(['manual_trigger', 'running']);
     $cronLogId = $db->lastInsertId();
 
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_cron'])) {
         $output = ob_get_clean();
 
         // Update log to success
-        $stmt = $db->prepare("UPDATE cron_logs SET end_time = CURRENT_TIMESTAMP, status = ?, output = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE cron_logs SET end_time = NOW(), status = ?, output = ? WHERE id = ?");
         $stmt->execute(['success', $output, $cronLogId]);
 
         $_SESSION['success'] = "Daily cron job processed manually successfully!";
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_cron'])) {
         $output = ob_get_clean();
 
         // Update log to failed
-        $stmt = $db->prepare("UPDATE cron_logs SET end_time = CURRENT_TIMESTAMP, status = ?, output = ?, error_message = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE cron_logs SET end_time = NOW(), status = ?, output = ?, error_message = ? WHERE id = ?");
         $stmt->execute(['failed', $output, $e->getMessage(), $cronLogId]);
 
         $_SESSION['error'] = "Manual daily processing failed: " . $e->getMessage();
