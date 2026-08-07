@@ -391,8 +391,13 @@ class MLMEngine {
         if ($customNetAmount !== null) {
             $netAmount = $customNetAmount;
         } elseif ($isDebit) {
-            // For withdrawals: total deduction = amount + fee (both should be negative for balance)
-            $netAmount = -($amount + $fee);
+            if ($type === 'WITHDRAWAL') {
+                // The requested amount is the total debit from the wallet. The fee is deducted from this amount during payout.
+                $netAmount = -$amount;
+            } else {
+                // For other debits: total deduction = amount + fee
+                $netAmount = -($amount + $fee);
+            }
         } else {
             // For income: total gain = amount - fee (e.g. tax, though usually income is net here)
             $netAmount = $amount - $fee;
@@ -430,9 +435,9 @@ class MLMEngine {
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
-        // Check if balance covers both the requested amount and the flat gas fee
-        if ($user['balance'] < ($amount + $fee)) {
-            throw new Exception("Insufficient balance to cover withdrawal amount and the \$" . $fee . " flat gas fee.");
+        // Check if balance covers the requested withdrawal amount
+        if ($user['balance'] < $amount) {
+            throw new Exception("Insufficient balance to cover withdrawal amount.");
         }
 
         $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
