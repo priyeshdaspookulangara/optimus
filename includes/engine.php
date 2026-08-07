@@ -148,18 +148,32 @@ class MLMEngine {
      * Calculate unilevel leg business volumes and apply the
      * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
      */
+    /**
+     * Recursively calculate the total investment of everyone in the physical placement subtree of a user
+     */
+    public function getPlacementSubtreeVolume($userId) {
+        $stmt = $this->db->prepare("SELECT id, total_investment FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) return 0.00;
+
+        $total = (float)$user['total_investment'];
+
+        // Get direct placement children
+        $stmtChildren = $this->db->prepare("SELECT id FROM users WHERE placement_id = ?");
+        $stmtChildren->execute([$userId]);
+        $children = $stmtChildren->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($children as $child) {
+            $total += $this->getPlacementSubtreeVolume($child['id']);
+        }
+
+        return $total;
+    }
+
     public function getLegsBusiness($userId) {
-        $stmt = $this->db->prepare("
-            SELECT u.id, u.username,
-                   (u.total_investment + COALESCE((
-                       SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
-                   ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.placement_id = ?
-        ");
+        // Find direct physical placement children of $userId
+        $stmt = $this->db->prepare("SELECT id, username, position, total_investment FROM users WHERE placement_id = ?");
         $stmt->execute([$userId]);
         $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -174,8 +188,18 @@ class MLMEngine {
             ];
         }
 
+        $volumes = [];
+        foreach ($legs as $leg) {
+            // Recursively sum physical placement investment under this direct child
+            $volumes[] = $this->getPlacementSubtreeVolume($leg['id']);
+        }
+
+        // If only 1 leg exists, the other has 0.00 volume
+        if (count($volumes) === 1) {
+            $volumes[] = 0.00;
+        }
+
         // Raw Legs Calculation
-        $volumes = array_column($legs, 'total_leg_business');
         $powerLegRaw = max($volumes);
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
@@ -506,16 +530,41 @@ class MLMEngine {
      * sync matching schedules (contracts) for a user and all their upline sponsors.
      */
     public function updateUplineRanks($userId) {
-        // Fetch all direct unilevel ancestors (parents in the genealogy tree) ordered by level ascending
-        $stmt = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+        // Fetch user's direct placement_id and sponsor_id
+        $stmt = $this->db->prepare("SELECT placement_id, sponsor_id FROM users WHERE id = ?");
         $stmt->execute([$userId]);
-        $ancestors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Include the user themselves as well (if they purchased a package, their own matching legs could change)
-        $targets = array_merge([['parent_id' => $userId]], $ancestors);
+        $placementId = $userData ? $userData['placement_id'] : null;
+        $sponsorId = $userData ? $userData['sponsor_id'] : null;
 
-        foreach ($targets as $target) {
-            $ancestorId = $target['parent_id'];
+        // The first node to evaluate is the placement parent (where physical matching occurred)
+        $primaryTargetId = $placementId ? $placementId : $sponsorId;
+
+        $targets = [];
+
+        // Include the user themselves first (if they purchased a package, their own legs could change)
+        $targets[] = $userId;
+
+        if ($primaryTargetId) {
+            $targets[] = $primaryTargetId;
+
+            // From the placement parent upwards, rank and rank income propagates using the referral/sponsor tree (genealogy)
+            $stmtAncestors = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+            $stmtAncestors->execute([$primaryTargetId]);
+            $ancestors = $stmtAncestors->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($ancestors as $anc) {
+                if (!empty($anc['parent_id'])) {
+                    $targets[] = $anc['parent_id'];
+                }
+            }
+        }
+
+        // Remove duplicates and maintain sequence
+        $targets = array_unique($targets);
+
+        foreach ($targets as $ancestorId) {
             if (empty($ancestorId)) continue;
 
             // Fetch ancestor's current info
