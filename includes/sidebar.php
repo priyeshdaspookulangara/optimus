@@ -68,8 +68,27 @@
               </li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="e_wallet.php"><i class="icon fa fa-wallet"></i><span class="item-name">E-wallet</span></a></li>
-          <li class="nav-item"><a class="nav-link" href="e_wallet_history.php"><i class="icon fa fa-history"></i><span class="item-name">E-Wallet History</span></a></li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-ewallet" role="button" aria-expanded="false" aria-controls="sidebar-ewallet">
+              <i class="icon fa fa-wallet"></i>
+              <span class="item-name">E-Wallet</span>
+              <i class="right-icon fa fa-chevron-right ms-auto" style="font-size: 0.8rem;"></i>
+            </a>
+            <ul class="sub-nav collapse" id="sidebar-ewallet" data-bs-parent="#sidebar">
+              <li class="nav-item">
+                <a class="nav-link" href="e_wallet.php">
+                  <i class="icon fa fa-wallet"></i>
+                  <span class="item-name">E-wallet</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="e_wallet_history.php">
+                  <i class="icon fa fa-history"></i>
+                  <span class="item-name">E-Wallet History</span>
+                </a>
+              </li>
+            </ul>
+          </li>
           <li class="nav-item"><a class="nav-link" href="invest.php"><i class="icon fa fa-plus-circle"></i><span class="item-name">Invest</span></a></li>
           <li class="nav-item"><a class="nav-link" href="invest_history.php"><i class="icon fa fa-list"></i><span class="item-name">Invest History</span></a></li>
           <li class="nav-item"><a class="nav-link" href="my_pins.php"><i class="icon fa fa-key"></i><span class="item-name">My PINs</span></a></li>
