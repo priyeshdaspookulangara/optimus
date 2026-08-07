@@ -52,7 +52,7 @@ class MLMEngine {
             $this->logTransaction($userId, 'INVESTMENT', $packageAmount, 0, "Purchased package \${$packageAmount}", null, $investmentId);
 
             // Distribute Level Income (Recursive up to 12 levels)
-            $this->distributeLevelIncome($userId, $packageAmount);
+            $this->distributeLevelIncome($userId, $packageAmount, $investmentId);
 
             // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
             $this->updateUplineRanks($userId);
@@ -125,7 +125,7 @@ class MLMEngine {
     /**
      * Level Income: Distribute commission up to 12 generations
      */
-    public function distributeLevelIncome($userId, $investmentAmount) {
+    public function distributeLevelIncome($userId, $investmentAmount, $investmentId = null) {
         $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
         $stmt->execute([$userId]);
         $parents = $stmt->fetchAll();
@@ -138,7 +138,7 @@ class MLMEngine {
 
                 $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
                 if ($allowable > 0) {
-                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, $investmentId, $level);
                 }
             }
         }
@@ -483,7 +483,7 @@ class MLMEngine {
             $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
 
             // Distribute commissions
-            $this->distributeLevelIncome($userId, $package['amount']);
+            $this->distributeLevelIncome($userId, $package['amount'], $investmentId);
 
             // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
             $this->updateUplineRanks($userId);
