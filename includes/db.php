@@ -29,6 +29,25 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically ensure cron_logs table exists
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `cron_logs` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `command` VARCHAR(255) NOT NULL,
+                `start_time` DATETIME NOT NULL,
+                `end_time` DATETIME DEFAULT NULL,
+                `status` ENUM('running', 'success', 'failed') DEFAULT 'running',
+                `output` LONGTEXT DEFAULT NULL,
+                `error_message` TEXT DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+            // For compatibility migration, ensure the columns are DATETIME if they exist as TIMESTAMP
+            try {
+                $this->connection->exec("ALTER TABLE `cron_logs` MODIFY COLUMN `start_time` DATETIME NOT NULL");
+                $this->connection->exec("ALTER TABLE `cron_logs` MODIFY COLUMN `end_time` DATETIME DEFAULT NULL");
+            } catch (Exception $e) {
+                // Ignore failure if table is brand new or alter not needed
+            }
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
