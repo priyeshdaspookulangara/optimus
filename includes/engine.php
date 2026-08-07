@@ -238,6 +238,96 @@ class MLMEngine {
     }
 
     /**
+     * Process daily payout for a single matching schedule and propagate up unilevel sponsor tree.
+     */
+    public function payMatchingScheduleDay($schedId) {
+        $today = date('Y-m-d');
+
+        $stmt = $this->db->prepare("SELECT * FROM matching_schedules WHERE id = ? AND status = 'active'");
+        $stmt->execute([$schedId]);
+        $sched = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$sched) return false;
+
+        // Skip if already paid today
+        if ($sched['last_payout_at'] === $today) {
+            return false;
+        }
+
+        $dailyIncome = (float)$sched['daily_income'];
+        $userId = $sched['user_id'];
+
+        // Verify remaining ID cap (300%)
+        $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+        if ($allowable > 0) {
+            // Log the RANK_INCOME transaction
+            $this->logTransaction(
+                $userId,
+                'RANK_INCOME',
+                $allowable,
+                0,
+                "Daily Matching Income for Slab \$" . number_format($sched['slab_amount'], 2) . " (Day " . ($sched['days_passed'] + 1) . "/100)"
+            );
+
+            $newDaysPassed = $sched['days_passed'] + 1;
+            $status = ($newDaysPassed >= $sched['max_days']) ? 'completed' : 'active';
+
+            $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ?, last_payout_at = ? WHERE id = ?");
+            $stmtUpdateSched->execute([$newDaysPassed, $status, $today, $schedId]);
+
+            // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+            $stmtUplines = $this->db->prepare("
+                SELECT g.parent_id, u.username, u.status
+                FROM genealogy g
+                JOIN users u ON g.parent_id = u.id
+                WHERE g.user_id = ?
+                ORDER BY g.level ASC
+            ");
+            $stmtUplines->execute([$userId]);
+            $uplines = $stmtUplines->fetchAll();
+
+            // Get username of the original matching Earner for transaction logging
+            $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+            $stmtUser->execute([$userId]);
+            $origUserObj = $stmtUser->fetch();
+            $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+
+            $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+            $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
+
+            foreach ($uplines as $index => $upline) {
+                // Check block boundary: if we reach N, 2N, 3N etc., check if the boundary parent is an orphan (ref_count <= 1)
+                if ($index > 0 && ($index % $N) === 0) {
+                    $stmtReferrals->execute([$upline['parent_id']]);
+                    $refData = $stmtReferrals->fetch();
+                    $refCount = (int)$refData['ref_count'];
+
+                    if ($refCount <= 1) {
+                        break; // Terminate propagation immediately
+                    }
+                }
+
+                if ($upline['status'] === 'active') {
+                    $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
+                    if ($uplineAllowable > 0) {
+                        $this->logTransaction(
+                            $upline['parent_id'],
+                            'RANK_INCOME',
+                            $uplineAllowable,
+                            0,
+                            "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
+                            $userId
+                        );
+                    }
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Matching Engine: Identify Power Leg and calculate Rank Income using Sequential Slab-Matching Hierarchy
      * and track active 100-day schedules per slab unit.
      */
@@ -288,84 +378,15 @@ class MLMEngine {
             }
         }
 
-        // Process daily payouts for all active matching schedules
-        $stmtActiveScheds = $this->db->prepare("SELECT * FROM matching_schedules WHERE status = 'active'");
+        // Process daily payouts for all active matching schedules via payMatchingScheduleDay helper
+        $stmtActiveScheds = $this->db->prepare("SELECT id FROM matching_schedules WHERE status = 'active'");
         $stmtActiveScheds->execute();
         $activeScheds = $stmtActiveScheds->fetchAll();
 
         foreach ($activeScheds as $sched) {
             $this->db->beginTransaction();
             try {
-                $dailyIncome = (float)$sched['daily_income'];
-                $userId = $sched['user_id'];
-
-                // Verify remaining ID cap (300%)
-                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
-                if ($allowable > 0) {
-                    // Log the RANK_INCOME transaction
-                    $this->logTransaction(
-                        $userId,
-                        'RANK_INCOME',
-                        $allowable,
-                        0,
-                        "Daily Matching Income for Slab \$" . number_format($sched['slab_amount'], 2) . " (Day " . ($sched['days_passed'] + 1) . "/100)"
-                    );
-
-                    $newDaysPassed = $sched['days_passed'] + 1;
-                    $status = ($newDaysPassed >= $sched['max_days']) ? 'completed' : 'active';
-
-                    $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
-                    $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
-
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
-                    $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status
-                        FROM genealogy g
-                        JOIN users u ON g.parent_id = u.id
-                        WHERE g.user_id = ?
-                        ORDER BY g.level ASC
-                    ");
-                    $stmtUplines->execute([$userId]);
-                    $uplines = $stmtUplines->fetchAll();
-
-                    // Get username of the original matching Earner for transaction logging
-                    $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
-                    $stmtUser->execute([$userId]);
-                    $origUserObj = $stmtUser->fetch();
-                    $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
-
-                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-                    $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
-
-                    foreach ($uplines as $index => $upline) {
-                        // Check block boundary: if we reach N, 2N, 3N etc., check if the boundary parent is an orphan (ref_count <= 1)
-                        if ($index > 0 && ($index % $N) === 0) {
-                            $stmtReferrals->execute([$upline['parent_id']]);
-                            $refData = $stmtReferrals->fetch();
-                            $refCount = (int)$refData['ref_count'];
-
-                            if ($refCount <= 1) {
-                                break; // Terminate propagation immediately
-                            }
-                        }
-
-                        if ($upline['status'] === 'active') {
-                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
-                            if ($uplineAllowable > 0) {
-                                $this->logTransaction(
-                                    $upline['parent_id'],
-                                    'RANK_INCOME',
-                                    $uplineAllowable,
-                                    0,
-                                    "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
-                                    $userId
-                                );
-                            }
-                        }
-                    }
-                } else {
-                    // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
-                }
+                $this->payMatchingScheduleDay($sched['id']);
                 $this->db->commit();
             } catch (Exception $e) {
                 $this->db->rollBack();
@@ -611,6 +632,10 @@ class MLMEngine {
                         $stmtInsert = $this->db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
                         for ($i = 0; $i < $newUnits; $i++) {
                             $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
+                            $newSchedId = $this->db->lastInsertId();
+
+                            // Immediately process the very first daily payout (Day 1) for this newly matched contract
+                            $this->payMatchingScheduleDay($newSchedId);
                         }
                     }
                 }

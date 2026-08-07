@@ -29,6 +29,12 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            try {
+                $this->connection->exec("ALTER TABLE `matching_schedules` ADD COLUMN `last_payout_at` DATE DEFAULT NULL");
+            } catch (PDOException $ex) {
+                // Ignore if column already exists
+            }
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
