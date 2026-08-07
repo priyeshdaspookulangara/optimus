@@ -335,23 +335,18 @@ class MLMEngine {
                     $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
 
                     $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-                    $consecutiveSingleCount = 0;
+                    $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
 
-                    foreach ($uplines as $upline) {
-                        // Check if this parent has only one direct referral (single direct referral node)
-                        $stmtReferrals->execute([$upline['parent_id']]);
-                        $refData = $stmtReferrals->fetch();
-                        $refCount = (int)$refData['ref_count'];
+                    foreach ($uplines as $index => $upline) {
+                        // Check block boundary: if we reach N, 2N, 3N etc., check if the boundary parent is an orphan (ref_count <= 1)
+                        if ($index > 0 && ($index % $N) === 0) {
+                            $stmtReferrals->execute([$upline['parent_id']]);
+                            $refData = $stmtReferrals->fetch();
+                            $refCount = (int)$refData['ref_count'];
 
-                        if ($refCount === 1) {
-                            $consecutiveSingleCount++;
-                        } else {
-                            $consecutiveSingleCount = 0;
-                        }
-
-                        // If we already went past 3 consecutive single nodes, break immediately
-                        if ($consecutiveSingleCount > 3) {
-                            break;
+                            if ($refCount <= 1) {
+                                break; // Terminate propagation immediately
+                            }
                         }
 
                         if ($upline['status'] === 'active') {
@@ -366,11 +361,6 @@ class MLMEngine {
                                     $userId
                                 );
                             }
-                        }
-
-                        // Stop propagating further if we just paid the 3rd consecutive single referral node
-                        if ($consecutiveSingleCount === 3) {
-                            break;
                         }
                     }
                 } else {
@@ -554,8 +544,21 @@ class MLMEngine {
             $stmtAncestors->execute([$primaryTargetId]);
             $ancestors = $stmtAncestors->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach ($ancestors as $anc) {
+            $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+            $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
+
+            foreach ($ancestors as $index => $anc) {
                 if (!empty($anc['parent_id'])) {
+                    // Check block boundary at N, 2N, 3N...
+                    if ($index > 0 && ($index % $N) === 0) {
+                        $stmtReferrals->execute([$anc['parent_id']]);
+                        $refData = $stmtReferrals->fetch();
+                        $refCount = (int)$refData['ref_count'];
+
+                        if ($refCount <= 1) {
+                            break; // Terminate propagation immediately
+                        }
+                    }
                     $targets[] = $anc['parent_id'];
                 }
             }

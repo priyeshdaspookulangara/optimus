@@ -66,5 +66,6 @@ return [
     'rank_income' => [
         'rate' => 0.0040, // 0.40% daily rank income (often used as reference)
         'duration' => 100,
+        'propagation_limit' => 2, // Hybrid propagation block-step limit (N)
     ]
 ];
