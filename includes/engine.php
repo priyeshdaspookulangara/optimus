@@ -123,22 +123,35 @@ class MLMEngine {
     }
 
     /**
-     * Level Income: Distribute commission up to 12 generations
+     * Level Income: Distribute commission up to 12 generations using pure sponsor tree
      */
     public function distributeLevelIncome($userId, $investmentAmount) {
-        $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
+        $stmt = $this->db->prepare("
+            WITH RECURSIVE sponsor_chain AS (
+                SELECT id, sponsor_id, 1 as level FROM users WHERE id = ?
+                UNION ALL
+                SELECT u.id, u.sponsor_id, sc.level + 1
+                FROM users u
+                JOIN sponsor_chain sc ON u.id = sc.sponsor_id
+                WHERE sc.level < 12 AND u.sponsor_id IS NOT NULL
+            )
+            SELECT level, sponsor_id FROM sponsor_chain
+            WHERE sponsor_id IS NOT NULL
+            ORDER BY level ASC
+        ");
         $stmt->execute([$userId]);
-        $parents = $stmt->fetchAll();
+        $parents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($parents as $parent) {
-            $level = $parent['level'];
+            $level = (int)$parent['level'];
+            $parentId = $parent['sponsor_id'];
             if (isset($this->config['level_percentages'][$level])) {
                 $percentage = $this->config['level_percentages'][$level];
                 $commission = ($investmentAmount * $percentage) / 100;
 
-                $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
+                $allowable = $this->getAllowableAmount($parentId, $commission);
                 if ($allowable > 0) {
-                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+                    $this->logTransaction($parentId, 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
                 }
             }
         }
@@ -503,21 +516,73 @@ class MLMEngine {
     /**
      * Instantly evaluate dynamic leg business, update rank qualifications, and
      * sync matching schedules (contracts) for a user and all their upline sponsors.
+     * Matching Bonus = HYBRID: Placement (Level 1) + Sponsor (Levels 2+)
      */
     public function updateUplineRanks($userId) {
-        // Fetch all direct unilevel ancestors (parents in the genealogy tree) ordered by level ascending
-        $stmt = $this->db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+        $stmt = $this->db->prepare("SELECT placement_id, sponsor_id FROM users WHERE id = ?");
         $stmt->execute([$userId]);
-        $ancestors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Include the user themselves as well (if they purchased a package, their own matching legs could change)
-        $targets = array_merge([['parent_id' => $userId]], $ancestors);
+        $placementId = $userData ? $userData['placement_id'] : null;
+        $sponsorId = $userData ? $userData['sponsor_id'] : null;
 
-        foreach ($targets as $target) {
-            $ancestorId = $target['parent_id'];
+        $targets = [];
+
+        // Include the user themselves first (if they purchased a package, their own matching legs could change)
+        $targets[] = $userId;
+
+        // Level 1: Direct placement parent (physical placement)
+        if ($placementId) {
+            $targets[] = $placementId;
+        }
+
+        // Levels 2-12: Follow SPONSOR tree from the placement parent OR sponsor if no placement
+        $startFromId = $placementId ?? $sponsorId;
+
+        if ($startFromId) {
+            // Fetch sponsor's chain (not genealogy - to follow referral tree)
+            $stmtSponsorChain = $this->db->prepare("
+                WITH RECURSIVE sponsor_chain AS (
+                    SELECT id, sponsor_id, 1 as level FROM users WHERE id = ?
+                    UNION ALL
+                    SELECT u.id, u.sponsor_id, sc.level + 1
+                    FROM users u
+                    JOIN sponsor_chain sc ON u.id = sc.sponsor_id
+                    WHERE sc.level < 11 AND u.sponsor_id IS NOT NULL
+                )
+                SELECT id, sponsor_id FROM sponsor_chain
+                WHERE sponsor_id IS NOT NULL
+                ORDER BY level ASC
+            ");
+            $stmtSponsorChain->execute([$startFromId]);
+            $uplineSponsors = $stmtSponsorChain->fetchAll(PDO::FETCH_ASSOC);
+
+            $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+            $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
+
+            foreach ($uplineSponsors as $index => $sponsor) {
+                if (!empty($sponsor['sponsor_id'])) {
+                    // Check block boundary at N, 2N, 3N...
+                    if ($index > 0 && ($index % $N) === 0) {
+                        $stmtReferrals->execute([$sponsor['sponsor_id']]);
+                        $refData = $stmtReferrals->fetch();
+                        $refCount = (int)$refData['ref_count'];
+
+                        if ($refCount <= 1) {
+                            break;
+                        }
+                    }
+                    $targets[] = $sponsor['sponsor_id'];
+                }
+            }
+        }
+
+        // Remove duplicates and maintain sequence
+        $targets = array_unique($targets);
+
+        foreach ($targets as $ancestorId) {
             if (empty($ancestorId)) continue;
 
-            // Fetch ancestor's current info
             $stmtUser = $this->db->prepare("SELECT id, rank_id, status FROM users WHERE id = ?");
             $stmtUser->execute([$ancestorId]);
             $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
