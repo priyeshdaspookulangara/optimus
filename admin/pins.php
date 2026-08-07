@@ -25,6 +25,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $count = (int)$_POST['count'];
     $assignUsername = trim($_POST['assign_username'] ?? '');
 
+    // Fetch package details for the session storage and WhatsApp message
+    $pkgQuery = $db->prepare("SELECT name, amount FROM packages WHERE id = ?");
+    $pkgQuery->execute([$packageId]);
+    $packageInfo = $pkgQuery->fetch();
+    $packageName = $packageInfo ? $packageInfo['name'] : 'Package';
+
     $assignedToId = null;
     if (!empty($assignUsername)) {
         $userStmt = $db->prepare("SELECT id FROM users WHERE username = ?");
@@ -35,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
+    $newPins = [];
     $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
     for ($i = 0; $i < $count; $i++) {
         // Format: "OPT" + unique 6 digit combination
@@ -49,7 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         $stmt->execute([$pin, $packageId, $assignedToId]);
+        $newPins[] = [
+            'pin_code' => $pin,
+            'package_name' => $packageName
+        ];
     }
+    $_SESSION['newly_generated_pins'] = $newPins;
     header("Location: pins.php?success=generated");
     exit();
 }
@@ -90,19 +102,29 @@ $packages = $stmt->fetchAll();
     </button>
 </div>
 
-<!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<!-- Filters & Bulk Share Bar -->
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex gap-2">
+        <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+        <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+        <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    </div>
+    <div>
+        <button type="button" class="btn btn-sm btn-success shadow-sm" id="shareSelectedPinsBtn" disabled>
+            <i class="fab fa-whatsapp me-1"></i>Share Selected via WhatsApp (<span id="selectedCount">0</span>)
+        </button>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-sm table-striped">
+            <table class="table table-sm table-striped align-middle" id="pinsTable">
                 <thead>
                     <tr>
+                        <th width="40" class="text-center">
+                            <input type="checkbox" class="form-check-input" id="selectAllPins">
+                        </th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -114,7 +136,10 @@ $packages = $stmt->fetchAll();
                 </thead>
                 <tbody>
                     <?php foreach($pins as $p): ?>
-                    <tr>
+                    <tr data-pin-code="<?php echo htmlspecialchars($p['pin_code']); ?>" data-package-name="<?php echo htmlspecialchars($p['package_name']); ?>">
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input pin-checkbox">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -145,6 +170,77 @@ $packages = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<?php if (!empty($_SESSION['newly_generated_pins'])):
+    $generatedList = $_SESSION['newly_generated_pins'];
+    unset($_SESSION['newly_generated_pins']);
+?>
+<!-- Newly Generated PINs Modal -->
+<div class="modal fade" id="newlyGeneratedPinsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fa fa-circle-check me-2"></i>Newly Generated PINs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fa fa-info-circle me-1"></i> These PINs have just been successfully created. You can copy them or share all of them at once via WhatsApp!
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped" id="newlyGeneratedTable">
+                        <thead>
+                            <tr>
+                                <th>PIN Code</th>
+                                <th>Package</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach($generatedList as $gp): ?>
+                            <tr>
+                                <td><code class="fs-5"><?php echo htmlspecialchars($gp['pin_code']); ?></code></td>
+                                <td><strong><?php echo htmlspecialchars($gp['package_name']); ?></strong></td>
+                                <td>
+                                    <?php
+                                    $singleWAText = "🌟 *OPTIMUS INFINITY - ACTIVATION PIN* 🌟\n\nDear Partner,\n\nYour Package Activation PIN has been successfully generated!\n\n🔑 *PIN CODE:* " . $gp['pin_code'] . "\n📦 *PACKAGE:* " . $gp['package_name'] . "\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                                    $singleWAUrl = "https://api.whatsapp.com/send?text=" . urlencode($singleWAText);
+                                    ?>
+                                    <a href="<?php echo $singleWAUrl; ?>" target="_blank" class="btn btn-sm btn-success"><i class="fab fa-whatsapp me-1"></i>Share</a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="shareAllNewPins">
+                    <i class="fab fa-whatsapp me-2"></i>Share All via WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var myModal = new bootstrap.Modal(document.getElementById('newlyGeneratedPinsModal'));
+        myModal.show();
+
+        document.getElementById('shareAllNewPins').addEventListener('click', function() {
+            var pins = <?php echo json_encode($generatedList); ?>;
+            var text = "🌟 *OPTIMUS INFINITY - NEW ACTIVATION PINS* 🌟\n\nDear Partner,\n\nHere are your newly generated Activation PINs:\n\n";
+            pins.forEach(function(p, idx) {
+                text += "• *PIN " + (idx + 1) + ":* " + p.pin_code + " (" + p.package_name + ")\n";
+            });
+            text += "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+            var url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+            window.open(url, '_blank');
+        });
+    });
+</script>
+<?php endif; ?>
 
 <!-- Generate PIN Modal -->
 <div class="modal fade" id="generatePinModal" tabindex="-1">
@@ -182,5 +278,62 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var selectAllCheckbox = document.getElementById('selectAllPins');
+        var pinCheckboxes = document.querySelectorAll('.pin-checkbox');
+        var shareBtn = document.getElementById('shareSelectedPinsBtn');
+        var selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectionState() {
+            var selectedCheckboxes = document.querySelectorAll('.pin-checkbox:checked');
+            var count = selectedCheckboxes.length;
+            selectedCountSpan.textContent = count;
+            shareBtn.disabled = (count === 0);
+        }
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                var checked = selectAllCheckbox.checked;
+                pinCheckboxes.forEach(function(cb) {
+                    cb.checked = checked;
+                });
+                updateSelectionState();
+            });
+        }
+
+        pinCheckboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var allChecked = true;
+                pinCheckboxes.forEach(function(item) {
+                    if (!item.checked) {
+                        allChecked = false;
+                    }
+                });
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = allChecked;
+                }
+                updateSelectionState();
+            });
+        });
+
+        if (shareBtn) {
+            shareBtn.addEventListener('click', function() {
+                var selectedCheckboxes = document.querySelectorAll('.pin-checkbox:checked');
+                var text = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nHere are your requested Activation PINs:\n\n";
+                selectedCheckboxes.forEach(function(cb, index) {
+                    var row = cb.closest('tr');
+                    var pinCode = row.getAttribute('data-pin-code');
+                    var packageName = row.getAttribute('data-package-name');
+                    text += "• *PIN " + (index + 1) + ":* " + pinCode + " (" + packageName + ")\n";
+                });
+                text += "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                var url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+                window.open(url, '_blank');
+            });
+        }
+    });
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
