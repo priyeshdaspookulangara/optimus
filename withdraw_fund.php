@@ -40,7 +40,10 @@ include __DIR__ . '/includes/header.php';
             <div class="col-md-6">
                 <div class="card bg-secondary p-3">
                     <h5>Available Balance</h5>
-                    <h3 class="text-warning">$<?php echo number_format($wallet['wallet_balance'], 2); ?></h3>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-warning border-0 fw-bold">$</span>
+                        <input type="text" class="form-control bg-dark text-warning border-0 fw-bold fs-4" readonly value="<?php echo number_format($wallet['wallet_balance'] * 0.95, 2); ?>">
+                    </div>
                 </div>
             </div>
         </div>
