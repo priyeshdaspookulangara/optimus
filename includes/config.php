@@ -3,47 +3,47 @@
 
 return [
     'db' => [
-        'host' => '127.0.0.1',
-        'name' => 'mlm_app',
-        'user' => 'root',
-        'pass' => '',
+        'host' => 'localhost',
+        'name' => 'jeoczvkk_optimus',
+        'user' => 'jeoczvkk_jeoczvkk',
+        'pass' => 'pearl$Pearl$',
     ],
 
-    // Packages: Tier values from $25 up to $1,000,000
+    // Packages: Tier values from $50 up to $1000000
     'packages' => [
-        25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
+        0, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
     ],
 
     // Level Percentages: 12-generation distribution
     'level_percentages' => [
-        1 => 10, // Level 1: 10%
-        2 => 5,  // Level 2: 5%
-        3 => 3,  // Level 3: 3%
-        4 => 2,  // Level 4: 2%
+        1 => 5, // Level 1: 5%
+        2 => 2,  // Level 2: 2%
+        3 => 2,  // Level 3: 2%
+        4 => 1,  // Level 4: 1%
         5 => 1,  // Level 5: 1%
         6 => 1,  // Level 6: 1%
-        7 => 1,  // Level 7: 1%
-        8 => 1,  // Level 8: 1%
-        9 => 1,  // Level 9: 1%
-        10 => 1, // Level 10: 1%
-        11 => 1, // Level 11: 1%
-        12 => 1, // Level 12: 1%
+        7 => 0.50,  // Level 7: 0.50%
+        8 => 0.50,  // Level 8: 0.50%
+        9 => 0.50, // Level 9: 0.50%
+        10 => 0.50, // Level 10: 0.50%
+        11 => 0.50, // Level 11: 0.50%
+        12 => 0.50, // Level 12: 0.50%
     ],
 
     // Rank Definitions: 12 specific ranks
     'ranks' => [
-        ['name' => 'Mentor',       'matching' => 500,     'daily_income' => 0.25,  'days' => 100],
-        ['name' => 'Pioneer',      'matching' => 1000,    'daily_income' => 2.50,  'days' => 100],
-        ['name' => 'Elite',        'matching' => 2500,    'daily_income' => 6.25,  'days' => 100],
-        ['name' => 'Titan',        'matching' => 5000,    'daily_income' => 12.50, 'days' => 100],
-        ['name' => 'Master',       'matching' => 10000,   'daily_income' => 25.00, 'days' => 100],
-        ['name' => 'Grand Master', 'matching' => 25000,   'daily_income' => 62.50, 'days' => 100],
-        ['name' => 'Icon',         'matching' => 50000,   'daily_income' => 125.00, 'days' => 100],
-        ['name' => 'Legend',       'matching' => 100000,  'daily_income' => 250.00, 'days' => 100],
-        ['name' => 'Director',     'matching' => 250000,  'daily_income' => 625.00, 'days' => 100],
-        ['name' => 'Ambassador',   'matching' => 500000,  'daily_income' => 1250.00, 'days' => 100],
-        ['name' => 'Chairman',     'matching' => 1000000, 'daily_income' => 4000.00, 'days' => 100],
-        ['name' => 'President',    'matching' => 2500000, 'daily_income' => 10000.00, 'days' => 100],
+        ['name' => 'Mentor',       'matching' => 500,     'daily_income' => 2.50,  'days' => 100],
+        ['name' => 'Pioneer',      'matching' => 1000,    'daily_income' => 5.00,  'days' => 100],
+        ['name' => 'Elite',        'matching' => 2500,    'daily_income' => 12.50, 'days' => 100],
+        ['name' => 'Titan',        'matching' => 5000,    'daily_income' => 25.00, 'days' => 100],
+        ['name' => 'Master',       'matching' => 10000,   'daily_income' => 50.00, 'days' => 100],
+        ['name' => 'Grand Master', 'matching' => 25000,   'daily_income' => 125.00, 'days' => 100],
+        ['name' => 'Icon',         'matching' => 50000,   'daily_income' => 250.00, 'days' => 100],
+        ['name' => 'Legend',       'matching' => 100000,  'daily_income' => 500.00, 'days' => 100],
+        ['name' => 'Director',     'matching' => 250000,  'daily_income' => 1250.00, 'days' => 100],
+        ['name' => 'Ambassador',   'matching' => 500000,  'daily_income' => 2500.00, 'days' => 100],
+        ['name' => 'chairman',     'matching' => 1000000,  'daily_income' => 5000.00, 'days' => 100],
+        ['name' => 'president',    'matching' => 2500000,  'daily_income' => 12500.00, 'days' => 100],
     ],
 
     // ROI Settings
@@ -58,14 +58,14 @@ return [
 
     // Withdrawal Settings
     'withdrawal' => [
-        'min_amount' => 25.00,
-        'fee' => 10.00, // Flat "Gas fee"
+        'min_amount' => 5.00,
+        'fee' => 5.00, // Flat "Gas fee"
     ],
 
     // Rank Income Settings
     'rank_income' => [
-        'rate' => 0.0040, // 0.40% daily rank income (often used as reference)
+        'rate' => 0.50, // 0.50 daily rank income (often used as reference)
         'duration' => 100,
-        'propagation_limit' => 2, // Hybrid propagation block-step limit (N)
+        'propagation_limit' => 2, // Hybrid propagation block-step limit
     ]
 ];
