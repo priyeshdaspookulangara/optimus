@@ -33,6 +33,12 @@ $stmt = $db->prepare("
 $stmt->execute([$userId]);
 $rank_transactions = $stmt->fetchAll();
 
+// Calculate total sum of rank/matching income payouts
+$total_rank_income = 0.00;
+foreach ($rank_transactions as $t) {
+    $total_rank_income += (float)$t['amount'];
+}
+
 $pageTitle = 'Rank & Matching Contracts';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -42,6 +48,7 @@ include __DIR__ . '/includes/header.php';
 
 <style>
     td { color: #000 !important; }
+    th { color: #fff !important; }
 </style>
 
 <div class="container-fluid content-inner pb-0">
@@ -102,14 +109,15 @@ include __DIR__ . '/includes/header.php';
     <div class="row">
       <div class="col-lg-12 DT-col">
         <div class="card p-2">
-          <div class="card-header">
+          <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="card-title mb-0">Daily Rank / Matching Income Payout History</h4>
+            <span class="badge bg-success" style="font-size: 16px;">Total Received: $<?php echo number_format($total_rank_income, 2); ?></span>
           </div>
           <div class="card-body">
             <div class="table-responsive">
               <table id="example" class="table table-striped" style="width:100%">
                 <thead>
-                  <tr>
+                  <tr style="background-color: #3f2259; color: white;">
                     <th>#</th>
                     <th>Date</th>
                     <th>Description</th>
@@ -128,11 +136,18 @@ include __DIR__ . '/includes/header.php';
                             echo htmlspecialchars($t['description']);
                         ?>
                       </td>
-                      <td class="text-success">$<?php echo number_format($t['amount'], 2); ?></td>
+                      <td class="text-success font-weight-bold">$<?php echo number_format($t['amount'], 2); ?></td>
                       <td><button class="btn btn-primary btn-sm text-white" disabled>View</button></td>
                     </tr>
                   <?php endforeach; ?>
                 </tbody>
+                <tfoot>
+                  <tr style="background-color: #f1f1f1; font-weight: bold;">
+                    <td colspan="3" class="text-end">Total Sum:</td>
+                    <td class="text-success font-weight-bold">$<?php echo number_format($total_rank_income, 2); ?></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
