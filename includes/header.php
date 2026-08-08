@@ -7,8 +7,16 @@ $headerDb = Database::getInstance()->getConnection();
 $headerUserId = $_SESSION['user_id'] ?? null;
 
 if ($headerUserId) {
-    if (!isset($user) || !isset($user['mid'])) {
-        $stmtHeaderUser = $headerDb->prepare("SELECT * FROM users WHERE id = ?");
+    if (!isset($user) || !isset($user['mid']) || !isset($user['sponsor_mid'])) {
+        $stmtHeaderUser = $headerDb->prepare("
+            SELECT u.*,
+                   s.username AS sponsor_username, s.mid AS sponsor_mid,
+                   p.username AS placement_username, p.mid AS placement_mid
+            FROM users u
+            LEFT JOIN users s ON u.sponsor_id = s.id
+            LEFT JOIN users p ON u.placement_id = p.id
+            WHERE u.id = ?
+        ");
         $stmtHeaderUser->execute([$headerUserId]);
         $user = $stmtHeaderUser->fetch(PDO::FETCH_ASSOC);
     }
@@ -361,12 +369,31 @@ if ($headerUserId) {
                   </div>
                   <i class="fa fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff;">
+                <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff; min-width: 260px;">
                   <li class="px-3 py-2 text-dark">
                     <div class="fw-bold"><?php echo htmlspecialchars($user['full_name'] ?? 'Optimus Member'); ?></div>
                     <small class="text-muted d-block">ID: <strong><?php echo htmlspecialchars($user['mid'] ?? ''); ?></strong></small>
                     <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
-                    <span class="badge bg-primary text-white mt-1">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
+                    <span class="badge bg-primary text-white mt-1 mb-2">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
+
+                    <div class="border-top pt-2 mt-2" style="font-size: 11px; line-height: 1.4;">
+                      <div class="text-dark"><strong>Joined:</strong> <?php echo htmlspecialchars($user['created_at'] ? date('Y-m-d', strtotime($user['created_at'])) : 'N/A'); ?></div>
+                      <div class="text-dark"><strong>Investment:</strong> $<?php echo number_format($user['total_investment'] ?? 0.00, 2); ?></div>
+                      <div class="text-dark"><strong>Referral:</strong> <?php
+                        if (!empty($user['sponsor_mid'])) {
+                            echo htmlspecialchars($user['sponsor_username'] . ' (' . $user['sponsor_mid'] . ')');
+                        } else {
+                            echo 'None';
+                        }
+                      ?></div>
+                      <div class="text-dark"><strong>Placement:</strong> <?php
+                        if (!empty($user['placement_mid'])) {
+                            echo htmlspecialchars($user['placement_username'] . ' (' . $user['placement_mid'] . ')');
+                        } else {
+                            echo 'None';
+                        }
+                      ?></div>
+                    </div>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item py-2" href="dashboard.php"><i class="fa fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
