@@ -305,11 +305,10 @@ class MLMEngine {
             $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
 
             $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-            $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
 
             foreach ($uplines as $index => $upline) {
-                // Check block boundary: if we reach N, 2N, 3N etc., check if the boundary parent is an orphan (ref_count <= 1)
-                if ($index > 0 && ($index % $N) === 0) {
+                // Check block boundary at the third sponsor level (index 2, 5, 8...)
+                if (($index % 3) === 2) {
                     $stmtReferrals->execute([$upline['parent_id']]);
                     $refData = $stmtReferrals->fetch();
                     $refCount = (int)$refData['ref_count'];
@@ -587,14 +586,13 @@ class MLMEngine {
             $stmtSponsorAncestors->execute([$placementId, $placementId]);
             $ancestors = $stmtSponsorAncestors->fetchAll(PDO::FETCH_ASSOC);
 
-            // Handle the propagation limit check and boundary termination
+            // Handle the propagation limit check and boundary termination at index % 3 === 2 (the 3rd level, 6th level, 9th level, etc.)
             $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-            $N = isset($this->config['rank_income']['propagation_limit']) ? (int)$this->config['rank_income']['propagation_limit'] : 2;
 
             foreach ($ancestors as $index => $anc) {
                 if (!empty($anc['id'])) {
-                    // Check block boundary at N, 2N, 3N...
-                    if ($index > 0 && ($index % $N) === 0) {
+                    // Check block boundary: at every 3rd sponsor (index 2, 5, 8...), check if they are an orphan (ref_count <= 1)
+                    if (($index % 3) === 2) {
                         $stmtReferrals->execute([$anc['id']]);
                         $refData = $stmtReferrals->fetch();
                         $refCount = (int)$refData['ref_count'];
