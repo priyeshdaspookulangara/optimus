@@ -61,6 +61,7 @@ if ($headerUserId) {
       display: flex; align-items: center; gap: 8px; cursor: pointer;
       padding: 6px 10px; border-radius: 30px; transition: background .2s ease;
     }
+    .member-menu-toggle::after { display: none !important; }
     .member-menu-toggle:hover { background: rgba(63,34,89,0.06); }
     .member-menu-toggle .caption-title { font-size: 15px; }
     .member-dropdown-menu { min-width: 240px; }
