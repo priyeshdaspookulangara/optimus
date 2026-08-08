@@ -9,6 +9,17 @@ try {
 
     $db = Database::getInstance()->getConnection();
 
+    // Failsafe inline table creation to guarantee the cron_logs table exists on the live environment
+    $db->exec("CREATE TABLE IF NOT EXISTS `cron_logs` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `command` VARCHAR(255) NOT NULL,
+        `start_time` DATETIME NOT NULL,
+        `end_time` DATETIME DEFAULT NULL,
+        `status` ENUM('running', 'success', 'failed') DEFAULT 'running',
+        `output` LONGTEXT DEFAULT NULL,
+        `error_message` TEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     // Insert initial run log
     $stmt = $db->prepare("INSERT INTO cron_logs (command, status, start_time) VALUES (?, ?, NOW())");
     $stmt->execute(['daily_income', 'running']);

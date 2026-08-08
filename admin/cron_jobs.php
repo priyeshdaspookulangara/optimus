@@ -14,6 +14,21 @@ if (empty($_SESSION['admin_csrf'])) {
 
 $db = Database::getInstance()->getConnection();
 
+// Failsafe inline table creation to guarantee the cron_logs table exists on the live environment
+try {
+    $db->exec("CREATE TABLE IF NOT EXISTS `cron_logs` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `command` VARCHAR(255) NOT NULL,
+        `start_time` DATETIME NOT NULL,
+        `end_time` DATETIME DEFAULT NULL,
+        `status` ENUM('running', 'success', 'failed') DEFAULT 'running',
+        `output` LONGTEXT DEFAULT NULL,
+        `error_message` TEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {
+    // Ignore if already created or issues
+}
+
 // Handle manual run trigger
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_cron'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
