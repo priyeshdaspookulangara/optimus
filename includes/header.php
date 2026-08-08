@@ -376,7 +376,7 @@ if ($headerUserId) {
                     <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
                     <span class="badge bg-primary text-white mt-1 mb-2">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
 
-                    <div class="border-top pt-2 mt-2" style="font-size: 11px; line-height: 1.4;">
+                    <div class="rounded mt-2" style="background-color: #e9ecef; padding: 5px; font-size: 11px; line-height: 1.4;">
                       <div class="text-dark"><strong>Joined:</strong> <?php echo htmlspecialchars($user['created_at'] ? date('Y-m-d', strtotime($user['created_at'])) : 'N/A'); ?></div>
                       <div class="text-dark"><strong>Investment:</strong> $<?php echo number_format($user['total_investment'] ?? 0.00, 2); ?></div>
                       <div class="text-dark"><strong>Referral:</strong> <?php
