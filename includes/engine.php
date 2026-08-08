@@ -216,18 +216,18 @@ class MLMEngine {
         $totalVolume = array_sum($volumes);
         $restLegRaw = $totalVolume - $powerLegRaw;
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
+        // Apply Single-Pass Sequential Slab-Matching Hierarchy in ascending order
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                $units = 1;
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
@@ -235,6 +235,15 @@ class MLMEngine {
 
                 $slabBreakdown[$slab] = $units;
             } else {
+                $slabBreakdown[$slab] = 0;
+                // Matchmaking is immediately terminated if any slab fails to match
+                break;
+            }
+        }
+
+        // Initialize any remaining higher-tier slabs to 0 in breakdown
+        foreach ($slabs as $slab) {
+            if (!isset($slabBreakdown[$slab])) {
                 $slabBreakdown[$slab] = 0;
             }
         }
