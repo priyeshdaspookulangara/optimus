@@ -57,6 +57,24 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 10
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch Active/Completed matching contracts/schedules
+$stmtSched = $db->prepare("
+    SELECT * FROM matching_schedules
+    WHERE user_id = ?
+    ORDER BY status ASC, slab_amount DESC
+");
+$stmtSched->execute([$userId]);
+$matching_schedules = $stmtSched->fetchAll();
+
+// Fetch Rank Income Transactions
+$stmtRankTrans = $db->prepare("
+    SELECT * FROM transactions
+    WHERE user_id = ? AND type = 'RANK_INCOME'
+    ORDER BY created_at DESC
+");
+$stmtRankTrans->execute([$userId]);
+$rank_transactions = $stmtRankTrans->fetchAll();
+
 // Check for Conferred Table dynamically and fetch records
 $conferredRecords = [];
 $conferredTableName = null;
@@ -93,6 +111,8 @@ if ($conferredTableName) {
         }
     } catch (Exception $e) {}
 }
+
+$conferred_ranks = $conferredRecords;
 
 // Fallback calculations for Slab-Matched Business box
 $displayMatchedBusiness = (float)$legStats['matched_business'];
@@ -391,6 +411,200 @@ include __DIR__ . '/includes/header.php';
             </div>
         </div>
     </div>
+
+    <!-- DataTables CSS & Native Theme Styles -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.2/css/dataTables.bootstrap5.min.css" />
+    <style>
+        .dt-table-dark th {
+            background-color: #2d1840 !important;
+            color: #fff !important;
+            border-color: rgba(255,255,255,0.1) !important;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .dt-table-dark td {
+            background-color: #3f2259 !important;
+            color: #fff !important;
+            border-color: rgba(255,255,255,0.05) !important;
+            font-size: 13px;
+        }
+        .dataTables_info, .dataTables_length, .dataTables_filter, .dataTables_paginate {
+            color: #fff !important;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .dataTables_filter input {
+            background-color: #2d1840 !important;
+            color: #fff !important;
+            border: 1px solid #504793 !important;
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+        .dataTables_length select {
+            background-color: #2d1840 !important;
+            color: #fff !important;
+            border: 1px solid #504793 !important;
+            border-radius: 6px;
+            padding: 4px 8px;
+        }
+        .page-link {
+            background-color: #2d1840 !important;
+            border-color: #504793 !important;
+            color: #fff !important;
+        }
+        .page-item.active .page-link {
+            background-color: #504793 !important;
+            border-color: #cca354 !important;
+            color: #fff !important;
+        }
+    </style>
+
+    <!-- New MLM Activity and Historical Tables -->
+    <div class="row mt-4 px-3">
+        <div class="col-lg-12 px-0">
+            <!-- Card 1: My Matching Slab Contracts -->
+            <div class="card p-4 mb-4" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <div class="card-header pb-3 border-bottom border-secondary d-flex align-items-center justify-content-between p-0" style="background: transparent;">
+                    <h4 class="card-title text-white mb-0" style="font-weight: 700; text-transform: uppercase; font-size: 1.1rem;"><i class="fa-solid fa-cubes text-warning me-2"></i>My Matching Slab Contracts</h4>
+                </div>
+                <div class="card-body px-0 pt-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 dt-table-dark" style="width:100%">
+                            <thead>
+                                <tr style="background-color: #2d1840; color: white;">
+                                    <th>#</th>
+                                    <th>Slab Match Tier</th>
+                                    <th>Daily ROI (USD)</th>
+                                    <th>Days Passed</th>
+                                    <th>Max Days</th>
+                                    <th>Status</th>
+                                    <th>Initiated Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($matching_schedules)): ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">No active slab matching contracts yet. Accumulate team volume on power and matching legs to trigger contracts!</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach($matching_schedules as $index => $sched): ?>
+                                        <tr>
+                                            <td><?php echo $index + 1; ?></td>
+                                            <td><span class="badge bg-primary" style="font-size: 13px;">$<?php echo number_format($sched['slab_amount'], 2); ?></span></td>
+                                            <td class="text-success fw-bold">$<?php echo number_format($sched['daily_income'], 2); ?> / day</td>
+                                            <td><?php echo $sched['days_passed']; ?></td>
+                                            <td><?php echo $sched['max_days']; ?></td>
+                                            <td>
+                                                <?php if($sched['status'] == 'active'): ?>
+                                                    <span class="badge bg-success">Active</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary">Completed</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo date('d M, Y', strtotime($sched['created_at'])); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: My Conferred Ranks -->
+            <div class="card p-4 mb-4" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <div class="card-header pb-3 border-bottom border-secondary d-flex align-items-center justify-content-between p-0" style="background: transparent;">
+                    <h4 class="card-title text-white mb-0" style="font-weight: 700; text-transform: uppercase; font-size: 1.1rem;"><i class="fa-solid fa-award text-warning me-2"></i>My Conferred Ranks</h4>
+                </div>
+                <div class="card-body px-0 pt-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 dt-table-dark" style="width:100%">
+                            <thead>
+                                <tr style="background-color: #2d1840; color: white;">
+                                    <th>#</th>
+                                    <th>Conferred Rank</th>
+                                    <th>Qualified By Downline</th>
+                                    <th>Daily ROI (USD)</th>
+                                    <th>Days Passed</th>
+                                    <th>Max Days</th>
+                                    <th>Status</th>
+                                    <th>Conferred Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($conferred_ranks)): ?>
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">No conferred ranks achieved yet. Help your downlines qualify for ranks to earn conferred ranks!</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach($conferred_ranks as $index => $cr):
+                                        $rankName = isset($config['ranks'][$cr['rank_id']-1]) ? $config['ranks'][$cr['rank_id']-1]['name'] : "Rank " . $cr['rank_id'];
+                                    ?>
+                                        <tr>
+                                            <td><?php echo $index + 1; ?></td>
+                                            <td><span class="badge bg-warning text-dark" style="font-size: 13px;"><?php echo htmlspecialchars($rankName); ?></span></td>
+                                            <td><strong class="text-info"><?php echo htmlspecialchars($cr['downline_username'] ?? ('User ID ' . $cr['downline_id'])); ?></strong></td>
+                                            <td class="text-success fw-bold">$<?php echo number_format($cr['daily_income'], 2); ?> / day</td>
+                                            <td><?php echo $cr['days_passed']; ?></td>
+                                            <td><?php echo $cr['max_days']; ?></td>
+                                            <td>
+                                                <?php if($cr['status'] == 'active'): ?>
+                                                    <span class="badge bg-success">Active</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary">Completed</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo date('d M, Y', strtotime($cr['created_at'])); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Daily Rank / Matching Income Payout History (DataTables) -->
+            <div class="card p-4 mb-4" style="background-color: #3f2259; border: 1px solid #504793 !important; border-radius: 12px !important; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <div class="card-header pb-3 border-bottom border-secondary d-flex align-items-center justify-content-between p-0" style="background: transparent;">
+                    <h4 class="card-title text-white mb-0" style="font-weight: 700; text-transform: uppercase; font-size: 1.1rem;"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Daily Rank / Matching Income Payout History</h4>
+                </div>
+                <div class="card-body px-0 pt-3">
+                    <div class="table-responsive">
+                        <table id="rankIncomeTable" class="table table-hover align-middle mb-0 dt-table-dark" style="width:100%">
+                            <thead>
+                                <tr style="background-color: #2d1840; color: white;">
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Received $</th>
+                                    <th>View</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($rank_transactions)): ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">No daily rank income payout history available.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach($rank_transactions as $index => $t): ?>
+                                        <tr>
+                                            <td><?php echo $index + 1; ?></td>
+                                            <td><?php echo date('d M, Y h:i:s a', strtotime($t['created_at'])); ?></td>
+                                            <td><?php echo htmlspecialchars($t['description']); ?></td>
+                                            <td class="text-success fw-bold">$<?php echo number_format($t['amount'], 2); ?></td>
+                                            <td><button class="btn btn-primary btn-sm text-white" disabled style="background-color: #504793; border: none; border-radius: 4px;">View</button></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Earnings Breakdown Modal -->
@@ -566,8 +780,22 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<!-- DataTables JS & Initialization -->
+<script src="https://cdn.datatables.net/1.13.2/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.2/js/dataTables.bootstrap5.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Initialize DataTables for Payout History
+    if (typeof jQuery !== 'undefined' && typeof jQuery.fn.DataTable !== 'undefined') {
+        jQuery('#rankIncomeTable').DataTable({
+            "order": [[1, "desc"]], // sort by date descending
+            "language": {
+                "emptyTable": "No daily rank income payout history available."
+            }
+        });
+    }
+
     var copyLeftBtn = document.getElementById('copy_left_btn');
     var copyRightBtn = document.getElementById('copy_right_btn');
 
