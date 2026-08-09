@@ -51,6 +51,25 @@ $rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+$childSlabData = null;
+if ($legStats['matched_business'] == 0.00) {
+    $stmtChild = $db->prepare("
+        SELECT g.user_id, u.username, u.rank_id
+        FROM genealogy g
+        JOIN users u ON g.user_id = u.id
+        WHERE g.parent_id = ? AND u.rank_id > 0
+        ORDER BY g.level ASC, u.id ASC
+        LIMIT 1
+    ");
+    $stmtChild->execute([$userId]);
+    $rankedChild = $stmtChild->fetch();
+    if ($rankedChild) {
+        $childSlabData = $engine->getLegsBusiness($rankedChild['user_id']);
+        $childSlabData['username'] = $rankedChild['username'];
+        $childSlabData['rank_id'] = $rankedChild['rank_id'];
+    }
+}
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -159,28 +178,44 @@ include __DIR__ . '/includes/header.php';
             <div class="overview-row">
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
-                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                    <?php if ($childSlabData): ?>
+                        <small class="text-warning d-block" style="font-size: 11px;">(Child: <?php echo htmlspecialchars($childSlabData['username']); ?>)</small>
+                    <?php endif; ?>
+                    <p class="text-success mt-2 fw-bold">
+                        <?php
+                        $dispMatched = $childSlabData ? $childSlabData['matched_business'] : $legStats['matched_business'];
+                        echo number_format($dispMatched, 2);
+                        ?>
+                    </p>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">POWER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
+                    <?php if ($childSlabData): ?>
+                        <small class="text-warning d-block" style="font-size: 11px;">(Child: <?php echo htmlspecialchars($childSlabData['username']); ?>)</small>
+                    <?php endif; ?>
+                    <p class="text-warning mt-2 fw-bold">
+                        <?php
+                        $dispPower = $childSlabData ? $childSlabData['power_carry_forward'] : $legStats['power_carry_forward'];
+                        echo number_format($dispPower, 2);
+                        ?>
+                    </p>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">WEAKER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['rest_carry_forward'], 2); ?></p>
+                    <?php if ($childSlabData): ?>
+                        <small class="text-warning d-block" style="font-size: 11px;">(Child: <?php echo htmlspecialchars($childSlabData['username']); ?>)</small>
+                    <?php endif; ?>
+                    <p class="text-warning mt-2 fw-bold">
+                        <?php
+                        $dispRest = $childSlabData ? $childSlabData['rest_carry_forward'] : $legStats['rest_carry_forward'];
+                        echo number_format($dispRest, 2);
+                        ?>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="container-fluid">
-        <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase ceiling-limit-btn" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
-            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #3f2259 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
-            <div class="progress" style="height: 50px">
-                <div class="progress-bar text-bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
-            </div>
-        </button>
-    </div>
 
     <!-- Achievement Milestones / Rank Scroller -->
     <div class="achievement-section">
