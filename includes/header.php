@@ -7,14 +7,36 @@ $headerDb = Database::getInstance()->getConnection();
 $headerUserId = $_SESSION['user_id'] ?? null;
 
 if ($headerUserId) {
-    if (!isset($user) || !isset($user['mid'])) {
-        $stmtHeaderUser = $headerDb->prepare("SELECT * FROM users WHERE id = ?");
+    if (!isset($user) || !isset($user['mid']) || !isset($user['sponsor_mid'])) {
+        $stmtHeaderUser = $headerDb->prepare("
+            SELECT u.*,
+                   s.username AS sponsor_username, s.mid AS sponsor_mid,
+                   p.username AS placement_username, p.mid AS placement_mid
+            FROM users u
+            LEFT JOIN users s ON u.sponsor_id = s.id
+            LEFT JOIN users p ON u.placement_id = p.id
+            WHERE u.id = ?
+        ");
         $stmtHeaderUser->execute([$headerUserId]);
         $user = $stmtHeaderUser->fetch(PDO::FETCH_ASSOC);
     }
-    if (!isset($rankName) && $user) {
-        $headerConfig = require __DIR__ . '/config.php';
-        $rankName = ($user['rank_id'] > 0) ? $headerConfig['ranks'][$user['rank_id']-1]['name'] : 'None';
+    if ($user) {
+        // Self-healing synchronization for users.rank_id with conferred_ranks
+        $stmtMaxConf = $headerDb->prepare("SELECT MAX(rank_id) as max_rank FROM conferred_ranks WHERE user_id = ?");
+        $stmtMaxConf->execute([$headerUserId]);
+        $maxConf = $stmtMaxConf->fetch();
+        $maxConferredRankId = $maxConf ? (int)$maxConf['max_rank'] : 0;
+
+        if ($maxConferredRankId > $user['rank_id']) {
+            $stmtUpdateRank = $headerDb->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+            $stmtUpdateRank->execute([$maxConferredRankId, $headerUserId]);
+            $user['rank_id'] = $maxConferredRankId; // Update in-memory user object
+        }
+
+        if (!isset($rankName)) {
+            $headerConfig = require __DIR__ . '/config.php';
+            $rankName = ($user['rank_id'] > 0) ? $headerConfig['ranks'][$user['rank_id']-1]['name'] : 'None';
+        }
     }
 }
 ?>
@@ -23,7 +45,7 @@ if ($headerUserId) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title><?php echo $pageTitle ?? 'App'; ?></title>
+  <title>The Future of Trading | Optimus Infinity</title>
   <link rel="shortcut icon" href="https://optimusinfinity.com/assets/fav.png">
   <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/core/libs.min.css">
   <link rel="stylesheet" href="https://optimusinfinity.com/assets/css/coinex.min.css?v=4.1.0">
@@ -56,11 +78,30 @@ if ($headerUserId) {
     .navbar-collapse-mobile-fix .navbar-nav { flex-direction: row; }
     .navbar-inner { flex-wrap: nowrap; }
 
-    /* ---------- Member context menu (top right) ---------- */
+    /* ---------- Company branding section ---------- */
+    .company-brand {
+      margin-right: auto;
+      padding: 8px 0 8px 32px;
+    }
+    .company-brand img {
+      height: 52px;
+      width: auto;
+      max-width: 200px;
+    }
+    @media (max-width: 768px) {
+      .company-brand img { height: 44px; }
+    }
+    @media (max-width: 480px) {
+      .company-brand { padding: 6px 0 6px 20px; }
+      .company-brand img { height: 36px; }
+    }
+
+    /* Member context menu (top right) ---------- */
     .member-menu-toggle {
       display: flex; align-items: center; gap: 8px; cursor: pointer;
       padding: 6px 10px; border-radius: 30px; transition: background .2s ease;
     }
+    .member-menu-toggle::after { display: none !important; }
     .member-menu-toggle:hover { background: rgba(63,34,89,0.06); }
     .member-menu-toggle .caption-title { font-size: 15px; }
     .member-dropdown-menu { min-width: 240px; }
@@ -70,7 +111,6 @@ if ($headerUserId) {
       .member-dropdown-menu { min-width: 210px; }
     }
     @media (max-width: 360px) {
-      #copy_btn { font-size: 11px; padding: 5px 8px; }
       .member-menu-toggle .caption-title { font-size: 12px; }
     }
 
@@ -215,9 +255,81 @@ if ($headerUserId) {
       .overview-box h3 { font-size: 0.85rem; }
       .overview-box p { font-size: 1.3rem; }
       .navbar-inner { padding-left: 8px; padding-right: 8px; }
-      #copy_btn { font-size: 12px; padding: 6px 10px; margin-right: 6px !important; }
     }
   </style>
+  <style>
+    /* ================= TABLE STYLING FIX ================= */
+.table {
+  color: #2c3e50 !important;
+  font-weight: 500;
+}
+
+.table thead th {
+  color: #fff !important;
+  background-color: #3f2259 !important;
+  font-weight: 700 !important;
+  border: 1px solid #3f2259 !important;
+  padding: 12px 8px !important;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.table tbody tr td {
+  color: #2c3e50 !important;
+  font-weight: 500 !important;
+  border: 1px solid #e9ecef !important;
+  padding: 10px 8px !important;
+  vertical-align: middle;
+}
+
+.table tbody tr:hover td {
+  background-color: rgba(63, 34, 89, 0.05) !important;
+}
+
+.table tbody tr.odd td,
+.table-striped > tbody > tr:nth-of-type(odd) td {
+  background-color: #f8f9fa !important;
+}
+
+.table tbody tr:nth-child(even) td {
+  background-color: #fff !important;
+}
+
+.table code {
+  background-color: #e8f4f8 !important;
+  color: #0c5460 !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* DataTables styling override */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info {
+  color: #2c3e50 !important;
+  font-weight: 500;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  color: #3f2259 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: #3f2259 !important;
+  color: #fff !important;
+}
+.card-title {
+    margin-bottom: var(--bs-card-title-spacer-y);
+    color: #242424;
+}
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .table thead th { font-size: 11px; padding: 8px 6px !important; }
+  .table tbody tr td { font-size: 13px; padding: 8px 6px !important; }
+}
+</style>
 </head>
 <body class=" ">
   <!-- Hidden loader element to prevent coinex.js page-load execution crashes -->
@@ -234,29 +346,59 @@ if ($headerUserId) {
               </svg>
             </i>
           </div>
+
+          <!-- Company Branding Section -->
+          <div class="company-brand">
+            <img src="https://optimusinfinity.com/assets/logo.png" alt="Optimus Infinity Logo">
+          </div>
+
           <div class="navbar-collapse-mobile-fix" id="navbarSupportedContent">
             <ul class="navbar-nav ms-auto navbar-list mb-2 mb-lg-0 align-items-center">
-              <li class="nav-item">
-                <button type="button" id="copy_btn" class="text-white btn btn-sm me-2 btn-primary">
-                  Referral Link
-                </button>
-              </li>
               <li class="nav-item dropdown">
                 <a class="member-menu-toggle dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer; text-decoration:none;">
                   <i class="fa-solid fa-circle-user fa-xl text-primary"></i>
                   <div class="caption text-start ms-2">
-                    <h6 class="mb-0 caption-title text-dark"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></h6>
+                    <h6 class="mb-0 caption-title text-dark"><?php
+                      $dispUser = $user['username'] ?? 'User';
+                      if (mb_strlen($dispUser) > 11) {
+                          $dispUser = mb_substr($dispUser, 0, 11) . '..';
+                      }
+                      echo htmlspecialchars($dispUser);
+                    ?></h6>
+                    <small class="text-muted d-block" style="font-size: 10px; line-height: 1; font-weight:bold"><?php echo htmlspecialchars($user['mid'] ?? ''); ?></small>
                   </div>
                   <i class="fa fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff;">
+                <ul class="dropdown-menu dropdown-menu-end member-dropdown-menu shadow border-0" aria-labelledby="navbarDropdown" style="background-color: #ffffff; min-width: 260px;">
                   <li class="px-3 py-2 text-dark">
                     <div class="fw-bold"><?php echo htmlspecialchars($user['full_name'] ?? 'Optimus Member'); ?></div>
+                    <small class="text-muted d-block">ID: <strong><?php echo htmlspecialchars($user['mid'] ?? ''); ?></strong></small>
                     <small class="text-muted d-block"><?php echo htmlspecialchars($user['email'] ?? ''); ?></small>
-                    <span class="badge bg-primary text-white mt-1">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
+                    <span class="badge bg-primary text-white mt-1 mb-2">Rank: <?php echo htmlspecialchars($rankName ?? 'None'); ?></span>
+
+                    <div class="rounded mt-2" style="background-color: #e9ecef; padding: 5px; font-size: 11px; line-height: 1.4;">
+                      <div class="text-dark"><strong>Joined:</strong> <?php echo htmlspecialchars($user['created_at'] ? date('Y-m-d', strtotime($user['created_at'])) : 'N/A'); ?></div>
+                      <div class="text-dark"><strong>Investment:</strong> $<?php echo number_format($user['total_investment'] ?? 0.00, 2); ?></div>
+                      <div class="text-dark"><strong>Referral:</strong> <?php
+                        if (!empty($user['sponsor_mid'])) {
+                            echo htmlspecialchars($user['sponsor_username'] . ' (' . $user['sponsor_mid'] . ')');
+                        } else {
+                            echo 'None';
+                        }
+                      ?></div>
+                      <div class="text-dark"><strong>Placement:</strong> <?php
+                        if (!empty($user['placement_mid'])) {
+                            echo htmlspecialchars($user['placement_username'] . ' (' . $user['placement_mid'] . ')');
+                        } else {
+                            echo 'None';
+                        }
+                      ?></div>
+                    </div>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item py-2" href="dashboard.php"><i class="fa fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                  <li><a class="dropdown-item py-2" href="edit_profile.php"><i class="fa fa-user-edit me-2 text-primary"></i>Edit Profile</a></li>
+                  <li><a class="dropdown-item py-2" href="kyc_details.php"><i class="fa fa-id-card me-2 text-primary"></i>KYC Details</a></li>
                   <li><a class="dropdown-item py-2" href="e_wallet.php"><i class="fa fa-wallet me-2 text-primary"></i>E-wallet</a></li>
                   <li><a class="dropdown-item py-2" href="withdraw_wallet.php"><i class="fa fa-credit-card me-2 text-primary"></i>Withdraw Wallet</a></li>
                   <li><a class="dropdown-item py-2" href="my_pins.php"><i class="fa fa-key me-2 text-primary"></i>My PINs</a></li>
