@@ -36,6 +36,7 @@ $db = Database::getInstance()->getConnection();
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="withdrawals.php" id="link-withdrawals" class="<?php echo basename($_SERVER['PHP_SELF']) == 'withdrawals.php' ? 'active' : ''; ?>"><i class="fa fa-money-bill-wave me-2"></i> Withdrawals</a>
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
+        <a href="roi_audit.php" id="link-roi-audit" class="<?php echo basename($_SERVER['PHP_SELF']) == 'roi_audit.php' ? 'active' : ''; ?>"><i class="fa fa-shield-halved me-2"></i> ROI Audit</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>

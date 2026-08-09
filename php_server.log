@@ -1,0 +1,19 @@
+[Sun Aug  9 00:18:43 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
+[Sun Aug  9 00:18:54 2026] 127.0.0.1:59226 Accepted
+[Sun Aug  9 00:18:54 2026] 127.0.0.1:59226 [200]: HEAD /admin/login.php
+[Sun Aug  9 00:18:54 2026] 127.0.0.1:59226 Closing
+[Sun Aug  9 00:20:06 2026] 127.0.0.1:53274 Accepted
+[Sun Aug  9 00:20:06 2026] 127.0.0.1:53274 [200]: GET /admin/login.php
+[Sun Aug  9 00:20:06 2026] 127.0.0.1:53274 Closing
+[Sun Aug  9 00:20:57 2026] 127.0.0.1:34830 Accepted
+[Sun Aug  9 00:20:57 2026] 127.0.0.1:34830 [200]: GET /admin/login.php
+[Sun Aug  9 00:20:57 2026] 127.0.0.1:34830 Closing
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34844 Accepted
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34844 [302]: POST /admin/login.php
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34844 Closing
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34854 Accepted
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34854 [200]: GET /admin/dashboard.php
+[Sun Aug  9 00:20:59 2026] 127.0.0.1:34854 Closing
+[Sun Aug  9 00:21:00 2026] 127.0.0.1:34856 Accepted
+[Sun Aug  9 00:21:00 2026] 127.0.0.1:34856 [200]: GET /admin/roi_audit.php
+[Sun Aug  9 00:21:00 2026] 127.0.0.1:34856 Closing
