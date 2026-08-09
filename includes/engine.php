@@ -5,6 +5,7 @@ require_once __DIR__ . '/db.php';
 class MLMEngine {
     private $db;
     private $config;
+    private $legsBusinessCache = [];
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
@@ -145,65 +146,133 @@ class MLMEngine {
     }
 
     /**
-     * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
+     * Helper to calculate total placement subtree volume of a user down the binary tree.
+     * Uses a highly efficient recursive CTE, with a fallback to a recursive PHP loop
+     * for compatibility with older MySQL/MariaDB database versions.
+     */
+    public function getPlacementSubtreeVolume($userId) {
+        if (empty($userId)) return 0.00;
+
+        try {
+            $stmt = $this->db->prepare("
+                WITH RECURSIVE placement_tree AS (
+                    SELECT id, total_investment
+                    FROM users
+                    WHERE id = ?
+                    UNION ALL
+                    SELECT u.id, u.total_investment
+                    FROM users u
+                    INNER JOIN placement_tree pt ON u.placement_id = pt.id
+                )
+                SELECT COALESCE(SUM(total_investment), 0.00) as total_volume FROM placement_tree
+            ");
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ? (float)$row['total_volume'] : 0.00;
+        } catch (PDOException $e) {
+            // Fallback to PHP recursion if recursive CTE is not supported by legacy database versions
+            $stmt = $this->db->prepare("SELECT total_investment FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            $volume = $user ? (float)$user['total_investment'] : 0.00;
+
+            $stmtChildren = $this->db->prepare("SELECT id FROM users WHERE placement_id = ?");
+            $stmtChildren->execute([$userId]);
+            $children = $stmtChildren->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($children as $child) {
+                $volume += $this->getPlacementSubtreeVolume($child['id']);
+            }
+
+            return $volume;
+        }
+    }
+
+    /**
+     * Calculate Left and Right team volumes strictly down the physical binary placement tree hierarchy (placement_id)
+     * and apply the Sequential Slab-Matching Hierarchy.
      */
     public function getLegsBusiness($userId) {
-        $stmt = $this->db->prepare("
-            SELECT u.id, u.username,
-                   (u.total_investment + COALESCE((
-                       SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
-                   ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.sponsor_id = ?
-        ");
-        $stmt->execute([$userId]);
-        $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if (empty($legs)) {
-            return [
-                'power_leg' => 0.00,
-                'matching_leg' => 0.00,
-                'matched_business' => 0.00,
-                'power_carry_forward' => 0.00,
-                'rest_carry_forward' => 0.00,
-                'slab_breakdown' => []
-            ];
+        if (isset($this->legsBusinessCache[$userId])) {
+            return $this->legsBusinessCache[$userId];
         }
 
-        // Raw Legs Calculation
-        $volumes = array_column($legs, 'total_leg_business');
-        $powerLegRaw = max($volumes);
-        $totalVolume = array_sum($volumes);
-        $restLegRaw = $totalVolume - $powerLegRaw;
+        // Find direct physical children of the user
+        $stmt = $this->db->prepare("SELECT id, position FROM users WHERE placement_id = ?");
+        $stmt->execute([$userId]);
+        $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
+        $leftVolume = 0.00;
+        $rightVolume = 0.00;
+
+        $index = 0;
+        foreach ($children as $child) {
+            $childVolume = $this->getPlacementSubtreeVolume($child['id']);
+
+            // Resolve position: use database position first, fall back to index-based left/right if NULL
+            $pos = !empty($child['position']) ? strtolower($child['position']) : null;
+            if ($pos === null) {
+                $pos = ($index === 0) ? 'left' : 'right';
+            }
+
+            if ($pos === 'left') {
+                $leftVolume = $childVolume;
+            } elseif ($pos === 'right') {
+                $rightVolume = $childVolume;
+            }
+            $index++;
+        }
+
+        $powerLegRaw = max($leftVolume, $rightVolume);
+        $restLegRaw = min($leftVolume, $rightVolume);
+
+        // Apply Single-Pass Sequential Slab-Matching Hierarchy in ascending order of slabs
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Dynamically resolve slabs from ranks config, falling back to standard defaults if empty
+        $slabs = [];
+        if (isset($this->config['ranks'])) {
+            foreach ($this->config['ranks'] as $rank) {
+                if (isset($rank['matching'])) {
+                    $slabs[] = (float)$rank['matching'];
+                }
+            }
+        }
+        if (empty($slabs)) {
+            $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000];
+        }
+        sort($slabs);
+
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                // Match exactly 1 unit of this slab
+                $units = 1;
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
                 $vRest -= $matchedVolume;
 
-                $slabBreakdown[$slab] = $units;
+                $slabBreakdown[(int)$slab] = $units;
             } else {
-                $slabBreakdown[$slab] = 0;
+                $slabBreakdown[(int)$slab] = 0;
+                // If any slab fails to match, matchmaking is immediately terminated
+                break;
             }
         }
 
-        return [
+        // Initialize any skipped higher-tier slabs to 0 in breakdown
+        foreach ($slabs as $slab) {
+            if (!isset($slabBreakdown[(int)$slab])) {
+                $slabBreakdown[(int)$slab] = 0;
+            }
+        }
+
+        $result = [
             'power_leg' => (float)$powerLegRaw,
             'matching_leg' => (float)$restLegRaw,
             'matched_business' => (float)$totalMatched,
@@ -211,6 +280,162 @@ class MLMEngine {
             'rest_carry_forward' => (float)$vRest,
             'slab_breakdown' => $slabBreakdown
         ];
+
+        $this->legsBusinessCache[$userId] = $result;
+        return $result;
+    }
+
+    /**
+     * Get the Power Leg volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function powerLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['power_leg'];
+    }
+
+    /**
+     * Get the Weaker Leg volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function weakerLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['matching_leg'];
+    }
+
+    /**
+     * Get the Slab-Matched Business volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function slabMatchedBusiness($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['matched_business'];
+    }
+
+    /**
+     * Get the Power Carry Forward volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function powerCarryForward($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['power_carry_forward'];
+    }
+
+    /**
+     * Get the Weaker Carry Forward volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function weakerCarryForward($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['rest_carry_forward'];
+    }
+
+    /**
+     * Get the Power Leg volume for a user.
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function getPowerLeg($userId) {
+        return $this->powerLeg($userId);
+    }
+
+    /**
+     * Get the Weaker/Weak Leg volume for a user.
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function getWeakLeg($userId) {
+        return $this->weakerLeg($userId);
+    }
+
+    /**
+     * Get the Rank name for a user.
+     * Checks multiple fallback sources (users.rank_id, matching_schedules, and scanning
+     * transactions table for the largest matching slab or rank daily income) to map
+     * and resolve the highest achieved rank.
+     *
+     * @param int $userId
+     * @return string
+     */
+    public function getRank($userId) {
+        $highestRankId = 0;
+
+        // 1. Check users table
+        $stmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $highestRankId = max($highestRankId, (int)$user['rank_id']);
+        }
+
+        // 2. Check matching_schedules table for highest slab_amount
+        $stmtSched = $this->db->prepare("SELECT MAX(slab_amount) as max_slab FROM matching_schedules WHERE user_id = ?");
+        $stmtSched->execute([$userId]);
+        $schedRow = $stmtSched->fetch(PDO::FETCH_ASSOC);
+        $maxSlab = $schedRow && $schedRow['max_slab'] !== null ? (float)$schedRow['max_slab'] : 0.00;
+
+        // 3. Scan transactions table for type = 'RANK_INCOME'
+        $stmtTx = $this->db->prepare("SELECT amount, description FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME'");
+        $stmtTx->execute([$userId]);
+        $transactions = $stmtTx->fetchAll(PDO::FETCH_ASSOC);
+
+        $txMaxSlab = 0.00;
+        foreach ($transactions as $tx) {
+            // Check if description has "Slab $X"
+            if (preg_match('/Slab \$([0-9,]+)/i', $tx['description'], $matches)) {
+                $slabVal = (float)str_replace(',', '', $matches[1]);
+                if ($slabVal > $txMaxSlab) {
+                    $txMaxSlab = $slabVal;
+                }
+            }
+
+            // Reverse map transaction amount (daily income) back to the matching slab
+            if (isset($this->config['ranks'])) {
+                foreach ($this->config['ranks'] as $rIndex => $r) {
+                    if (abs((float)$tx['amount'] - (float)$r['daily_income']) < 0.01) {
+                        $slabVal = (float)$r['matching'];
+                        if ($slabVal > $txMaxSlab) {
+                            $txMaxSlab = $slabVal;
+                        }
+                    }
+                }
+            }
+        }
+
+        $highestSlab = max($maxSlab, $txMaxSlab);
+
+        // Map the highest matching slab back to the highest rank index
+        if (isset($this->config['ranks'])) {
+            foreach ($this->config['ranks'] as $rIndex => $r) {
+                if ($highestSlab >= (float)$r['matching']) {
+                    $mappedId = $rIndex + 1;
+                    if ($mappedId > $highestRankId) {
+                        $highestRankId = $mappedId;
+                    }
+                }
+            }
+        }
+
+        return ($highestRankId > 0 && isset($this->config['ranks'][$highestRankId - 1]))
+            ? $this->config['ranks'][$highestRankId - 1]['name']
+            : 'None';
     }
 
     /**
