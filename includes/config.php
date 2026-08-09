@@ -53,8 +53,7 @@ return [
         'cap_multiplier' => 2.0, // 200%
     ],
 
-    // Total ID Cap
-    'id_cap_multiplier' => 3.0, // 300% (Total earnings including bonuses)
+    // Total ID Cap removed (unlimited earnings)
 
     // Withdrawal Settings
     'withdrawal' => [
