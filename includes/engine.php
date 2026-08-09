@@ -367,17 +367,74 @@ class MLMEngine {
 
     /**
      * Get the Rank name for a user.
+     * Checks multiple fallback sources (users.rank_id, matching_schedules, and scanning
+     * transactions table for the largest matching slab or rank daily income) to map
+     * and resolve the highest achieved rank.
      *
      * @param int $userId
      * @return string
      */
     public function getRank($userId) {
+        $highestRankId = 0;
+
+        // 1. Check users table
         $stmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $rankId = $user ? (int)$user['rank_id'] : 0;
-        return ($rankId > 0 && isset($this->config['ranks'][$rankId - 1]))
-            ? $this->config['ranks'][$rankId - 1]['name']
+        if ($user) {
+            $highestRankId = max($highestRankId, (int)$user['rank_id']);
+        }
+
+        // 2. Check matching_schedules table for highest slab_amount
+        $stmtSched = $this->db->prepare("SELECT MAX(slab_amount) as max_slab FROM matching_schedules WHERE user_id = ?");
+        $stmtSched->execute([$userId]);
+        $schedRow = $stmtSched->fetch(PDO::FETCH_ASSOC);
+        $maxSlab = $schedRow && $schedRow['max_slab'] !== null ? (float)$schedRow['max_slab'] : 0.00;
+
+        // 3. Scan transactions table for type = 'RANK_INCOME'
+        $stmtTx = $this->db->prepare("SELECT amount, description FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME'");
+        $stmtTx->execute([$userId]);
+        $transactions = $stmtTx->fetchAll(PDO::FETCH_ASSOC);
+
+        $txMaxSlab = 0.00;
+        foreach ($transactions as $tx) {
+            // Check if description has "Slab $X"
+            if (preg_match('/Slab \$([0-9,]+)/i', $tx['description'], $matches)) {
+                $slabVal = (float)str_replace(',', '', $matches[1]);
+                if ($slabVal > $txMaxSlab) {
+                    $txMaxSlab = $slabVal;
+                }
+            }
+
+            // Reverse map transaction amount (daily income) back to the matching slab
+            if (isset($this->config['ranks'])) {
+                foreach ($this->config['ranks'] as $rIndex => $r) {
+                    if (abs((float)$tx['amount'] - (float)$r['daily_income']) < 0.01) {
+                        $slabVal = (float)$r['matching'];
+                        if ($slabVal > $txMaxSlab) {
+                            $txMaxSlab = $slabVal;
+                        }
+                    }
+                }
+            }
+        }
+
+        $highestSlab = max($maxSlab, $txMaxSlab);
+
+        // Map the highest matching slab back to the highest rank index
+        if (isset($this->config['ranks'])) {
+            foreach ($this->config['ranks'] as $rIndex => $r) {
+                if ($highestSlab >= (float)$r['matching']) {
+                    $mappedId = $rIndex + 1;
+                    if ($mappedId > $highestRankId) {
+                        $highestRankId = $mappedId;
+                    }
+                }
+            }
+        }
+
+        return ($highestRankId > 0 && isset($this->config['ranks'][$highestRankId - 1]))
+            ? $this->config['ranks'][$highestRankId - 1]['name']
             : 'None';
     }
 
