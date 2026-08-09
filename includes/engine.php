@@ -145,40 +145,52 @@ class MLMEngine {
     }
 
     /**
-     * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
+     * Helper to calculate total placement subtree volume of a user down the binary tree using a recursive CTE.
      */
-    public function getLegsBusiness($userId) {
+    public function getPlacementSubtreeVolume($userId) {
+        if (empty($userId)) return 0.00;
+
         $stmt = $this->db->prepare("
-            SELECT u.id, u.username,
-                   (u.total_investment + COALESCE((
-                       SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
-                   ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.sponsor_id = ?
+            WITH RECURSIVE placement_tree AS (
+                SELECT id, total_investment
+                FROM users
+                WHERE id = ?
+                UNION ALL
+                SELECT u.id, u.total_investment
+                FROM users u
+                INNER JOIN placement_tree pt ON u.placement_id = pt.id
+            )
+            SELECT COALESCE(SUM(total_investment), 0.00) as total_volume FROM placement_tree
         ");
         $stmt->execute([$userId]);
-        $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (float)$row['total_volume'] : 0.00;
+    }
 
-        if (empty($legs)) {
-            return [
-                'power_leg' => 0.00,
-                'matching_leg' => 0.00,
-                'matched_business' => 0.00,
-                'power_carry_forward' => 0.00,
-                'rest_carry_forward' => 0.00,
-                'slab_breakdown' => []
-            ];
+    /**
+     * Calculate Left and Right team volumes strictly down the physical binary placement tree hierarchy (placement_id)
+     * and apply the Sequential Slab-Matching Hierarchy.
+     */
+    public function getLegsBusiness($userId) {
+        // Find direct physical children of the user
+        $stmt = $this->db->prepare("SELECT id, position FROM users WHERE placement_id = ?");
+        $stmt->execute([$userId]);
+        $children = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $leftVolume = 0.00;
+        $rightVolume = 0.00;
+
+        foreach ($children as $child) {
+            $childVolume = $this->getPlacementSubtreeVolume($child['id']);
+            if ($child['position'] === 'left') {
+                $leftVolume = $childVolume;
+            } elseif ($child['position'] === 'right') {
+                $rightVolume = $childVolume;
+            }
         }
 
-        // Raw Legs Calculation
-        $volumes = array_column($legs, 'total_leg_business');
-        $powerLegRaw = max($volumes);
-        $totalVolume = array_sum($volumes);
-        $restLegRaw = $totalVolume - $powerLegRaw;
+        $powerLegRaw = max($leftVolume, $rightVolume);
+        $restLegRaw = min($leftVolume, $rightVolume);
 
         // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
         $vPower = $powerLegRaw;
