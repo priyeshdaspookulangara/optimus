@@ -564,4 +564,69 @@ class MLMEngine {
             }
         }
     }
+
+    /**
+     * Get the rank of a user by checking the users table, and if blank,
+     * checking the transactions table for the biggest rank income amount to determine rank.
+     * Returns the rank name, or 'No rank' if none found.
+     *
+     * @param int $userId
+     * @return string
+     */
+    public function getRank($userId) {
+        // 1. Check users table for rank_id
+        $stmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $rankId = isset($user['rank_id']) ? (int)$user['rank_id'] : 0;
+
+        // 2. If rank_id is blank (0, null, or missing), check transactions table for biggest RANK_INCOME amount
+        if ($rankId <= 0) {
+            $stmtTx = $this->db->prepare("
+                SELECT MAX(amount) as max_amount
+                FROM transactions
+                WHERE user_id = ? AND type = 'RANK_INCOME'
+            ");
+            $stmtTx->execute([$userId]);
+            $tx = $stmtTx->fetch(PDO::FETCH_ASSOC);
+
+            $maxAmount = isset($tx['max_amount']) ? (float)$tx['max_amount'] : 0.0;
+
+            if ($maxAmount > 0) {
+                // Determine rank based on config
+                // Let's find the rank where the daily_income matches maxAmount, or the highest rank where daily_income <= maxAmount
+                $matchedRank = null;
+                $highestMatchingIncome = 0.0;
+
+                foreach ($this->config['ranks'] as $rank) {
+                    $dailyIncome = (float)$rank['daily_income'];
+                    // Exact match takes priority
+                    if (abs($dailyIncome - $maxAmount) < 0.0001) {
+                        $matchedRank = $rank;
+                        break;
+                    }
+                    // Or keep track of the highest rank's daily income that is <= maxAmount
+                    if ($dailyIncome <= $maxAmount && $dailyIncome > $highestMatchingIncome) {
+                        $highestMatchingIncome = $dailyIncome;
+                        $matchedRank = $rank;
+                    }
+                }
+
+                if ($matchedRank !== null) {
+                    return $matchedRank['name'];
+                }
+            }
+
+            return 'No rank';
+        }
+
+        // 3. Map rankId to rank name in config (1-based index)
+        $rankIdx = $rankId - 1;
+        if (isset($this->config['ranks'][$rankIdx])) {
+            return $this->config['ranks'][$rankIdx]['name'];
+        }
+
+        return 'No rank';
+    }
 }
