@@ -15,7 +15,6 @@ $errorMsg = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
     $fullName = trim($_POST['full_name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
@@ -26,39 +25,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $passwordConfirm = $_POST['password_confirmation'] ?? '';
 
-    if (empty($username) || empty($email)) {
-        $errorMsg = 'Username and Email are required.';
+    if (empty($email)) {
+        $errorMsg = 'Email is required.';
     } else {
-        // Validate Username uniqueness (excluding current user)
-        $stmtCheck = $db->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
-        $stmtCheck->execute([$username, $userId]);
-        if ($stmtCheck->fetch()) {
-            $errorMsg = 'Username is already taken by another user.';
-        } else {
-            // Check if password is provided
-            $passwordUpdate = false;
-            if (!empty($password)) {
-                if ($password !== $passwordConfirm) {
-                    $errorMsg = 'Passwords do not match.';
-                } else {
-                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $passwordUpdate = true;
-                }
+        // Check if password is provided
+        $passwordUpdate = false;
+        if (!empty($password)) {
+            if ($password !== $passwordConfirm) {
+                $errorMsg = 'Passwords do not match.';
+            } else {
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                $passwordUpdate = true;
             }
+        }
 
-            if (empty($errorMsg)) {
-                try {
-                    if ($passwordUpdate) {
-                        $stmtUpdate = $db->prepare("UPDATE users SET username = ?, full_name = ?, phone = ?, email = ?, address = ?, post_office_number = ?, state = ?, country = ?, password = ? WHERE id = ?");
-                        $stmtUpdate->execute([$username, $fullName, $phone, $email, $address, $postOfficeNumber, $state, $country, $hashedPassword, $userId]);
-                    } else {
-                        $stmtUpdate = $db->prepare("UPDATE users SET username = ?, full_name = ?, phone = ?, email = ?, address = ?, post_office_number = ?, state = ?, country = ? WHERE id = ?");
-                        $stmtUpdate->execute([$username, $fullName, $phone, $email, $address, $postOfficeNumber, $state, $country, $userId]);
-                    }
-                    $successMsg = 'Profile updated successfully!';
-                } catch (Exception $e) {
-                    $errorMsg = 'Failed to update profile: ' . $e->getMessage();
+        if (empty($errorMsg)) {
+            try {
+                if ($passwordUpdate) {
+                    $stmtUpdate = $db->prepare("UPDATE users SET full_name = ?, phone = ?, email = ?, address = ?, post_office_number = ?, state = ?, country = ?, password = ? WHERE id = ?");
+                    $stmtUpdate->execute([$fullName, $phone, $email, $address, $postOfficeNumber, $state, $country, $hashedPassword, $userId]);
+                } else {
+                    $stmtUpdate = $db->prepare("UPDATE users SET full_name = ?, phone = ?, email = ?, address = ?, post_office_number = ?, state = ?, country = ? WHERE id = ?");
+                    $stmtUpdate->execute([$fullName, $phone, $email, $address, $postOfficeNumber, $state, $country, $userId]);
                 }
+                $successMsg = 'Profile updated successfully!';
+            } catch (Exception $e) {
+                $errorMsg = 'Failed to update profile: ' . $e->getMessage();
             }
         }
     }
@@ -148,8 +140,9 @@ include __DIR__ . '/includes/header.php';
 
                             <!-- Editable Fields -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="username">Username <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" required>
+                                <label class="form-label" for="username">Username</label>
+                                <input type="text" class="form-control" id="username" value="<?php echo htmlspecialchars($user['username']); ?>" disabled style="background-color: #e9ecef !important; color: #495057 !important;">
+                                <small class="text-muted">Username cannot be edited</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="full_name">Full Name</label>
