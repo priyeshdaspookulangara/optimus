@@ -146,26 +146,46 @@ class MLMEngine {
     }
 
     /**
-     * Helper to calculate total placement subtree volume of a user down the binary tree using a recursive CTE.
+     * Helper to calculate total placement subtree volume of a user down the binary tree.
+     * Uses a highly efficient recursive CTE, with a fallback to a recursive PHP loop
+     * for compatibility with older MySQL/MariaDB database versions.
      */
     public function getPlacementSubtreeVolume($userId) {
         if (empty($userId)) return 0.00;
 
-        $stmt = $this->db->prepare("
-            WITH RECURSIVE placement_tree AS (
-                SELECT id, total_investment
-                FROM users
-                WHERE id = ?
-                UNION ALL
-                SELECT u.id, u.total_investment
-                FROM users u
-                INNER JOIN placement_tree pt ON u.placement_id = pt.id
-            )
-            SELECT COALESCE(SUM(total_investment), 0.00) as total_volume FROM placement_tree
-        ");
-        $stmt->execute([$userId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? (float)$row['total_volume'] : 0.00;
+        try {
+            $stmt = $this->db->prepare("
+                WITH RECURSIVE placement_tree AS (
+                    SELECT id, total_investment
+                    FROM users
+                    WHERE id = ?
+                    UNION ALL
+                    SELECT u.id, u.total_investment
+                    FROM users u
+                    INNER JOIN placement_tree pt ON u.placement_id = pt.id
+                )
+                SELECT COALESCE(SUM(total_investment), 0.00) as total_volume FROM placement_tree
+            ");
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ? (float)$row['total_volume'] : 0.00;
+        } catch (PDOException $e) {
+            // Fallback to PHP recursion if recursive CTE is not supported by legacy database versions
+            $stmt = $this->db->prepare("SELECT total_investment FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            $volume = $user ? (float)$user['total_investment'] : 0.00;
+
+            $stmtChildren = $this->db->prepare("SELECT id FROM users WHERE placement_id = ?");
+            $stmtChildren->execute([$userId]);
+            $children = $stmtChildren->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($children as $child) {
+                $volume += $this->getPlacementSubtreeVolume($child['id']);
+            }
+
+            return $volume;
+        }
     }
 
     /**
