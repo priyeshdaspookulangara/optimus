@@ -46,10 +46,10 @@ $team_inv = $stmt->fetch();
 $config = require __DIR__ . '/includes/config.php';
 $rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
 
-// Ceiling Limit Calculation (300% of total investment)
-$maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-$ceilingBalance = max(0, $maxCap - $stats['total_earning']);
-$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
+// Ceiling Limit Calculation (ROI exclusively, using 200% ROI Cap multiplier)
+$maxCap = $user['total_investment'] * $config['roi']['cap_multiplier'];
+$ceilingBalance = max(0, $maxCap - $stats['total_roi']);
+$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 100) : 0;
 
 // Fetch dynamic unilevel legs business
 $engine = new MLMEngine();
@@ -114,13 +114,15 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 
-    <div class="container-fluid">
-        <button type="button" class="btn btn-secondary w-100 mb-2 text-uppercase ceiling-limit-btn" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%);">
-            <h3 class="text-center pt-5 pb-5 mb-3 text-uppercase" style="color: #3f2259 !important;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
-            <div class="progress" style="height: 50px">
-                <div class="progress-bar text-bg-success" style="width: <?php echo $progressPercent; ?>%"><?php echo round($progressPercent); ?>%</div>
+    <div class="container-fluid mb-4">
+        <div class="ceiling-limit-card p-4 text-uppercase" style="background: linear-gradient(90deg, rgb(80 71 147) 17%, rgb(79 194 218) 98%); border: 1px solid #3f2259; border-radius: 12px;">
+            <h3 class="text-center mb-3 text-uppercase fw-bold" style="color: #3f2259 !important; font-size: clamp(1.1rem, 3vw, 1.6rem); font-family: 'Poppins', sans-serif; letter-spacing: 0.5px;">CEILING LIMIT BALANCE $<?php echo number_format($ceilingBalance, 2); ?></h3>
+            <div class="progress" style="height: 35px; background-color: #eeeeee; border-radius: 8px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="progress-bar d-flex align-items-center justify-content-center" role="progressbar" style="width: <?php echo $progressPercent; ?>%; background-color: #cca354; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 8px 0 0 8px; transition: width 0.6s ease;" aria-valuenow="<?php echo round($progressPercent); ?>" aria-valuemin="0" aria-valuemax="100">
+                    <?php echo round($progressPercent); ?>%
+                </div>
             </div>
-        </button>
+        </div>
     </div>
 
     <!-- Achievement Milestones / Rank Scroller -->
