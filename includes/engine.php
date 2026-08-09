@@ -217,26 +217,49 @@ class MLMEngine {
         $powerLegRaw = max($leftVolume, $rightVolume);
         $restLegRaw = min($leftVolume, $rightVolume);
 
-        // Apply Sequential Slab-Matching Hierarchy (Descending order of slabs to pair highest available first)
+        // Apply Single-Pass Sequential Slab-Matching Hierarchy in ascending order of slabs
         $vPower = $powerLegRaw;
         $vRest = $restLegRaw;
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        // Dynamically resolve slabs from ranks config, falling back to standard defaults if empty
+        $slabs = [];
+        if (isset($this->config['ranks'])) {
+            foreach ($this->config['ranks'] as $rank) {
+                if (isset($rank['matching'])) {
+                    $slabs[] = (float)$rank['matching'];
+                }
+            }
+        }
+        if (empty($slabs)) {
+            $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000];
+        }
+        sort($slabs);
+
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
-                $units = (int)floor($m / $slab);
-                $matchedVolume = $units * $slab;
+                // Match exactly 1 unit of this slab
+                $units = 1;
+                $matchedVolume = $slab;
 
                 $totalMatched += $matchedVolume;
                 $vPower -= $matchedVolume;
                 $vRest -= $matchedVolume;
 
-                $slabBreakdown[$slab] = $units;
+                $slabBreakdown[(int)$slab] = $units;
             } else {
-                $slabBreakdown[$slab] = 0;
+                $slabBreakdown[(int)$slab] = 0;
+                // If any slab fails to match, matchmaking is immediately terminated
+                break;
+            }
+        }
+
+        // Initialize any skipped higher-tier slabs to 0 in breakdown
+        foreach ($slabs as $slab) {
+            if (!isset($slabBreakdown[(int)$slab])) {
+                $slabBreakdown[(int)$slab] = 0;
             }
         }
 
