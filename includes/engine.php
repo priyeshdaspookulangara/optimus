@@ -153,12 +153,13 @@ class MLMEngine {
             SELECT u.id, u.username,
                    (u.total_investment + COALESCE((
                        SELECT SUM(downline.total_investment)
-                       FROM genealogy g
-                       JOIN users downline ON g.user_id = downline.id
-                       WHERE g.parent_id = u.id
+                       FROM genealogy g2
+                       JOIN users downline ON g2.user_id = downline.id
+                       WHERE g2.parent_id = u.id
                    ), 0)) as total_leg_business
-            FROM users u
-            WHERE u.sponsor_id = ?
+            FROM genealogy g
+            JOIN users u ON g.user_id = u.id
+            WHERE g.parent_id = ? AND g.level = 1
         ");
         $stmt->execute([$userId]);
         $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
