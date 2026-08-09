@@ -136,6 +136,14 @@ class MLMEngine {
                 $percentage = $this->config['level_percentages'][$level];
                 $commission = ($investmentAmount * $percentage) / 100;
 
+                // Defensive check: Verify that the parent still exists in the users table.
+                // This prevents Integrity Constraint Violations (Foreign Key fails) from orphaned genealogy records of deleted users.
+                $stmtCheckUser = $this->db->prepare("SELECT id FROM users WHERE id = ?");
+                $stmtCheckUser->execute([$parent['parent_id']]);
+                if (!$stmtCheckUser->fetch()) {
+                    continue; // Skip writing transactions for deleted parent users
+                }
+
                 $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
                 if ($allowable > 0) {
                     $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
@@ -372,16 +380,8 @@ class MLMEngine {
     }
 
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        // 300% ID Cap is removed. Always return the full commission/amount.
+        return $amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
