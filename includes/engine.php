@@ -146,7 +146,7 @@ class MLMEngine {
 
     /**
      * Calculate unilevel leg business volumes and apply the
-     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000)
+     * Sequential Slab-Matching Hierarchy (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000)
      */
     public function getLegsBusiness($userId) {
         $stmt = $this->db->prepare("
@@ -186,7 +186,7 @@ class MLMEngine {
         $totalMatched = 0.00;
         $slabBreakdown = [];
 
-        $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+        $slabs = [2500000, 1000000, 500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
         foreach ($slabs as $slab) {
             $m = min($vPower, $vRest);
             if ($m >= $slab) {
