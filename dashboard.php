@@ -95,6 +95,10 @@ include __DIR__ . '/includes/header.php';
                     <h3>MY INVESTMENT</h3>
                     <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
                 </div>
+                <div class="overview-box">
+                    <h3>CURRENT RANK</h3>
+                    <p class="text-warning mt-2 fw-bold"><?php echo htmlspecialchars($rankName); ?></p>
+                </div>
             </div>
             <div class="overview-row">
                 <div class="overview-box">
