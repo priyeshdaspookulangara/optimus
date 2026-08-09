@@ -294,6 +294,42 @@ class MLMEngine {
     }
 
     /**
+     * Get the Power Leg volume for a user.
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function getPowerLeg($userId) {
+        return $this->powerLeg($userId);
+    }
+
+    /**
+     * Get the Weaker/Weak Leg volume for a user.
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function getWeakLeg($userId) {
+        return $this->weakerLeg($userId);
+    }
+
+    /**
+     * Get the Rank name for a user.
+     *
+     * @param int $userId
+     * @return string
+     */
+    public function getRank($userId) {
+        $stmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $rankId = $user ? (int)$user['rank_id'] : 0;
+        return ($rankId > 0 && isset($this->config['ranks'][$rankId - 1]))
+            ? $this->config['ranks'][$rankId - 1]['name']
+            : 'None';
+    }
+
+    /**
      * Matching Engine: Identify Power Leg and calculate Rank Income using Sequential Slab-Matching Hierarchy
      * and track active 100-day schedules per slab unit.
      */

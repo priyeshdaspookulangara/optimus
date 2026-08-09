@@ -44,7 +44,6 @@ $stmt->execute([$userId]);
 $team_inv = $stmt->fetch();
 
 $config = require __DIR__ . '/includes/config.php';
-$rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
 
 // Ceiling Limit Calculation (300% of total investment)
 $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
@@ -56,11 +55,14 @@ $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
 // Fetch power leg, weaker leg, carry forwards and slab-matched business via new helper methods
-$powerLeg = $engine->powerLeg($userId);
-$weakerLeg = $engine->weakerLeg($userId);
+$powerLeg = $engine->getPowerLeg($userId);
+$weakerLeg = $engine->getWeakLeg($userId);
 $slabMatchedBus = $engine->slabMatchedBusiness($userId);
 $powerCarryFwd = $engine->powerCarryForward($userId);
 $weakerCarryFwd = $engine->weakerCarryForward($userId);
+
+// Fetch Rank name via new helper method
+$rankName = $engine->getRank($userId);
 
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
