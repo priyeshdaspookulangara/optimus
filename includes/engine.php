@@ -205,13 +205,22 @@ class MLMEngine {
         $leftVolume = 0.00;
         $rightVolume = 0.00;
 
+        $index = 0;
         foreach ($children as $child) {
             $childVolume = $this->getPlacementSubtreeVolume($child['id']);
-            if ($child['position'] === 'left') {
+
+            // Resolve position: use database position first, fall back to index-based left/right if NULL
+            $pos = !empty($child['position']) ? strtolower($child['position']) : null;
+            if ($pos === null) {
+                $pos = ($index === 0) ? 'left' : 'right';
+            }
+
+            if ($pos === 'left') {
                 $leftVolume = $childVolume;
-            } elseif ($child['position'] === 'right') {
+            } elseif ($pos === 'right') {
                 $rightVolume = $childVolume;
             }
+            $index++;
         }
 
         $powerLegRaw = max($leftVolume, $rightVolume);
