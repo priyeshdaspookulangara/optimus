@@ -44,7 +44,25 @@ $stmt->execute([$userId]);
 $team_inv = $stmt->fetch();
 
 $config = require __DIR__ . '/includes/config.php';
-$rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
+
+// Get highest daily income from matching_schedules payouts to determine displayed rank
+$stmtMaxIncome = $db->prepare("SELECT COALESCE(MAX(daily_income), 0) as max_daily_income FROM matching_schedules WHERE user_id = ?");
+$stmtMaxIncome->execute([$userId]);
+$maxDailyIncRes = $stmtMaxIncome->fetch();
+$maxDailyIncome = (float)($maxDailyIncRes['max_daily_income'] ?? 0);
+
+$highestPayoutRankId = 0;
+if ($maxDailyIncome > 0) {
+    foreach ($config['ranks'] as $idx => $rankConf) {
+        if (abs((float)$rankConf['daily_income'] - $maxDailyIncome) < 0.001) {
+            $highestPayoutRankId = $idx + 1;
+            break;
+        }
+    }
+}
+
+$displayRankId = ($highestPayoutRankId > 0) ? $highestPayoutRankId : (int)$user['rank_id'];
+$rankName = ($displayRankId > 0) ? $config['ranks'][$displayRankId-1]['name'] : 'None';
 
 
 // Fetch dynamic unilevel legs business
@@ -265,8 +283,8 @@ include __DIR__ . '/includes/header.php';
 
                 foreach ($ranksList as $index => $r):
                     $rIndex = $index + 1;
-                    $isAchieved = ($user['rank_id'] >= $rIndex);
-                    $isCurrent = ($user['rank_id'] == $rIndex);
+                    $isAchieved = ($displayRankId >= $rIndex);
+                    $isCurrent = ($displayRankId == $rIndex);
 
                     $cardClass = $r['class'];
                     if ($isAchieved) {
