@@ -55,6 +55,13 @@ $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) 
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
+// Fetch power leg, weaker leg, carry forwards and slab-matched business via new helper methods
+$powerLeg = $engine->powerLeg($userId);
+$weakerLeg = $engine->weakerLeg($userId);
+$slabMatchedBus = $engine->slabMatchedBusiness($userId);
+$powerCarryFwd = $engine->powerCarryForward($userId);
+$weakerCarryFwd = $engine->weakerCarryForward($userId);
+
 $pageTitle = 'Dashboard';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -90,25 +97,25 @@ include __DIR__ . '/includes/header.php';
             <div class="overview-row">
                 <div class="overview-box">
                     <h3 class="text-upercase">CURRENT POWER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($legStats['power_leg'], 2); ?></p>
+                    <p class="text-primary mt-2"><?php echo number_format($powerLeg, 2); ?></p>
                 </div>
                 <div class="overview-box">
                     <h3 class="text-upercase">CURRENT WEAKER LEG</h3>
-                    <p class="text-primary mt-2"><?php echo number_format($legStats['matching_leg'], 2); ?></p>
+                    <p class="text-primary mt-2"><?php echo number_format($weakerLeg, 2); ?></p>
                 </div>
             </div>
             <div class="overview-row">
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">SLAB-MATCHED BUSINESS</h3>
-                    <p class="text-success mt-2 fw-bold"><?php echo number_format($legStats['matched_business'], 2); ?></p>
+                    <p class="text-success mt-2 fw-bold"><?php echo number_format($slabMatchedBus, 2); ?></p>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">POWER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['power_carry_forward'], 2); ?></p>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($powerCarryFwd, 2); ?></p>
                 </div>
                 <div class="overview-box" style="background-color: #2d1840;">
                     <h3 class="text-upercase">WEAKER CARRY FORWARD</h3>
-                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($legStats['rest_carry_forward'], 2); ?></p>
+                    <p class="text-warning mt-2 fw-bold"><?php echo number_format($weakerCarryFwd, 2); ?></p>
                 </div>
             </div>
         </div>

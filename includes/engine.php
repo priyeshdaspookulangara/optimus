@@ -5,6 +5,7 @@ require_once __DIR__ . '/db.php';
 class MLMEngine {
     private $db;
     private $config;
+    private $legsBusinessCache = [];
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
@@ -172,6 +173,10 @@ class MLMEngine {
      * and apply the Sequential Slab-Matching Hierarchy.
      */
     public function getLegsBusiness($userId) {
+        if (isset($this->legsBusinessCache[$userId])) {
+            return $this->legsBusinessCache[$userId];
+        }
+
         // Find direct physical children of the user
         $stmt = $this->db->prepare("SELECT id, position FROM users WHERE placement_id = ?");
         $stmt->execute([$userId]);
@@ -215,7 +220,7 @@ class MLMEngine {
             }
         }
 
-        return [
+        $result = [
             'power_leg' => (float)$powerLegRaw,
             'matching_leg' => (float)$restLegRaw,
             'matched_business' => (float)$totalMatched,
@@ -223,6 +228,69 @@ class MLMEngine {
             'rest_carry_forward' => (float)$vRest,
             'slab_breakdown' => $slabBreakdown
         ];
+
+        $this->legsBusinessCache[$userId] = $result;
+        return $result;
+    }
+
+    /**
+     * Get the Power Leg volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function powerLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['power_leg'];
+    }
+
+    /**
+     * Get the Weaker Leg volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function weakerLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['matching_leg'];
+    }
+
+    /**
+     * Get the Slab-Matched Business volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function slabMatchedBusiness($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['matched_business'];
+    }
+
+    /**
+     * Get the Power Carry Forward volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function powerCarryForward($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['power_carry_forward'];
+    }
+
+    /**
+     * Get the Weaker Carry Forward volume for a user.
+     * Name conforms to modern coding conventions (camelCase / PSR-12).
+     *
+     * @param int $userId
+     * @return float
+     */
+    public function weakerCarryForward($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return (float)$stats['rest_carry_forward'];
     }
 
     /**
