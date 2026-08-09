@@ -136,6 +136,14 @@ class MLMEngine {
                 $percentage = $this->config['level_percentages'][$level];
                 $commission = ($investmentAmount * $percentage) / 100;
 
+                // Defensive check: Verify that the parent still exists in the users table.
+                // This prevents Integrity Constraint Violations (Foreign Key fails) from orphaned genealogy records of deleted users.
+                $stmtCheckUser = $this->db->prepare("SELECT id FROM users WHERE id = ?");
+                $stmtCheckUser->execute([$parent['parent_id']]);
+                if (!$stmtCheckUser->fetch()) {
+                    continue; // Skip writing transactions for deleted parent users
+                }
+
                 $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
                 if ($allowable > 0) {
                     $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
