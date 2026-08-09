@@ -214,6 +214,28 @@ class MLMEngine {
     }
 
     /**
+     * Get the volume of the user's power leg.
+     *
+     * @param int $userId The ID of the user.
+     * @return float
+     */
+    public function getPowerLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return $stats['power_leg'];
+    }
+
+    /**
+     * Get the volume of the user's weak (matching) leg.
+     *
+     * @param int $userId The ID of the user.
+     * @return float
+     */
+    public function getWeakLeg($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return $stats['matching_leg'];
+    }
+
+    /**
      * Matching Engine: Identify Power Leg and calculate Rank Income using Sequential Slab-Matching Hierarchy
      * and track active 100-day schedules per slab unit.
      */
