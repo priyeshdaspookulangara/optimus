@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/engine.php';
 
 // Authentication check
 if (!isset($_SESSION['admin_id'])) {
@@ -14,7 +13,6 @@ if (empty($_SESSION['admin_csrf'])) {
 }
 
 $db = Database::getInstance()->getConnection();
-$engine = new MLMEngine();
 $config = require __DIR__ . '/../includes/config.php';
 
 $pageTitle = 'Reset & Recalculate Commissions';
@@ -33,6 +31,174 @@ function getLocalAllowableAmount($userId, $amountToAdd, $db, $config) {
 
     if ($remainingCap <= 0) return 0;
     return min($amountToAdd, $remainingCap);
+}
+
+// standalone local implementation of logTransaction
+function localLogTransaction($db, $userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
+    $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
+    if ($customNetAmount !== null) {
+        $netAmount = $customNetAmount;
+    } elseif ($isDebit) {
+        $netAmount = -($amount + $fee);
+    } else {
+        $netAmount = $amount - $fee;
+    }
+
+    $stmt = $db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description]);
+}
+
+// standalone local implementation of checkRankQualification
+function localCheckRankQualification($config, $matchingBusiness) {
+    $qualifiedRankId = null;
+    foreach ($config['ranks'] as $id => $rank) {
+        if ($matchingBusiness >= $rank['matching']) {
+            $qualifiedRankId = $id + 1;
+        } else {
+            break;
+        }
+    }
+    return $qualifiedRankId;
+}
+
+// standalone local implementation of getLegsBusiness
+function localGetLegsBusiness($db, $config, $userId) {
+    $stmt = $db->prepare("
+        SELECT u.id, u.username,
+               (u.total_investment + COALESCE((
+                   SELECT SUM(downline.total_investment)
+                   FROM genealogy g
+                   JOIN users downline ON g.user_id = downline.id
+                   WHERE g.parent_id = u.id
+               ), 0)) as total_leg_business
+        FROM users u
+        WHERE u.sponsor_id = ?
+    ");
+    $stmt->execute([$userId]);
+    $legs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($legs)) {
+        return [
+            'power_leg' => 0.00,
+            'matching_leg' => 0.00,
+            'matched_business' => 0.00,
+            'power_carry_forward' => 0.00,
+            'rest_carry_forward' => 0.00,
+            'slab_breakdown' => []
+        ];
+    }
+
+    $volumes = array_column($legs, 'total_leg_business');
+    $powerLegRaw = max($volumes);
+    $totalVolume = array_sum($volumes);
+    $restLegRaw = $totalVolume - $powerLegRaw;
+
+    $vPower = $powerLegRaw;
+    $vRest = $restLegRaw;
+    $totalMatched = 0.00;
+    $slabBreakdown = [];
+
+    $slabs = [500000, 250000, 100000, 50000, 25000, 10000, 5000, 2500, 1000, 500];
+    foreach ($slabs as $slab) {
+        $m = min($vPower, $vRest);
+        if ($m >= $slab) {
+            $units = (int)floor($m / $slab);
+            $matchedVolume = $units * $slab;
+
+            $totalMatched += $matchedVolume;
+            $vPower -= $matchedVolume;
+            $vRest -= $matchedVolume;
+
+            $slabBreakdown[$slab] = $units;
+        } else {
+            $slabBreakdown[$slab] = 0;
+        }
+    }
+
+    return [
+        'power_leg' => (float)$powerLegRaw,
+        'matching_leg' => (float)$restLegRaw,
+        'matched_business' => (float)$totalMatched,
+        'power_carry_forward' => (float)$vPower,
+        'rest_carry_forward' => (float)$vRest,
+        'slab_breakdown' => $slabBreakdown
+    ];
+}
+
+// standalone local implementation of distributeLevelIncome
+function localDistributeLevelIncome($db, $config, $userId, $investmentAmount) {
+    $stmt = $db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
+    $stmt->execute([$userId]);
+    $parents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($parents as $parent) {
+        $level = $parent['level'];
+        if (isset($config['level_percentages'][$level])) {
+            $percentage = $config['level_percentages'][$level];
+            $commission = ($investmentAmount * $percentage) / 100;
+
+            $allowable = getLocalAllowableAmount($parent['parent_id'], $commission, $db, $config);
+            if ($allowable > 0) {
+                localLogTransaction($db, $parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+            }
+        }
+    }
+}
+
+// standalone local implementation of updateUplineRanks
+function localUpdateUplineRanks($db, $config, $userId) {
+    $stmt = $db->prepare("SELECT parent_id FROM genealogy WHERE user_id = ? ORDER BY level ASC");
+    $stmt->execute([$userId]);
+    $ancestors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $targets = array_merge([['parent_id' => $userId]], $ancestors);
+
+    foreach ($targets as $target) {
+        $ancestorId = $target['parent_id'];
+        if (empty($ancestorId)) continue;
+
+        $stmtUser = $db->prepare("SELECT id, rank_id, status FROM users WHERE id = ?");
+        $stmtUser->execute([$ancestorId]);
+        $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        if (!$user) continue;
+
+        $legStats = localGetLegsBusiness($db, $config, $ancestorId);
+        $matchedBusiness = $legStats['matched_business'];
+        $slabBreakdown = $legStats['slab_breakdown'] ?? [];
+
+        $qualifiedRankId = localCheckRankQualification($config, $matchedBusiness);
+
+        if ($qualifiedRankId !== null && $qualifiedRankId > $user['rank_id']) {
+            $updateRank = $db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
+            $updateRank->execute([$qualifiedRankId, $ancestorId]);
+            $user['rank_id'] = $qualifiedRankId;
+        }
+
+        foreach ($slabBreakdown as $slab => $requiredUnits) {
+            if ($requiredUnits > 0) {
+                $stmtSched = $db->prepare("SELECT COUNT(*) as count FROM matching_schedules WHERE user_id = ? AND slab_amount = ?");
+                $stmtSched->execute([$ancestorId, $slab]);
+                $existing = $stmtSched->fetch(PDO::FETCH_ASSOC);
+                $existingUnits = (int)$existing['count'];
+
+                if ($requiredUnits > $existingUnits) {
+                    $dailyIncome = 0.00;
+                    foreach ($config['ranks'] as $rankConf) {
+                        if ($rankConf['matching'] == $slab) {
+                            $dailyIncome = $rankConf['daily_income'];
+                            break;
+                        }
+                    }
+
+                    $newUnits = $requiredUnits - $existingUnits;
+                    $stmtInsert = $db->prepare("INSERT INTO matching_schedules (user_id, slab_amount, daily_income, days_passed, max_days, status) VALUES (?, ?, ?, 0, 100, 'active')");
+                    for ($i = 0; $i < $newUnits; $i++) {
+                        $stmtInsert->execute([$ancestorId, $slab, $dailyIncome]);
+                    }
+                }
+            }
+        }
+    }
 }
 
 $success_msg = '';
@@ -139,10 +305,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                     $invAmount = $inv['amount'];
 
                     // Re-distribute Level Income (12 generations)
-                    $engine->distributeLevelIncome($invUserId, $invAmount);
+                    localDistributeLevelIncome($db, $config, $invUserId, $invAmount);
 
                     // Re-evaluate leg business, update ranks, and insert matching schedules
-                    $engine->updateUplineRanks($invUserId);
+                    localUpdateUplineRanks($db, $config, $invUserId);
                 }
 
                 // Step D: Restore matching schedules' days_passed and status from backup
@@ -207,7 +373,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                         $allowable = getLocalAllowableAmount($schedUserId, $dailyIncome, $db, $config);
                         if ($allowable > 0) {
                             // Log matching income for primary earner
-                            $engine->logTransaction(
+                            localLogTransaction(
+                                $db,
                                 $schedUserId,
                                 'RANK_INCOME',
                                 $allowable,
@@ -224,7 +391,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                 if ($upline['status'] === 'active') {
                                     $uplineAllowable = getLocalAllowableAmount($upline['parent_id'], $allowable, $db, $config);
                                     if ($uplineAllowable > 0) {
-                                        $engine->logTransaction(
+                                        localLogTransaction(
+                                            $db,
                                             $upline['parent_id'],
                                             'RANK_INCOME',
                                             $uplineAllowable,
