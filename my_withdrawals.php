@@ -31,11 +31,17 @@ include __DIR__ . '/includes/header.php';
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.2/css/dataTables.bootstrap5.min.css" />
 
+<style>
+    td { color: #000 !important; }
+    .table-dark-header { background-color: #3f2259 !important; color: white !important; }
+    .table-dark-header th { color: white !important; }
+</style>
+
 <div class="container-fluid content-inner pb-0">
     <div class="row">
       <div class="col-lg-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3>My Withdrawals History</h3>
+            <h3 class="text-dark">My Withdrawals History</h3>
             <a href="withdraw_fund.php" class="btn btn-warning text-white fw-bold"><i class="fa fa-money-bill-wave me-2"></i>Withdraw Funds</a>
         </div>
       </div>
@@ -46,7 +52,7 @@ include __DIR__ . '/includes/header.php';
             <div class="table-responsive">
               <table id="withdrawalTable" class="table table-striped" style="width:100%">
                 <thead>
-                  <tr style="background-color: #3f2259; color: white;">
+                  <tr class="table-dark-header">
                     <th>#</th>
                     <th>Date & Time</th>
                     <th>Requested Amount</th>
