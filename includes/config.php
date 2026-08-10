@@ -14,20 +14,20 @@ return [
         25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
     ],
 
-    // Level Percentages: 12-generation distribution
+    // Level Percentages: 12-generation distribution (Level 1: 5%, Levels 2-3: 2%, Levels 4-6: 1%, Levels 7-12: 0.50%)
     'level_percentages' => [
-        1 => 10, // Level 1: 10%
-        2 => 5,  // Level 2: 5%
-        3 => 3,  // Level 3: 3%
-        4 => 2,  // Level 4: 2%
-        5 => 1,  // Level 5: 1%
-        6 => 1,  // Level 6: 1%
-        7 => 1,  // Level 7: 1%
-        8 => 1,  // Level 8: 1%
-        9 => 1,  // Level 9: 1%
-        10 => 1, // Level 10: 1%
-        11 => 1, // Level 11: 1%
-        12 => 1, // Level 12: 1%
+        1 => 5.0,  // Level 1: 5%
+        2 => 2.0,  // Level 2: 2%
+        3 => 2.0,  // Level 3: 2%
+        4 => 1.0,  // Level 4: 1%
+        5 => 1.0,  // Level 5: 1%
+        6 => 1.0,  // Level 6: 1%
+        7 => 0.5,  // Level 7: 0.5%
+        8 => 0.5,  // Level 8: 0.5%
+        9 => 0.5,  // Level 9: 0.5%
+        10 => 0.5, // Level 10: 0.5%
+        11 => 0.5, // Level 11: 0.5%
+        12 => 0.5, // Level 12: 0.5%
     ],
 
     // Rank Definitions: 12 specific ranks

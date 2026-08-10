@@ -126,7 +126,7 @@ class MLMEngine {
      * Level Income: Distribute commission up to 12 generations
      */
     public function distributeLevelIncome($userId, $investmentAmount) {
-        $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
+        $stmt = $this->db->prepare("SELECT DISTINCT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
         $stmt->execute([$userId]);
         $parents = $stmt->fetchAll();
 
