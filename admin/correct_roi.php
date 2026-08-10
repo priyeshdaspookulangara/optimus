@@ -1,4 +1,9 @@
 <?php
+// Enable complete error reporting for debugging and diagnosing any runtime exceptions or errors
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/engine.php';
@@ -14,6 +19,17 @@ if (empty($_SESSION['admin_csrf'])) {
 }
 
 $db = Database::getInstance()->getConnection();
+
+// Self-healing database check: ensure roi_date column exists in transactions table
+try {
+    $chk = $db->query("SHOW COLUMNS FROM `transactions` LIKE 'roi_date'")->fetch();
+    if (!$chk) {
+        $db->exec("ALTER TABLE `transactions` ADD COLUMN `roi_date` DATE DEFAULT NULL AFTER `description`");
+    }
+} catch (Exception $e) {
+    // Suppress or log database-related self-healing check errors
+}
+
 $engine = new MLMEngine();
 $config = require __DIR__ . '/../includes/config.php';
 
