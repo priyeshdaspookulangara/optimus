@@ -51,6 +51,14 @@ $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
 $ceilingBalance = max(0, $maxCap - $stats['total_earning']);
 $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
 
+// Dynamic Referral Links Generation
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'];
+$self_dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$base_url = $protocol . $host . $self_dir;
+$left_link = $base_url . "/register.php?ref=" . urlencode($user['mid'] ?? $user['id']) . "&pos=L";
+$right_link = $base_url . "/register.php?ref=" . urlencode($user['mid'] ?? $user['id']) . "&pos=R";
+
 // Fetch dynamic unilevel legs business
 $engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
@@ -122,6 +130,62 @@ include __DIR__ . '/includes/header.php';
             </div>
         </button>
     </div>
+
+    <!-- Referral Link Share Section -->
+    <div class="container-fluid mt-4 mb-4">
+        <div class="card shadow-sm text-white" style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px;">
+            <div class="card-header border-bottom-0">
+                <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-share-nodes text-warning me-2"></i>My Referral Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded" style="background-color: #3f2259; border: 1px solid #504793;">
+                            <label class="form-label text-white fw-bold"><i class="fa-solid fa-arrow-left text-info me-2"></i>Left Referral Link</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-dark text-white border-0" id="leftLink" value="<?php echo htmlspecialchars($left_link); ?>" readonly>
+                                <button class="btn btn-primary" type="button" onclick="copyLink('leftLink', this)">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded" style="background-color: #3f2259; border: 1px solid #504793;">
+                            <label class="form-label text-white fw-bold"><i class="fa-solid fa-arrow-right text-success me-2"></i>Right Referral Link</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-dark text-white border-0" id="rightLink" value="<?php echo htmlspecialchars($right_link); ?>" readonly>
+                                <button class="btn btn-primary" type="button" onclick="copyLink('rightLink', this)">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function copyLink(inputId, btn) {
+        var copyText = document.getElementById(inputId);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); /* For mobile devices */
+        navigator.clipboard.writeText(copyText.value).then(function() {
+            var originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            setTimeout(function() {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-primary');
+            }, 2000);
+        }, function() {
+            alert("Failed to copy link. Please manually copy the link.");
+        });
+    }
+    </script>
 
     <!-- Achievement Milestones / Rank Scroller -->
     <div class="achievement-section">

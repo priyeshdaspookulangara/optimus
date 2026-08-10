@@ -39,7 +39,7 @@ include __DIR__ . '/includes/header.php';
                             <tbody>
                                 <?php foreach($transactions as $t): ?>
                                 <tr>
-                                    <td><?php echo $t['created_at']; ?></td>
+                                    <td><?php echo ($t['type'] === 'ROI' && !empty($t['roi_date'])) ? htmlspecialchars($t['roi_date']) : htmlspecialchars($t['created_at']); ?></td>
                                     <td><span class="badge bg-info"><?php echo $t['type']; ?></span></td>
                                     <td>$<?php echo number_format($t['amount'], 2); ?></td>
                                     <td>$<?php echo number_format($t['fee'], 2); ?></td>
