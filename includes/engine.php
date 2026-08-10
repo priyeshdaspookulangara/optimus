@@ -100,7 +100,7 @@ class MLMEngine {
                 // Total ID Cap Check (300%)
                 $allowableROI = $this->getAllowableAmount($investment['user_id'], $roiAmount);
                 if ($allowableROI > 0) {
-                    $this->logTransaction($investment['user_id'], 'ROI', $allowableROI, 0, "Daily ROI for investment ID: {$investment['id']}", null, $investment['id']);
+                    $this->logTransaction($investment['user_id'], 'ROI', $allowableROI, 0, "Daily ROI for investment ID: {$investment['id']}", null, $investment['id'], null, null, $today);
 
                     $updateStmt = $this->db->prepare("UPDATE investments SET roi_earned = ?, total_earned = total_earned + ?, days_passed = ?, last_roi_at = ?, status = ? WHERE id = ?");
                     $updateStmt->execute([$newROIEarned, $allowableROI, $newDaysPassed, $today, $status, $investment['id']]);
@@ -384,7 +384,7 @@ class MLMEngine {
         return min($amountToAdd, $remainingCap);
     }
 
-    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
+    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null, $roiDate = null) {
         // Signage: Income types are positive, Expense/Debit types are negative
         $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
 
@@ -398,8 +398,8 @@ class MLMEngine {
             $netAmount = $amount - $fee;
         }
 
-        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description]);
+        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description, roi_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description, $roiDate]);
     }
 
     /**

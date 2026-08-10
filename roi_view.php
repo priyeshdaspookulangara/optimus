@@ -84,7 +84,7 @@ include __DIR__ . '/includes/header.php';
                     <tbody>
                         <?php foreach($roi_history as $r): ?>
                         <tr>
-                            <td><?php echo $r['created_at']; ?></td>
+                            <td><?php echo !empty($r['roi_date']) ? date('Y-m-d', strtotime($r['roi_date'])) : date('Y-m-d H:i:s', strtotime($r['created_at'])); ?></td>
                             <td>$<?php echo number_format($r['amount'], 2); ?></td>
                             <td><?php echo htmlspecialchars($r['description']); ?></td>
                         </tr>
