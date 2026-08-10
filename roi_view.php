@@ -63,7 +63,7 @@ include __DIR__ . '/includes/header.php';
                       <td><?php echo date('d M, Y h:i:s a', strtotime($inv['created_at'])); ?></td>
                       <td><?php echo number_format($inv['amount'], 3); ?></td>
                       <td><?php echo $inv['days_passed']; ?></td>
-                      <td><?php echo number_format($inv['roi_earned'], 0); ?></td>
+                      <td><?php echo number_format($inv['roi_earned'], 2); ?></td>
                       <td><button class="btn btn-primary btn-sm text-white" disabled>View</button></td>
                     </tr>
                     <?php endif; ?>
