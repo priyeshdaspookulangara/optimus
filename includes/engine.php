@@ -293,12 +293,12 @@ class MLMEngine {
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
 
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+                    // Propagate rank income up specifically to two consecutive referrers (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
                     $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status
+                        SELECT g.parent_id, u.username, u.status, g.level
                         FROM genealogy g
                         JOIN users u ON g.parent_id = u.id
-                        WHERE g.user_id = ?
+                        WHERE g.user_id = ? AND g.level <= 2
                         ORDER BY g.level ASC
                     ");
                     $stmtUplines->execute([$userId]);
