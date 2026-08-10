@@ -371,7 +371,7 @@ class MLMEngine {
         return $qualifiedRankId;
     }
 
-    private function getAllowableAmount($userId, $amountToAdd) {
+    public function getAllowableAmount($userId, $amountToAdd) {
         // Only sum income-generating types for the cap
         $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
         $stmt->execute([$userId, $userId]);
