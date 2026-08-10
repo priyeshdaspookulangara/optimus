@@ -564,4 +564,32 @@ class MLMEngine {
             }
         }
     }
+
+    /**
+     * slabMatchedBusiness: Helper method that retrieves and returns the user's slab-matched business
+     */
+    public function slabMatchedBusiness($userId) {
+        $stats = $this->getLegsBusiness($userId);
+        return $stats['matched_business'] ?? 0.00;
+    }
+
+    /**
+     * MatchAmount: Checks if the user's branch count (direct unilevel referrals) is greater than 1,
+     * and if so, returns the slabMatchedBusiness of that user. Otherwise, moves down recursively
+     * to the first descendant node to find and return the matched business.
+     */
+    public function MatchAmount($userId) {
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE sponsor_id = ?");
+        $stmt->execute([$userId]);
+        $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $branchCount = count($referrals);
+
+        if ($branchCount > 1) {
+            return $this->slabMatchedBusiness($userId);
+        } elseif ($branchCount === 1) {
+            return $this->MatchAmount($referrals[0]['id']);
+        } else {
+            return $this->slabMatchedBusiness($userId);
+        }
+    }
 }
