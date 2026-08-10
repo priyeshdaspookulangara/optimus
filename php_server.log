@@ -1,0 +1,67 @@
+[Mon Aug 10 00:54:53 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
+[Mon Aug 10 00:55:09 2026] 127.0.0.1:60780 Accepted
+[Mon Aug 10 00:55:09 2026] 127.0.0.1:60780 [200]: HEAD /index.php
+[Mon Aug 10 00:55:09 2026] 127.0.0.1:60780 Closing
+[Mon Aug 10 00:56:43 2026] 127.0.0.1:60286 Accepted
+[Mon Aug 10 00:56:43 2026] 127.0.0.1:60286 [200]: GET /admin/login.php
+[Mon Aug 10 00:56:43 2026] 127.0.0.1:60286 Closing
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60296 Accepted
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60296 [302]: POST /admin/login.php
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60296 Closing
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60308 Accepted
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60308 [200]: GET /admin/dashboard.php
+[Mon Aug 10 00:56:45 2026] 127.0.0.1:60308 Closing
+[Mon Aug 10 00:56:47 2026] 127.0.0.1:60324 Accepted
+[Mon Aug 10 00:56:47 2026] 127.0.0.1:60324 [200]: GET /admin/correct_roi.php
+[Mon Aug 10 00:56:47 2026] 127.0.0.1:60324 Closing
+[Mon Aug 10 01:23:34 2026] 127.0.0.1:55378 Accepted
+[Mon Aug 10 01:23:34 2026] 127.0.0.1:55378 [200]: GET /admin/login.php
+[Mon Aug 10 01:23:34 2026] 127.0.0.1:55378 Closing
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55386 Accepted
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55386 [302]: POST /admin/login.php
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55386 Closing
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55388 Accepted
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55388 [200]: GET /admin/dashboard.php
+[Mon Aug 10 01:23:36 2026] 127.0.0.1:55388 Closing
+[Mon Aug 10 01:23:38 2026] 127.0.0.1:52366 Accepted
+[Mon Aug 10 01:23:38 2026] 127.0.0.1:52366 [200]: GET /admin/correct_roi.php
+[Mon Aug 10 01:23:38 2026] 127.0.0.1:52366 Closing
+[Mon Aug 10 01:33:40 2026] 127.0.0.1:32826 Accepted
+[Mon Aug 10 01:33:40 2026] 127.0.0.1:32826 [200]: GET /admin/login.php
+[Mon Aug 10 01:33:40 2026] 127.0.0.1:32826 Closing
+[Mon Aug 10 01:33:41 2026] 127.0.0.1:32828 Accepted
+[Mon Aug 10 01:33:41 2026] 127.0.0.1:32828 [302]: POST /admin/login.php
+[Mon Aug 10 01:33:41 2026] 127.0.0.1:32828 Closing
+[Mon Aug 10 01:33:42 2026] 127.0.0.1:32834 Accepted
+[Mon Aug 10 01:33:42 2026] 127.0.0.1:32834 [200]: GET /admin/dashboard.php
+[Mon Aug 10 01:33:42 2026] 127.0.0.1:32834 Closing
+[Mon Aug 10 01:33:44 2026] 127.0.0.1:32842 Accepted
+[Mon Aug 10 01:33:44 2026] 127.0.0.1:32842 [200]: GET /admin/correct_roi.php
+[Mon Aug 10 01:33:44 2026] 127.0.0.1:32842 Closing
+[Mon Aug 10 02:11:36 2026] 127.0.0.1:33580 Accepted
+[Mon Aug 10 02:11:36 2026] 127.0.0.1:33580 [200]: GET /login.php
+[Mon Aug 10 02:11:36 2026] 127.0.0.1:33580 Closing
+[Mon Aug 10 02:12:42 2026] 127.0.0.1:46112 Accepted
+[Mon Aug 10 02:12:42 2026] 127.0.0.1:46112 [200]: GET /login.php
+[Mon Aug 10 02:12:42 2026] 127.0.0.1:46112 Closing
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46114 Accepted
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46114 [302]: POST /authenticate.php
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46114 Closing
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46122 Accepted
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46122 [200]: GET /dashboard.php
+[Mon Aug 10 02:12:44 2026] 127.0.0.1:46122 Closing
+[Mon Aug 10 02:12:46 2026] 127.0.0.1:46134 Accepted
+[Mon Aug 10 02:12:46 2026] 127.0.0.1:46134 [200]: GET /dashboard.php
+[Mon Aug 10 02:12:46 2026] 127.0.0.1:46134 Closing
+[Mon Aug 10 02:13:20 2026] 127.0.0.1:33822 Accepted
+[Mon Aug 10 02:13:20 2026] 127.0.0.1:33822 [200]: GET /login.php
+[Mon Aug 10 02:13:20 2026] 127.0.0.1:33822 Closing
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44514 Accepted
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44514 [302]: POST /authenticate.php
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44514 Closing
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44520 Accepted
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44520 [200]: GET /dashboard.php
+[Mon Aug 10 02:13:21 2026] 127.0.0.1:44520 Closing
+[Mon Aug 10 02:13:23 2026] 127.0.0.1:44528 Accepted
+[Mon Aug 10 02:13:23 2026] 127.0.0.1:44528 [200]: GET /dashboard.php
+[Mon Aug 10 02:13:23 2026] 127.0.0.1:44528 Closing

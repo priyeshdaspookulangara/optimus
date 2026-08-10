@@ -18,7 +18,8 @@ ALTER TABLE `users`
 ALTER TABLE `transactions`
   ADD COLUMN `investment_id` INT DEFAULT NULL AFTER `related_user_id`,
   ADD COLUMN `level` INT DEFAULT NULL AFTER `investment_id`,
-  MODIFY COLUMN `type` ENUM('ROI', 'LEVEL_INCOME', 'RANK_INCOME', 'WITHDRAWAL', 'INVESTMENT', 'DEPOSIT') NOT NULL;
+  MODIFY COLUMN `type` ENUM('ROI', 'LEVEL_INCOME', 'RANK_INCOME', 'WITHDRAWAL', 'INVESTMENT', 'DEPOSIT') NOT NULL,
+  ADD COLUMN `roi_date` DATE DEFAULT NULL AFTER `description`;
 
 -- 2. Create the missing user_wallets table
 CREATE TABLE IF NOT EXISTS `user_wallets` (

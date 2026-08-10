@@ -117,7 +117,7 @@ $unusedPins = $stmt->fetch()['unused_pins'];
                                 <td><span class="badge bg-secondary"><?php echo htmlspecialchars($row['type']); ?></span></td>
                                 <td>$<?php echo number_format($row['amount'], 2); ?></td>
                                 <td><?php echo htmlspecialchars($row['description']); ?></td>
-                                <td><?php echo date('Y-m-d H:i', strtotime($row['created_at'])); ?></td>
+                                <td><?php echo ($row['type'] === 'ROI' && !empty($row['roi_date'])) ? htmlspecialchars($row['roi_date']) : date('Y-m-d H:i', strtotime($row['created_at'])); ?></td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
