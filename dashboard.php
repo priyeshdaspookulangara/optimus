@@ -22,8 +22,9 @@ if (!$user) {
 }
 
 // Fetch Earnings Data
+$todayDateStr = date('Y-m-d');
 $stmt = $db->prepare("SELECT
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND COALESCE(roi_date, DATE(created_at)) = CURDATE()) as today_roi,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND COALESCE(roi_date, DATE(created_at)) = ?) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ?) as wallet_balance,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
@@ -31,7 +32,7 @@ $stmt = $db->prepare("SELECT
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME') as total_level,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME') as total_rank
 ");
-$stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId]);
+$stmt->execute([$userId, $todayDateStr, $userId, $userId, $userId, $userId, $userId, $userId]);
 $stats = $stmt->fetch();
 
 // Team Stats
