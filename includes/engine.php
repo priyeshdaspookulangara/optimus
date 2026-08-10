@@ -426,15 +426,6 @@ class MLMEngine {
             throw new Exception("Minimum withdrawal is \${$minWithdrawal}");
         }
 
-        $stmt = $this->db->prepare("SELECT (SELECT SUM(net_amount) FROM transactions WHERE user_id = ?) as balance");
-        $stmt->execute([$userId]);
-        $user = $stmt->fetch();
-
-        // Check if balance covers both the requested amount and the flat gas fee
-        if ($user['balance'] < ($amount + $fee)) {
-            throw new Exception("Insufficient balance to cover withdrawal amount and the \$" . $fee . " flat gas fee.");
-        }
-
         $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
         return true;
     }
