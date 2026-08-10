@@ -403,6 +403,19 @@ class MLMEngine {
     }
 
     /**
+     * Retrieve the user's rank name
+     */
+    public function getRank($userId) {
+        $stmt = $this->db->prepare("SELECT rank_id FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        if ($user && $user['rank_id'] > 0) {
+            return $this->config['ranks'][$user['rank_id'] - 1]['name'];
+        }
+        return 'None';
+    }
+
+    /**
      * Add user to genealogy tree (Unilevel tree up to 12 generations)
      */
     public function addToGenealogy($userId, $sponsorId, $placementId = null, $position = null) {

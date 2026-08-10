@@ -23,7 +23,7 @@ if (!$user) {
 
 // Fetch Earnings Data
 $stmt = $db->prepare("SELECT
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND DATE(created_at) = CURDATE()) as today_roi,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND COALESCE(roi_date, DATE(created_at)) = ?) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ?) as wallet_balance,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
@@ -31,8 +31,11 @@ $stmt = $db->prepare("SELECT
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME') as total_level,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME') as total_rank
 ");
-$stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId]);
+$stmt->execute([$userId, date('Y-m-d'), $userId, $userId, $userId, $userId, $userId, $userId]);
 $stats = $stmt->fetch();
+
+// Ensure rank income (and all other components) is correctly included in the total income calculation
+$stats['total_earning'] = (float)$stats['total_roi'] + (float)$stats['total_level'] + (float)$stats['total_rank'];
 
 // Team Stats
 $stmt = $db->prepare("SELECT COUNT(*) as team_count FROM genealogy WHERE parent_id = ?");
@@ -44,7 +47,8 @@ $stmt->execute([$userId]);
 $team_inv = $stmt->fetch();
 
 $config = require __DIR__ . '/includes/config.php';
-$rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
+$engine = new MLMEngine();
+$rankName = $engine->getRank($userId);
 
 // Ceiling Limit Calculation (300% of total investment)
 $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
@@ -52,7 +56,6 @@ $ceilingBalance = max(0, $maxCap - $stats['total_earning']);
 $progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
 
 // Fetch dynamic unilevel legs business
-$engine = new MLMEngine();
 $legStats = $engine->getLegsBusiness($userId);
 
 $pageTitle = 'Dashboard';
@@ -85,6 +88,10 @@ include __DIR__ . '/includes/header.php';
                 <div class="overview-box">
                     <h3>MY INVESTMENT</h3>
                     <p class="text-primary mt-2"><?php echo number_format($user['total_investment'], 2); ?></p>
+                </div>
+                <div class="overview-box">
+                    <h3>CURRENT RANK</h3>
+                    <p class="text-primary mt-2 fw-bold"><?php echo htmlspecialchars($rankName); ?></p>
                 </div>
             </div>
             <div class="overview-row">
@@ -166,7 +173,7 @@ include __DIR__ . '/includes/header.php';
                             <div class="rk-name">
                                 <?php echo htmlspecialchars($r['name']); ?>
                                 <?php if ($isCurrent): ?>
-                                    <span class="rk-badge-current">Current</span>
+                                    <i class="fa-solid fa-circle-check rk-badge-check" title="Current"></i>
                                 <?php elseif ($isAchieved): ?>
                                     <i class="fa-solid fa-circle-check rk-badge-check" title="Achieved"></i>
                                 <?php endif; ?>
