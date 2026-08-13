@@ -50,15 +50,7 @@ function localLogTransaction($db, $userId, $type, $amount, $fee, $description, $
 }
 
 function localGetAllowableAmount($db, $config, $userId, $amountToAdd) {
-    $stmt = $db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-    $stmt->execute([$userId, $userId]);
-    $user = $stmt->fetch();
-
-    $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-    $remainingCap = $maxCap - $user['total_earned'];
-
-    if ($remainingCap <= 0) return 0;
-    return min($amountToAdd, $remainingCap);
+    return $amountToAdd;
 }
 
 function localDistributeLevelIncome($db, $config, $userId, $investmentAmount, $investmentId) {
@@ -300,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // 8. Distribute/Recalculate Level Income
                 localDistributeLevelIncome($db, $config, $userId, $newAmount, $investmentId);
 
-                // 9. Chronologically recalculate ROI based on the investment date (with 300% ID Cap and 05:00 AM threshold)
+                // 9. Chronologically recalculate ROI based on the investment date (no 300% ID Cap, with 05:00 AM threshold)
                 $dailyRate = $config['roi']['daily_rate'];
                 $maxDays = $config['roi']['max_days'];
                 $capMultiplier = $config['roi']['cap_multiplier'];
@@ -333,7 +325,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $roiAmount = $maxROI - $roiEarned;
                     }
 
-                    // Enforce 300% ID Cap
                     $allowableROI = localGetAllowableAmount($db, $config, $userId, $roiAmount);
 
                     if ($allowableROI > 0) {
@@ -370,7 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 localUpdateUplineRanks($db, $config, $userId);
 
                 $db->commit();
-                $successMsg = "Investment amount updated successfully! Commissions and ROI recalculated starting from {$newCreatedAt} (with 05:00 AM threshold and 300% ID Cap enforced).";
+                $successMsg = "Investment amount updated successfully! Commissions and ROI recalculated starting from {$newCreatedAt} (with 05:00 AM threshold and with no 300% ID Cap).";
 
                 // Clear state to reload fresh details
                 $editInvestmentId = null;
@@ -607,7 +598,7 @@ include __DIR__ . '/includes/header.php';
                         <ul class="mb-0 mt-1">
                             <li>Permanently delete and clear all generated transactions associated with this specific investment (ROI, Level Income, Investment record).</li>
                             <li>Chronologically regenerate and distribute correct Level Income commissions for all qualified uplines.</li>
-                            <li>Chronologically recalculate and insert Daily ROI transactions day-by-day starting from the new/original investment creation date up to today, respecting the <strong>05:00 AM calculation threshold</strong> and the <strong>300% ID Cap</strong>.</li>
+                            <li>Chronologically recalculate and insert Daily ROI transactions day-by-day starting from the new/original investment creation date up to today, respecting the <strong>05:00 AM calculation threshold</strong> and with <strong>no 300% ID Cap</strong>.</li>
                             <li>Recalculate dynamic leg volumes, ranks, and matching schedules for all uplines.</li>
                         </ul>
                     </div>
