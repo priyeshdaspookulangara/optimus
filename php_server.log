@@ -1,0 +1,16 @@
+[Thu Aug 13 11:20:20 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
+[Thu Aug 13 11:21:21 2026] 127.0.0.1:35602 Accepted
+[Thu Aug 13 11:21:21 2026] 127.0.0.1:35602 [200]: GET /admin/login.php
+[Thu Aug 13 11:21:21 2026] 127.0.0.1:35602 Closing
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35614 Accepted
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35614 [302]: POST /admin/login.php
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35614 Closing
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35622 Accepted
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35622 [200]: GET /admin/dashboard.php
+[Thu Aug 13 11:21:24 2026] 127.0.0.1:35622 Closing
+[Thu Aug 13 11:21:26 2026] 127.0.0.1:35626 Accepted
+[Thu Aug 13 11:21:26 2026] 127.0.0.1:35626 [200]: GET /admin/change_investment.php
+[Thu Aug 13 11:21:26 2026] 127.0.0.1:35626 Closing
+[Thu Aug 13 11:21:28 2026] 127.0.0.1:35634 Accepted
+[Thu Aug 13 11:21:28 2026] 127.0.0.1:35634 [200]: GET /admin/change_investment.php?search=admin
+[Thu Aug 13 11:21:28 2026] 127.0.0.1:35634 Closing
