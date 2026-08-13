@@ -14,6 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirmPassword = $_POST['password_confirmation'] ?? '';
     $sponsorRef = trim($_POST['referral_id'] ?? '');
     $pinCode = trim($_POST['pin_code'] ?? '');
+    $position = trim($_POST['position'] ?? '');
+    if ($position !== 'left' && $position !== 'right') {
+        $position = null;
+    }
 
     if ($password !== $confirmPassword) {
         die("Passwords do not match. <a href='javascript:history.back()'>Go back</a>");
@@ -28,19 +32,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Username already exists. <a href='javascript:history.back()'>Go back</a>");
     }
 
+    // Enforce that both Sponsor ID and Activation PIN are must/required
+    if (empty($sponsorRef)) {
+        die("Sponsor ID/Code is required. <a href='javascript:history.back()'>Go back</a>");
+    }
+    if (empty($pinCode)) {
+        die("Activation PIN is required. <a href='javascript:history.back()'>Go back</a>");
+    }
+
     // Resolve sponsor ID from Sponsor mid/code
-    $sponsorDbId = null;
-    $sponsorName = "None";
-    $sponsorMidDisplay = "None";
-    if (!empty($sponsorRef)) {
-        $stmtSponsor = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
-        $stmtSponsor->execute([$sponsorRef, $sponsorRef]);
-        $sData = $stmtSponsor->fetch();
-        if ($sData) {
-            $sponsorDbId = $sData['id'];
-            $sponsorName = $sData['username'];
-            $sponsorMidDisplay = !empty($sData['mid']) ? $sData['mid'] : $sData['id'];
-        }
+    $stmtSponsor = $db->prepare("SELECT id, username, mid FROM users WHERE mid = ? OR id = ?");
+    $stmtSponsor->execute([$sponsorRef, $sponsorRef]);
+    $sData = $stmtSponsor->fetch();
+    if (!$sData) {
+        die("Sponsor not found. <a href='javascript:history.back()'>Go back</a>");
+    }
+    $sponsorDbId = $sData['id'];
+    $sponsorName = $sData['username'];
+    $sponsorMidDisplay = !empty($sData['mid']) ? $sData['mid'] : $sData['id'];
+
+    // Verify Activation PIN is valid and unused
+    $stmtPinCheck = $db->prepare("SELECT id FROM pins WHERE pin_code = ? AND status = 'unused'");
+    $stmtPinCheck->execute([$pinCode]);
+    if (!$stmtPinCheck->fetch()) {
+        die("Invalid or already used Activation PIN. <a href='javascript:history.back()'>Go back</a>");
     }
 
     // Generate unique alphanumeric mid code (OPTxxxxx)
@@ -60,8 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId]);
+        $stmt = $db->prepare("INSERT INTO users (mid, username, full_name, phone, address, post_office_number, state, country, email, password, sponsor_id, placement_id, position, activation_pin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$newMid, $username, $fullName, $phone, $address, $postOfficeNumber, $state, $country, $email, $hashedPassword, $sponsorDbId, $sponsorDbId, $position, $pinCode]);
         $newUserId = $db->lastInsertId();
 
         if ($sponsorDbId) {
