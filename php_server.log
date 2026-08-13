@@ -1,0 +1,31 @@
+[Thu Aug 13 17:55:28 2026] PHP 8.3.6 Development Server (http://localhost:8000) started
+[Thu Aug 13 17:55:30 2026] [::1]:39750 Accepted
+[Thu Aug 13 17:55:30 2026] [::1]:39750 [200]: HEAD /admin/login.php
+[Thu Aug 13 17:55:30 2026] [::1]:39750 Closing
+[Thu Aug 13 17:56:12 2026] [::1]:54146 Accepted
+[Thu Aug 13 17:56:12 2026] [::1]:54146 [200]: GET /admin/login.php
+[Thu Aug 13 17:56:12 2026] [::1]:54146 Closing
+[Thu Aug 13 17:56:14 2026] [::1]:54150 Accepted
+[Thu Aug 13 17:56:14 2026] [::1]:54150 [302]: POST /admin/login.php
+[Thu Aug 13 17:56:14 2026] [::1]:54150 Closing
+[Thu Aug 13 17:56:14 2026] [::1]:54154 Accepted
+[Thu Aug 13 17:56:14 2026] [::1]:54154 [200]: GET /admin/dashboard.php
+[Thu Aug 13 17:56:14 2026] [::1]:54154 Closing
+[Thu Aug 13 17:56:15 2026] [::1]:54162 Accepted
+[Thu Aug 13 17:56:15 2026] [::1]:54162 [200]: GET /admin/genealogy.php
+[Thu Aug 13 17:56:15 2026] [::1]:54162 Closing
+[Thu Aug 13 17:57:13 2026] [::1]:48112 Accepted
+[Thu Aug 13 17:57:13 2026] [::1]:48112 [200]: GET /admin/login.php
+[Thu Aug 13 17:57:13 2026] [::1]:48112 Closing
+[Thu Aug 13 17:57:15 2026] [::1]:48118 Accepted
+[Thu Aug 13 17:57:15 2026] [::1]:48118 [302]: POST /admin/login.php
+[Thu Aug 13 17:57:15 2026] [::1]:48118 Closing
+[Thu Aug 13 17:57:15 2026] [::1]:48120 Accepted
+[Thu Aug 13 17:57:15 2026] [::1]:48120 [200]: GET /admin/dashboard.php
+[Thu Aug 13 17:57:15 2026] [::1]:48120 Closing
+[Thu Aug 13 17:57:16 2026] [::1]:48126 Accepted
+[Thu Aug 13 17:57:16 2026] [::1]:48126 [200]: GET /admin/genealogy.php
+[Thu Aug 13 17:57:16 2026] [::1]:48126 Closing
+[Thu Aug 13 17:57:19 2026] [::1]:48136 Accepted
+[Thu Aug 13 17:57:19 2026] [::1]:48136 [200]: POST /admin/genealogy.php
+[Thu Aug 13 17:57:19 2026] [::1]:48136 Closing
