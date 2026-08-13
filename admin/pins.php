@@ -24,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $packageId = $_POST['package_id'];
     $count = (int)$_POST['count'];
     $assignUsername = trim($_POST['assign_username'] ?? '');
+    $pinType = $_POST['pin_type'] ?? 'paid';
+    if (!in_array($pinType, ['paid', 'free'])) {
+        $pinType = 'paid';
+    }
 
     $assignedToId = null;
     if (!empty($assignUsername)) {
@@ -35,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
-    $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to, pin_type) VALUES (?, ?, ?, ?)");
     for ($i = 0; $i < $count; $i++) {
         // Format: "OPT" + unique 6 digit combination
         $uniqueDigits = mt_rand(100000, 999999);
@@ -48,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pin = "OPT" . mt_rand(100000, 999999);
         }
 
-        $stmt->execute([$pin, $packageId, $assignedToId]);
+        $stmt->execute([$pin, $packageId, $assignedToId, $pinType]);
     }
     header("Location: pins.php?success=generated");
     exit();
@@ -58,19 +62,27 @@ $pageTitle = 'PIN Management';
 include __DIR__ . '/includes/header.php';
 
 $statusFilter = $_GET['status'] ?? '';
+$typeFilter = $_GET['pin_type'] ?? '';
 
 // Build dynamic query
 $query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u.mid as used_by_mid, u_ass.username as assigned_to_user, u_ass.mid as assigned_to_mid
           FROM pins p
           JOIN packages pkg ON p.package_id = pkg.id
           LEFT JOIN users u ON p.used_by = u.id
-          LEFT JOIN users u_ass ON p.assigned_to = u_ass.id";
+          LEFT JOIN users u_ass ON p.assigned_to = u_ass.id
+          WHERE 1=1";
 
 $params = [];
 if ($statusFilter === 'used') {
-    $query .= " WHERE p.status = 'used'";
+    $query .= " AND p.status = 'used'";
 } elseif ($statusFilter === 'unused') {
-    $query .= " WHERE p.status = 'unused'";
+    $query .= " AND p.status = 'unused'";
+}
+
+if ($typeFilter === 'free') {
+    $query .= " AND p.pin_type = 'free'";
+} elseif ($typeFilter === 'paid') {
+    $query .= " AND p.pin_type = 'paid'";
 }
 
 $query .= " ORDER BY p.created_at DESC";
@@ -91,10 +103,17 @@ $packages = $stmt->fetchAll();
 </div>
 
 <!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<div class="mb-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+    <div class="d-flex gap-2">
+        <a href="pins.php" class="btn btn-sm <?php echo ($statusFilter === '' && $typeFilter === '') ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+        <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+        <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="text-muted align-self-center small">Type:</span>
+        <a href="pins.php?pin_type=paid" class="btn btn-sm <?php echo $typeFilter === 'paid' ? 'btn-primary' : 'btn-outline-primary'; ?>">Paid Only</a>
+        <a href="pins.php?pin_type=free" class="btn btn-sm <?php echo $typeFilter === 'free' ? 'btn-primary' : 'btn-outline-primary'; ?>">Free Only</a>
+    </div>
 </div>
 
 <div class="card">
@@ -105,6 +124,7 @@ $packages = $stmt->fetchAll();
                     <tr>
                         <th>PIN Code</th>
                         <th>Package</th>
+                        <th>Type</th>
                         <th>Status</th>
                         <th>Assigned To</th>
                         <th>Used By</th>
@@ -117,6 +137,11 @@ $packages = $stmt->fetchAll();
                     <tr>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
+                        <td>
+                            <span class="badge <?php echo htmlspecialchars($p['pin_type']) == 'free' ? 'bg-info text-white' : 'bg-primary'; ?>">
+                                <?php echo htmlspecialchars(strtoupper($p['pin_type'] ?? 'PAID')); ?>
+                            </span>
+                        </td>
                         <td>
                             <span class="badge <?php echo htmlspecialchars($p['status']) == 'unused' ? 'bg-success' : 'bg-secondary'; ?>">
                                 <?php echo htmlspecialchars(strtoupper($p['status'])); ?>
@@ -163,6 +188,13 @@ $packages = $stmt->fetchAll();
                         <?php foreach($packages as $pkg): ?>
                             <option value="<?php echo $pkg['id']; ?>"><?php echo $pkg['name']; ?> ($<?php echo number_format($pkg['amount'], 2); ?>)</option>
                         <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">PIN Type</label>
+                    <select name="pin_type" class="form-select" required>
+                        <option value="paid" selected>Paid PIN (Standard)</option>
+                        <option value="free">Free PIN (Freely awarded)</option>
                     </select>
                 </div>
                 <div class="mb-3">
