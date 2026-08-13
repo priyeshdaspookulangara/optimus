@@ -29,6 +29,32 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            // Dynamically add columns to pins if they don't exist
+            try {
+                $this->connection->exec("ALTER TABLE `pins` ADD COLUMN `pin_type` ENUM('paid', 'free') DEFAULT 'paid'");
+            } catch (PDOException $e) {
+                // Column probably already exists or ENUM alter not supported, ignore
+            }
+
+            // Dynamically add columns to investments if they don't exist
+            try {
+                $this->connection->exec("ALTER TABLE `investments` ADD COLUMN `pin_id` INT DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column probably already exists, ignore
+            }
+
+            try {
+                $this->connection->exec("ALTER TABLE `investments` ADD COLUMN `pin_type` ENUM('paid', 'free') DEFAULT 'paid'");
+            } catch (PDOException $e) {
+                // Column probably already exists, ignore
+            }
+
+            try {
+                $this->connection->exec("ALTER TABLE `investments` ADD CONSTRAINT `fk_investments_pins` FOREIGN KEY (`pin_id`) REFERENCES `pins`(`id`) ON DELETE SET NULL");
+            } catch (PDOException $e) {
+                // Constraint probably already exists, ignore
+            }
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }

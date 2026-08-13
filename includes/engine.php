@@ -472,8 +472,8 @@ class MLMEngine {
 
             // Create Investment (Package is already paid for by PIN)
             // We use the amount but don't deduct from e-wallet
-            $stmt = $this->db->prepare("INSERT INTO investments (user_id, package_id, amount, status) VALUES (?, ?, ?, 'active')");
-            $stmt->execute([$userId, $pin['package_id'], $package['amount']]);
+            $stmt = $this->db->prepare("INSERT INTO investments (user_id, package_id, amount, status, pin_id, pin_type) VALUES (?, ?, ?, 'active', ?, ?)");
+            $stmt->execute([$userId, $pin['package_id'], $package['amount'], $pin['id'], $pin['pin_type']]);
             $investmentId = $this->db->lastInsertId();
 
             $stmt = $this->db->prepare("UPDATE users SET total_investment = total_investment + ? WHERE id = ?");
