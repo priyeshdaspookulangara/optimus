@@ -2,7 +2,9 @@
 require_once __DIR__ . '/includes/db.php';
 $db = Database::getInstance()->getConnection();
 
-$sponsorQuery = $_GET['id'] ?? '';
+$sponsorQuery = $_GET['ref'] ?? $_GET['mid'] ?? $_GET['id'] ?? '';
+$posQuery = $_GET['pos'] ?? $_GET['position'] ?? '';
+
 $sponsorName = "Not Found";
 $sponsorMid = "";
 $sponsorDbId = "";
@@ -17,6 +19,13 @@ if (!empty($sponsorQuery)) {
         $sponsorMid = !empty($user['mid']) ? $user['mid'] : $user['id'];
         $sponsorDbId = $user['id'];
     }
+}
+
+$positionValue = '';
+if (strcasecmp($posQuery, 'L') === 0 || strcasecmp($posQuery, 'left') === 0) {
+    $positionValue = 'left';
+} elseif (strcasecmp($posQuery, 'R') === 0 || strcasecmp($posQuery, 'right') === 0) {
+    $positionValue = 'right';
 }
 ?>
 <!doctype html>
@@ -121,6 +130,8 @@ if (!empty($sponsorQuery)) {
                       value="<?php echo htmlspecialchars($sponsorMid); ?>" required placeholder="Sponsor Code">
                     <input type="hidden" id="referral_id" name="referral_id"
                       value="<?php echo htmlspecialchars($sponsorDbId); ?>">
+                    <input type="hidden" id="position" name="position"
+                      value="<?php echo htmlspecialchars($positionValue); ?>">
                   </div>
                   <div class="form-group col-md-6 mb-3">
                     <label class="form-label" for="sponsor_name">Sponsor Name: </label>
@@ -129,8 +140,8 @@ if (!empty($sponsorQuery)) {
 
                   <!-- Activation PIN -->
                   <div class="form-group col-12 mb-3">
-                    <label class="form-label" for="pin_code">Activation PIN (Optional): </label>
-                    <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="OPTXXXXXX">
+                    <label class="form-label" for="pin_code">Activation PIN: </label>
+                    <input type="text" class="form-control" id="pin_code" name="pin_code" required placeholder="OPTXXXXXX">
                     <div id="pin_feedback"></div>
                   </div>
 
