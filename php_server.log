@@ -1,0 +1,28 @@
+[Thu Aug 13 18:28:59 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
+[Thu Aug 13 18:29:10 2026] 127.0.0.1:46100 Accepted
+[Thu Aug 13 18:29:10 2026] 127.0.0.1:46100 [200]: HEAD /login.php
+[Thu Aug 13 18:29:10 2026] 127.0.0.1:46100 Closing
+[Thu Aug 13 18:32:08 2026] 127.0.0.1:60780 Accepted
+[Thu Aug 13 18:32:08 2026] 127.0.0.1:60780 [200]: GET /admin/login.php
+[Thu Aug 13 18:32:08 2026] 127.0.0.1:60780 Closing
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60782 Accepted
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60782 [302]: POST /admin/login.php
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60782 Closing
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60792 Accepted
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60792 [200]: GET /admin/dashboard.php
+[Thu Aug 13 18:32:11 2026] 127.0.0.1:60792 Closing
+[Thu Aug 13 18:32:12 2026] 127.0.0.1:60794 Accepted
+[Thu Aug 13 18:32:12 2026] 127.0.0.1:60794 [200]: GET /admin/drag_drop_genealogy.php
+[Thu Aug 13 18:32:12 2026] 127.0.0.1:60794 Closing
+[Thu Aug 13 18:33:37 2026] 127.0.0.1:37138 Accepted
+[Thu Aug 13 18:33:37 2026] 127.0.0.1:37138 [200]: GET /admin/login.php
+[Thu Aug 13 18:33:37 2026] 127.0.0.1:37138 Closing
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37140 Accepted
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37140 [302]: POST /admin/login.php
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37140 Closing
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37154 Accepted
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37154 [200]: GET /admin/dashboard.php
+[Thu Aug 13 18:33:38 2026] 127.0.0.1:37154 Closing
+[Thu Aug 13 18:33:39 2026] 127.0.0.1:37162 Accepted
+[Thu Aug 13 18:33:39 2026] 127.0.0.1:37162 [200]: GET /admin/drag_drop_genealogy.php
+[Thu Aug 13 18:33:39 2026] 127.0.0.1:37162 Closing
