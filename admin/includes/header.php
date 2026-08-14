@@ -9,8 +9,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 // Operations group is active if current page is members.php or packages.php
 $isOperationsActive = in_array($currentPage, ['members.php', 'packages.php']);
 
-// Financials group is active if current page is pins.php, withdrawals.php, or reports.php
-$isFinancialsActive = in_array($currentPage, ['pins.php', 'withdrawals.php', 'reports.php']);
+// Financials group is active if current page is pins.php, withdrawals.php, reports.php, or reset_commissions.php
+$isFinancialsActive = in_array($currentPage, ['pins.php', 'withdrawals.php', 'reports.php', 'reset_commissions.php']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -244,6 +244,12 @@ $isFinancialsActive = in_array($currentPage, ['pins.php', 'withdrawals.php', 're
                         <a href="reports.php" id="link-reports" class="nav-link <?php echo $currentPage == 'reports.php' ? 'active' : ''; ?>">
                             <i class="icon fa fa-chart-bar"></i>
                             <span>Business Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reset_commissions.php" id="link-reset-commissions" class="nav-link <?php echo $currentPage == 'reset_commissions.php' ? 'active' : ''; ?>">
+                            <i class="icon fa fa-sync-alt"></i>
+                            <span>Recalculate System</span>
                         </a>
                     </li>
                 </ul>
