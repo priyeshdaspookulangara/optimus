@@ -43,23 +43,6 @@ if (!empty($searchQuery)) {
 }
 
 /**
- * Local helper to fetch allowable income based on the 300% ID Cap multiplier.
- */
-function localGetAllowableAmount($db, $config, $userId, $amountToAdd) {
-    $stmt = $db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-    $stmt->execute([$userId, $userId]);
-    $user = $stmt->fetch();
-
-    if (!$user) return 0;
-
-    $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-    $remainingCap = $maxCap - $user['total_earned'];
-
-    if ($remainingCap <= 0) return 0;
-    return min($amountToAdd, $remainingCap);
-}
-
-/**
  * Local helper to log transaction entry.
  */
 function localLogTransaction($db, $userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null) {
@@ -72,6 +55,7 @@ function localLogTransaction($db, $userId, $type, $amount, $fee, $description, $
 
 /**
  * Local level income distribution traversing strictly via the sponsor_id (referral / ref ID) chain.
+ * This recalculation completely bypasses the 300% ID Cap (no getAllowableAmount check).
  */
 function localDistributeLevelIncome($db, $config, $userId, $investmentAmount) {
     $currentId = $userId;
@@ -88,9 +72,9 @@ function localDistributeLevelIncome($db, $config, $userId, $investmentAmount) {
             $percentage = $config['level_percentages'][$level];
             $commission = ($investmentAmount * $percentage) / 100;
 
-            $allowable = localGetAllowableAmount($db, $config, $parentId, $commission);
-            if ($allowable > 0) {
-                localLogTransaction($db, $parentId, 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+            // Direct distribution without any 300% ID Cap checking
+            if ($commission > 0) {
+                localLogTransaction($db, $parentId, 'LEVEL_INCOME', $commission, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
             }
         }
         $currentId = $parentId;
@@ -188,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtMax = $db->query("SELECT MAX(id) FROM transactions");
                     $prevMaxId = $stmtMax->fetchColumn() ?: 0;
 
-                    // Call the local independent level income distribution function
+                    // Call the local independent level income distribution function (ignoring 300% ID Cap)
                     localDistributeLevelIncome($db, $config, $inv['user_id'], $inv['amount']);
 
                     // Update newly created level income transactions to match the investment's created_at
@@ -199,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $db->commit();
-                $message = "<strong>Global Recalculation Successful!</strong> All level incomes have been wiped and chronologically recalculated for {$recalculatedCount} investments.";
+                $message = "<strong>Global Recalculation Successful!</strong> All level incomes have been wiped and chronologically recalculated for {$recalculatedCount} investments (without 300% ID Cap limit).";
                 $messageType = "success";
 
                 $targetUser = null;
@@ -232,7 +216,7 @@ include __DIR__ . '/includes/header.php';
                 <h2><i class="fa fa-undo-alt text-warning me-2"></i>Reset & Recalculate Level Income</h2>
                 <span class="badge bg-dark p-2 text-white">System Level Income Transactions</span>
             </div>
-            <p class="text-muted">Search and delete specific level income logs for a member, perform a global system-wide level income reset, or recalculate all level incomes chronologically.</p>
+            <p class="text-muted">Search and delete specific level income logs for a member, perform a global system-wide level income reset, or recalculate all level incomes chronologically (without 300% ID Cap constraints).</p>
         </div>
     </div>
 
@@ -336,7 +320,7 @@ include __DIR__ . '/includes/header.php';
             <!-- Global Recalculate Card -->
             <div class="card p-4 border border-success shadow-sm mb-4">
                 <h4 class="card-title text-success mb-3"><i class="fa fa-sync me-2"></i>Global Recalculate</h4>
-                <p class="text-muted">Wipes out all level incomes and chronologically regenerates all level income transactions for all system investments. Recommended for refreshing/correcting entire level commissions history.</p>
+                <p class="text-muted">Wipes out all level incomes and chronologically regenerates all level income transactions for all system investments. **This recalculation completely bypasses the 300% ID Cap limit.**</p>
 
                 <form method="post" onsubmit="return confirm('DANGER WARNING: You are about to wipe and chronologically RECALCULATE all Level Income transactions system-wide. Are you absolutely certain? This cannot be undone.');">
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
