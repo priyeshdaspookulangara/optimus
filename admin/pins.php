@@ -91,18 +91,32 @@ $packages = $stmt->fetchAll();
 </div>
 
 <!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex gap-2">
+        <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+        <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+        <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span id="selectedCountBadge" class="badge bg-secondary d-none">0 Selected</span>
+        <button type="button" id="btnSendMultipleWA" class="btn btn-sm btn-success d-none" title="Share selected via WhatsApp">
+            <i class="fab fa-whatsapp me-1"></i> Send Selected to WhatsApp
+        </button>
+        <button type="button" id="btnSendMultipleSMS" class="btn btn-sm btn-info text-white d-none" title="Share selected via SMS">
+            <i class="fa-solid fa-comment-sms me-1"></i> Send Selected to SMS
+        </button>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-sm table-striped">
+            <table class="table table-sm table-striped align-middle" id="pinsTable">
                 <thead>
                     <tr>
+                        <th width="40" class="text-center">
+                            <input type="checkbox" id="selectAllPins" class="form-check-input">
+                        </th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -115,6 +129,9 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($pins as $p): ?>
                     <tr>
+                        <td class="text-center">
+                            <input type="checkbox" class="pin-checkbox form-check-input" data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>" data-package="<?php echo htmlspecialchars($p['package_name']); ?>">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -182,5 +199,80 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const selectAllCheckbox = document.getElementById("selectAllPins");
+    const pinCheckboxes = document.querySelectorAll(".pin-checkbox");
+    const selectedCountBadge = document.getElementById("selectedCountBadge");
+    const btnSendMultipleWA = document.getElementById("btnSendMultipleWA");
+    const btnSendMultipleSMS = document.getElementById("btnSendMultipleSMS");
+
+    function updateMultiShareState() {
+        const checkedBoxes = document.querySelectorAll(".pin-checkbox:checked");
+        const count = checkedBoxes.length;
+
+        if (count > 0) {
+            selectedCountBadge.textContent = count + " Selected";
+            selectedCountBadge.classList.remove("d-none");
+            btnSendMultipleWA.classList.remove("d-none");
+            btnSendMultipleSMS.classList.remove("d-none");
+        } else {
+            selectedCountBadge.classList.add("d-none");
+            btnSendMultipleWA.classList.add("d-none");
+            btnSendMultipleSMS.classList.add("d-none");
+        }
+
+        // Keep Select All checkbox state in sync
+        selectAllCheckbox.checked = (count === pinCheckboxes.length && pinCheckboxes.length > 0);
+    }
+
+    selectAllCheckbox.addEventListener("change", function() {
+        const isChecked = selectAllCheckbox.checked;
+        pinCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateMultiShareState();
+    });
+
+    pinCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function() {
+            updateMultiShareState();
+        });
+    });
+
+    btnSendMultipleWA.addEventListener("click", function() {
+        const checkedBoxes = document.querySelectorAll(".pin-checkbox:checked");
+        if (checkedBoxes.length === 0) return;
+
+        let waText = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nYour Package Activation PINs have been successfully generated!\n\n";
+        checkedBoxes.forEach((cb, index) => {
+            const pinCode = cb.getAttribute("data-pin");
+            const packageName = cb.getAttribute("data-package");
+            waText += `${index + 1}. 🔑 *PIN:* ${pinCode}  (📦 *Package:* ${packageName})\n`;
+        });
+        waText += "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+
+        const waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(waText);
+        window.open(waUrl, "_blank");
+    });
+
+    btnSendMultipleSMS.addEventListener("click", function() {
+        const checkedBoxes = document.querySelectorAll(".pin-checkbox:checked");
+        if (checkedBoxes.length === 0) return;
+
+        let smsText = "OPTIMUS INFINITY - ACTIVATION PINS\n\n";
+        checkedBoxes.forEach((cb, index) => {
+            const pinCode = cb.getAttribute("data-pin");
+            const packageName = cb.getAttribute("data-package");
+            smsText += `${index + 1}. PIN: ${pinCode} (Pkg: ${packageName})\n`;
+        });
+        smsText += "\nThank you, Optimus Infinity!";
+
+        const smsUrl = "sms:?body=" + encodeURIComponent(smsText);
+        window.open(smsUrl, "_self");
+    });
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
