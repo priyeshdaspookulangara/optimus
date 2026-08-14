@@ -1,6 +1,7 @@
 <?php
 session_start();
-require_once dirname(__DIR__) . '/includes/engine.php';
+require_once __DIR__ . '/../includes/db.php';
+$config = require __DIR__ . '/../includes/config.php';
 
 if (!isset($_SESSION['admin_id'])) {
     header("Location: login.php");
@@ -38,6 +39,61 @@ if (!empty($searchQuery)) {
     } else {
         $message = "No member found matching Username or MID: " . htmlspecialchars($searchQuery);
         $messageType = "danger";
+    }
+}
+
+/**
+ * Local helper to fetch allowable income based on the 300% ID Cap multiplier.
+ */
+function localGetAllowableAmount($db, $config, $userId, $amountToAdd) {
+    $stmt = $db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
+    $stmt->execute([$userId, $userId]);
+    $user = $stmt->fetch();
+
+    if (!$user) return 0;
+
+    $maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
+    $remainingCap = $maxCap - $user['total_earned'];
+
+    if ($remainingCap <= 0) return 0;
+    return min($amountToAdd, $remainingCap);
+}
+
+/**
+ * Local helper to log transaction entry.
+ */
+function localLogTransaction($db, $userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null) {
+    $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
+    $netAmount = $isDebit ? -($amount + $fee) : ($amount - $fee);
+
+    $stmt = $db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description]);
+}
+
+/**
+ * Local level income distribution traversing strictly via the sponsor_id (referral / ref ID) chain.
+ */
+function localDistributeLevelIncome($db, $config, $userId, $investmentAmount) {
+    $currentId = $userId;
+    for ($level = 1; $level <= 12; $level++) {
+        $stmt = $db->prepare("SELECT sponsor_id FROM users WHERE id = ?");
+        $stmt->execute([$currentId]);
+        $u = $stmt->fetch();
+        if (!$u || empty($u['sponsor_id'])) {
+            break;
+        }
+        $parentId = $u['sponsor_id'];
+
+        if (isset($config['level_percentages'][$level])) {
+            $percentage = $config['level_percentages'][$level];
+            $commission = ($investmentAmount * $percentage) / 100;
+
+            $allowable = localGetAllowableAmount($db, $config, $parentId, $commission);
+            if ($allowable > 0) {
+                localLogTransaction($db, $parentId, 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+            }
+        }
+        $currentId = $parentId;
     }
 }
 
@@ -126,14 +182,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtInvest = $db->query("SELECT id, user_id, amount, created_at FROM investments ORDER BY created_at ASC, id ASC");
                 $investments = $stmtInvest->fetchAll();
 
-                $engine = new MLMEngine();
                 $recalculatedCount = 0;
 
                 foreach ($investments as $inv) {
                     $stmtMax = $db->query("SELECT MAX(id) FROM transactions");
                     $prevMaxId = $stmtMax->fetchColumn() ?: 0;
 
-                    $engine->distributeLevelIncome($inv['user_id'], $inv['amount']);
+                    // Call the local independent level income distribution function
+                    localDistributeLevelIncome($db, $config, $inv['user_id'], $inv['amount']);
 
                     // Update newly created level income transactions to match the investment's created_at
                     $stmtUpdate = $db->prepare("UPDATE transactions SET created_at = ? WHERE id > ? AND type = 'LEVEL_INCOME'");
