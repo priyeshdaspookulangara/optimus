@@ -294,9 +294,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 $recalc_log[] = "Re-aligning total investments per user...";
                 $db->exec("UPDATE users u SET u.total_investment = COALESCE((SELECT SUM(i.amount) FROM investments i WHERE i.user_id = u.id), 0.00)");
 
-                // Step C: Chronological processing of all investments
-                $recalc_log[] = "Fetching all investments chronologically...";
-                $stmtInvestments = $db->query("SELECT * FROM investments ORDER BY id ASC");
+                // Step C: Chronological processing of all investments based on joining/creation date
+                $recalc_log[] = "Fetching all investments chronologically by joining/creation date...";
+                $stmtInvestments = $db->query("SELECT * FROM investments ORDER BY created_at ASC, id ASC");
                 $investments = $stmtInvestments->fetchAll(PDO::FETCH_ASSOC);
                 $recalc_log[] = "Processing " . count($investments) . " investment(s) to rebuild tree structures, level commissions, and qualified rank tiers...";
 
@@ -313,7 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
                 // Step D: Restore matching schedules' days_passed and status from backup
                 $recalc_log[] = "Restoring matching schedule progress and status states from backup...";
-                $stmtNewScheds = $db->query("SELECT * FROM matching_schedules ORDER BY id ASC");
+                $stmtNewScheds = $db->query("SELECT * FROM matching_schedules ORDER BY created_at ASC, id ASC");
                 $newScheds = $stmtNewScheds->fetchAll(PDO::FETCH_ASSOC);
 
                 $counters = [];
@@ -341,8 +341,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 // Step E: Re-generate daily RANK_INCOME payouts (including propagation)
                 $recalc_log[] = "Simulating and regenerating daily Rank Income and Propagated Matching payouts based on restored schedule progress...";
 
-                // Fetch the updated matching schedules
-                $stmtFinalScheds = $db->query("SELECT * FROM matching_schedules WHERE days_passed > 0 ORDER BY id ASC");
+                // Fetch the updated matching schedules chronologically by creation date
+                $stmtFinalScheds = $db->query("SELECT * FROM matching_schedules WHERE days_passed > 0 ORDER BY created_at ASC, id ASC");
                 $finalScheds = $stmtFinalScheds->fetchAll(PDO::FETCH_ASSOC);
 
                 // LIMIT upward propagation specifically to TWO consecutive referrers (g.level <= 2)
