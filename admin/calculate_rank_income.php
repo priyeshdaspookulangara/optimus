@@ -97,7 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         continue;
                     }
 
-                    $startDate = max(date('Y-m-d', strtotime($sched['created_at'])), date('Y-m-d', strtotime("-$maxDays days")));
+                    // Rank income starts strictly from the exact date the match was made (created_at of matching schedule) to current date
+                    $startDate = date('Y-m-d', strtotime($sched['created_at']));
                     $endDate = date('Y-m-d');
 
                     $currentDateObj = new DateTime($startDate);
