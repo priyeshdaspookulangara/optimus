@@ -564,4 +564,122 @@ class MLMEngine {
             }
         }
     }
+
+    /**
+     * Process N days of payouts for a specific matching schedule
+     */
+    public function processMatchingSchedulePayouts($schedId, $daysToProcess) {
+        if ($daysToProcess <= 0) return 0;
+
+        $stmt = $this->db->prepare("SELECT * FROM matching_schedules WHERE id = ?");
+        $stmt->execute([$schedId]);
+        $sched = $stmt->fetch();
+        if (!$sched) {
+            throw new Exception("Matching schedule not found.");
+        }
+
+        $processedCount = 0;
+        $dailyIncome = (float)$sched['daily_income'];
+        $userId = $sched['user_id'];
+
+        // Get username of the original matching Earner for transaction logging
+        $stmtUser = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+        $stmtUser->execute([$userId]);
+        $origUserObj = $stmtUser->fetch();
+        $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
+
+        $stmtUplines = $this->db->prepare("
+            SELECT g.parent_id, u.username, u.status
+            FROM genealogy g
+            JOIN users u ON g.parent_id = u.id
+            WHERE g.user_id = ?
+            ORDER BY g.level ASC
+        ");
+        $stmtUplines->execute([$userId]);
+        $uplines = $stmtUplines->fetchAll();
+
+        $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
+
+        for ($d = 0; $d < $daysToProcess; $d++) {
+            // Fetch updated schedule state each loop iteration to check days_passed/status
+            $stmtCheck = $this->db->prepare("SELECT * FROM matching_schedules WHERE id = ?");
+            $stmtCheck->execute([$schedId]);
+            $currentSched = $stmtCheck->fetch();
+
+            if ($currentSched['days_passed'] >= $currentSched['max_days'] || $currentSched['status'] === 'completed') {
+                break;
+            }
+
+            $this->db->beginTransaction();
+            try {
+                // Verify remaining ID cap (300%)
+                $allowable = $this->getAllowableAmount($userId, $dailyIncome);
+                if ($allowable > 0) {
+                    $dayNum = $currentSched['days_passed'] + 1;
+                    $description = "Daily Matching Income for Slab \$" . number_format($currentSched['slab_amount'], 2) . " (Day {$dayNum}/100) - Bulk Recalculation";
+
+                    // Log the RANK_INCOME transaction
+                    $this->logTransaction($userId, 'RANK_INCOME', $allowable, 0, $description);
+
+                    $newDaysPassed = $currentSched['days_passed'] + 1;
+                    $status = ($newDaysPassed >= $currentSched['max_days']) ? 'completed' : 'active';
+
+                    $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
+                    $stmtUpdateSched->execute([$newDaysPassed, $status, $schedId]);
+
+                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+                    $consecutiveSingleCount = 0;
+
+                    foreach ($uplines as $upline) {
+                        // Check if this parent has only one direct referral (single direct referral node)
+                        $stmtReferrals->execute([$upline['parent_id']]);
+                        $refData = $stmtReferrals->fetch();
+                        $refCount = (int)$refData['ref_count'];
+
+                        if ($refCount === 1) {
+                            $consecutiveSingleCount++;
+                        } else {
+                            $consecutiveSingleCount = 0;
+                        }
+
+                        // If we already went past 3 consecutive single nodes, break immediately
+                        if ($consecutiveSingleCount > 3) {
+                            break;
+                        }
+
+                        if ($upline['status'] === 'active') {
+                            $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
+                            if ($uplineAllowable > 0) {
+                                $this->logTransaction(
+                                    $upline['parent_id'],
+                                    'RANK_INCOME',
+                                    $uplineAllowable,
+                                    0,
+                                    "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($currentSched['slab_amount'], 2) . ") - Bulk",
+                                    $userId
+                                );
+                            }
+                        }
+
+                        // Stop propagating further if we just paid the 3rd consecutive single referral node
+                        if ($consecutiveSingleCount === 3) {
+                            break;
+                        }
+                    }
+
+                    $processedCount++;
+                } else {
+                    // ID cap reached, we don't pay today and we don't increment days_passed.
+                    // Break to avoid infinite processing loops on bulk runs.
+                    break;
+                }
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                throw $e;
+            }
+        }
+
+        return $processedCount;
+    }
 }
