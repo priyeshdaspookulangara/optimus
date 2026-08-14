@@ -1,0 +1,22 @@
+[Fri Aug 14 04:16:53 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8000) started
+[Fri Aug 14 04:18:42 2026] 127.0.0.1:55754 Accepted
+[Fri Aug 14 04:18:42 2026] 127.0.0.1:55754 [200]: GET /admin/login.php
+[Fri Aug 14 04:18:42 2026] 127.0.0.1:55754 Closing
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55762 Accepted
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55762 [302]: POST /admin/login.php
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55762 Closing
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55778 Accepted
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55778 [200]: GET /admin/dashboard.php
+[Fri Aug 14 04:18:45 2026] 127.0.0.1:55778 Closing
+[Fri Aug 14 04:18:47 2026] 127.0.0.1:37222 Accepted
+[Fri Aug 14 04:18:47 2026] 127.0.0.1:37222 [200]: GET /admin/matches.php
+[Fri Aug 14 04:18:47 2026] 127.0.0.1:37222 Closing
+[Fri Aug 14 04:18:49 2026] 127.0.0.1:37232 Accepted
+[Fri Aug 14 04:18:49 2026] 127.0.0.1:37232 [200]: GET /admin/matches.php?ajax=get_referrers&match_id=101
+[Fri Aug 14 04:18:49 2026] 127.0.0.1:37232 Closing
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37248 Accepted
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37248 [302]: POST /admin/matches.php
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37248 Closing
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37250 Accepted
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37250 [200]: GET /admin/matches.php
+[Fri Aug 14 04:18:52 2026] 127.0.0.1:37250 Closing
