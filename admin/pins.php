@@ -91,18 +91,26 @@ $packages = $stmt->fetchAll();
 </div>
 
 <!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex gap-2">
+        <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+        <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+        <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    </div>
+    <div>
+        <button id="sendSelectedWa" class="btn btn-sm btn-success d-none" onclick="sendSelectedToWhatsapp()">
+            <i class="fab fa-whatsapp me-1"></i> Send Selected (<span id="selectedCount">0</span>) to WhatsApp
+        </button>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-sm table-striped">
+            <table class="table table-sm table-striped align-middle">
                 <thead>
                     <tr>
+                        <th width="40"><input type="checkbox" class="form-check-input" id="selectAllPins"></th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -115,6 +123,11 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($pins as $p): ?>
                     <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input pin-checkbox"
+                                   data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>"
+                                   data-package="<?php echo htmlspecialchars($p['package_name']); ?>">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -182,5 +195,62 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllPins');
+    const pinCheckboxes = document.querySelectorAll('.pin-checkbox');
+    const sendSelectedWaBtn = document.getElementById('sendSelectedWa');
+    const selectedCountSpan = document.getElementById('selectedCount');
+
+    function updateBulkButton() {
+        const checkedBoxes = document.querySelectorAll('.pin-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCountSpan.textContent = count;
+        if (count > 0) {
+            sendSelectedWaBtn.classList.remove('d-none');
+        } else {
+            sendSelectedWaBtn.classList.add('d-none');
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            pinCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            updateBulkButton();
+        });
+    }
+
+    pinCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = Array.from(pinCheckboxes).every(c => c.checked);
+            const someChecked = Array.from(pinCheckboxes).some(c => c.checked);
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            updateBulkButton();
+        });
+    });
+
+    window.sendSelectedToWhatsapp = function() {
+        const checkedBoxes = document.querySelectorAll('.pin-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        let message = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nYour Package Activation PINs have been successfully generated!\n\n";
+
+        checkedBoxes.forEach((cb, index) => {
+            const pin = cb.getAttribute('data-pin');
+            const pkg = cb.getAttribute('data-package');
+            message += `${index + 1}. 🔑 *PIN:* ${pin} (${pkg})\n`;
+        });
+
+        message += "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+
+        const waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
+        window.open(waUrl, '_blank');
+    };
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
