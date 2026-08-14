@@ -38,6 +38,7 @@ $db = Database::getInstance()->getConnection();
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
         <a href="reset_level_income.php" id="link-reset-level" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reset_level_income.php' ? 'active' : ''; ?>"><i class="fa fa-undo-alt me-2"></i> Reset Level Income</a>
         <a href="roi_catchup.php" id="link-roi-catchup" class="<?php echo basename($_SERVER['PHP_SELF']) == 'roi_catchup.php' ? 'active' : ''; ?>"><i class="fa fa-refresh me-2"></i> ROI Catch-Up</a>
+        <a href="calculate_rank_income.php" id="link-rank-catchup" class="<?php echo basename($_SERVER['PHP_SELF']) == 'calculate_rank_income.php' ? 'active' : ''; ?>"><i class="fa fa-trophy me-2"></i> Rank Income Catch-Up</a>
         <hr>
         <a href="logout.php"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
     </div>
