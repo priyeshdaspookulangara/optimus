@@ -76,8 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'run_rank_income':
-                // Fetch active matching schedules
-                $stmt = $pdo->query("SELECT s.*, u.username FROM matching_schedules s JOIN users u ON s.user_id = u.id WHERE s.status = 'active'");
+                // 1. Clear all existing RANK_INCOME transactions and reset schedule progress before regenerating
+                $pdo->exec("DELETE FROM transactions WHERE type = 'RANK_INCOME'");
+                $pdo->exec("UPDATE matching_schedules SET days_passed = 0, status = 'active'");
+
+                // Fetch matching schedules to recalculate
+                $stmt = $pdo->query("SELECT s.*, u.username FROM matching_schedules s JOIN users u ON s.user_id = u.id");
                 $schedules = $stmt->fetchAll();
 
                 $processedEntries = 0;
