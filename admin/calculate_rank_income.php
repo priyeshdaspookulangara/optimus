@@ -97,8 +97,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         continue;
                     }
 
-                    // Rank income starts strictly from the exact date the match was made (created_at of matching schedule) to current date
-                    $startDate = date('Y-m-d', strtotime($sched['created_at']));
+                    // Rank income starts from the joining/investment date of the downline user who resulted in rank slab matching
+                    $stmtDownlineDate = $pdo->prepare("
+                        SELECT MIN(i.created_at) as earliest_date
+                        FROM investments i
+                        JOIN genealogy g ON i.user_id = g.user_id
+                        WHERE g.parent_id = ?
+                    ");
+                    $stmtDownlineDate->execute([$sched['user_id']]);
+                    $downlineRow = $stmtDownlineDate->fetch();
+
+                    if ($downlineRow && !empty($downlineRow['earliest_date'])) {
+                        $startDate = date('Y-m-d', strtotime($downlineRow['earliest_date']));
+                    } else {
+                        // Fallback to earner's user joining date or schedule creation date
+                        $stmtUserDate = $pdo->prepare("SELECT created_at FROM users WHERE id = ?");
+                        $stmtUserDate->execute([$sched['user_id']]);
+                        $uRow = $stmtUserDate->fetch();
+                        $startDate = ($uRow && !empty($uRow['created_at'])) ? date('Y-m-d', strtotime($uRow['created_at'])) : date('Y-m-d', strtotime($sched['created_at']));
+                    }
+
                     $endDate = date('Y-m-d');
 
                     $currentDateObj = new DateTime($startDate);
