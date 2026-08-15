@@ -126,21 +126,26 @@ class MLMEngine {
      * Level Income: Distribute commission up to 12 generations
      */
     public function distributeLevelIncome($userId, $investmentAmount) {
-        $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
-        $stmt->execute([$userId]);
-        $parents = $stmt->fetchAll();
+        $currentId = $userId;
+        for ($level = 1; $level <= 12; $level++) {
+            $stmt = $this->db->prepare("SELECT sponsor_id FROM users WHERE id = ?");
+            $stmt->execute([$currentId]);
+            $u = $stmt->fetch();
+            if (!$u || empty($u['sponsor_id'])) {
+                break;
+            }
+            $parentId = $u['sponsor_id'];
 
-        foreach ($parents as $parent) {
-            $level = $parent['level'];
             if (isset($this->config['level_percentages'][$level])) {
                 $percentage = $this->config['level_percentages'][$level];
                 $commission = ($investmentAmount * $percentage) / 100;
 
-                $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
+                $allowable = $this->getAllowableAmount($parentId, $commission);
                 if ($allowable > 0) {
-                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+                    $this->logTransaction($parentId, 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
                 }
             }
+            $currentId = $parentId;
         }
     }
 

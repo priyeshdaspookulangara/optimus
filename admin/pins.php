@@ -25,6 +25,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $count = (int)$_POST['count'];
     $assignUsername = trim($_POST['assign_username'] ?? '');
 
+    // Fetch package name for context/sharing
+    $pkgStmt = $db->prepare("SELECT name FROM packages WHERE id = ?");
+    $pkgStmt->execute([$packageId]);
+    $package = $pkgStmt->fetch();
+    $packageName = $package ? $package['name'] : 'Unknown Package';
+
     $assignedToId = null;
     if (!empty($assignUsername)) {
         $userStmt = $db->prepare("SELECT id FROM users WHERE username = ?");
@@ -36,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
+    $newlyGenerated = [];
     for ($i = 0; $i < $count; $i++) {
         // Format: "OPT" + unique 6 digit combination
         $uniqueDigits = mt_rand(100000, 999999);
@@ -49,7 +56,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         $stmt->execute([$pin, $packageId, $assignedToId]);
+        $newlyGenerated[] = [
+            'pin_code' => $pin,
+            'package_name' => $packageName
+        ];
     }
+
+    // Save newly generated PINs to session for post-generation modal popup
+    $_SESSION['newly_generated_pins'] = [
+        'package_name' => $packageName,
+        'pins' => $newlyGenerated
+    ];
+
     header("Location: pins.php?success=generated");
     exit();
 }
@@ -81,6 +99,15 @@ $pins = $stmt->fetchAll();
 
 $stmt = $db->query("SELECT * FROM packages ORDER BY amount ASC");
 $packages = $stmt->fetchAll();
+
+// Handle post-generation modal data
+$hasNewlyGenerated = false;
+$newlyGeneratedPinsData = null;
+if (isset($_GET['success']) && $_GET['success'] === 'generated' && isset($_SESSION['newly_generated_pins'])) {
+    $hasNewlyGenerated = true;
+    $newlyGeneratedPinsData = $_SESSION['newly_generated_pins'];
+    // Clear session immediately or keep it for rendering first
+}
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -91,18 +118,26 @@ $packages = $stmt->fetchAll();
 </div>
 
 <!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex gap-2">
+        <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+        <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+        <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+    </div>
+    <div>
+        <button id="sendSelectedWa" class="btn btn-sm btn-success d-none" onclick="sendSelectedToWhatsapp()">
+            <i class="fab fa-whatsapp me-1"></i> Send Selected (<span id="selectedCount">0</span>) to WhatsApp
+        </button>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-sm table-striped">
+            <table class="table table-sm table-striped align-middle">
                 <thead>
                     <tr>
+                        <th width="40"><input type="checkbox" class="form-check-input" id="selectAllPins"></th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -115,6 +150,11 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php foreach($pins as $p): ?>
                     <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input pin-checkbox"
+                                   data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>"
+                                   data-package="<?php echo htmlspecialchars($p['package_name']); ?>">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -182,5 +222,132 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<!-- Post-Generation Share Modal -->
+<?php if ($hasNewlyGenerated && $newlyGeneratedPinsData): ?>
+<div class="modal fade" id="shareNewlyGeneratedModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fa fa-circle-check me-2"></i>PINs Generated Successfully!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>You have successfully generated <strong><?php echo count($newlyGeneratedPinsData['pins']); ?> PINs</strong> for <strong><?php echo htmlspecialchars($newlyGeneratedPinsData['package_name']); ?></strong>.</p>
+                <div class="border rounded p-3 mb-3 bg-light text-center" style="max-height: 200px; overflow-y: auto;">
+                    <strong>Generated PINs:</strong>
+                    <div class="mt-2">
+                        <?php foreach($newlyGeneratedPinsData['pins'] as $np): ?>
+                            <span class="badge bg-secondary font-monospace fs-6 m-1 p-2"><?php echo htmlspecialchars($np['pin_code']); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <p class="text-muted small">Would you like to share these PINs immediately as a group to WhatsApp or via SMS?</p>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">No, close & view</button>
+                <div class="d-flex gap-2">
+                    <?php
+                    // Pre-generate WhatsApp message for the newly generated group
+                    $groupWaText = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nYour Package Activation PINs have been successfully generated!\n\n";
+                    foreach($newlyGeneratedPinsData['pins'] as $idx => $np) {
+                        $groupWaText .= ($idx + 1) . ". 🔑 *PIN:* " . $np['pin_code'] . " (" . $np['package_name'] . ")\n";
+                    }
+                    $groupWaText .= "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                    $groupWaUrl = "https://api.whatsapp.com/send?text=" . urlencode($groupWaText);
+
+                    // Pre-generate SMS body
+                    $groupSmsText = "OPTIMUS INFINITY - ACTIVATION PINS\n\n";
+                    foreach($newlyGeneratedPinsData['pins'] as $idx => $np) {
+                        $groupSmsText .= ($idx + 1) . ". PIN: " . $np['pin_code'] . "\n";
+                    }
+                    $groupSmsText .= "\nThank you, Optimus Infinity!";
+                    $groupSmsUrl = "sms:?body=" . urlencode($groupSmsText);
+                    ?>
+                    <a href="<?php echo $groupSmsUrl; ?>" class="btn btn-info text-white" onclick="closeShareModal()"><i class="fa-solid fa-comment-sms me-1"></i> SMS</a>
+                    <a href="<?php echo $groupWaUrl; ?>" target="_blank" class="btn btn-success" onclick="closeShareModal()"><i class="fab fa-whatsapp me-1"></i> WhatsApp</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php
+    // Clear session so the modal won't show again on manual reload
+    unset($_SESSION['newly_generated_pins']);
+endif;
+?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllPins');
+    const pinCheckboxes = document.querySelectorAll('.pin-checkbox');
+    const sendSelectedWaBtn = document.getElementById('sendSelectedWa');
+    const selectedCountSpan = document.getElementById('selectedCount');
+
+    // Show the Newly Generated Share modal automatically if it exists in DOM
+    const shareModalEl = document.getElementById('shareNewlyGeneratedModal');
+    if (shareModalEl) {
+        const shareModal = new bootstrap.Modal(shareModalEl);
+        shareModal.show();
+    }
+
+    window.closeShareModal = function() {
+        if (shareModalEl) {
+            const modalInstance = bootstrap.Modal.getInstance(shareModalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+    };
+
+    function updateBulkButton() {
+        const checkedBoxes = document.querySelectorAll('.pin-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCountSpan.textContent = count;
+        if (count > 0) {
+            sendSelectedWaBtn.classList.remove('d-none');
+        } else {
+            sendSelectedWaBtn.classList.add('d-none');
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            pinCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            updateBulkButton();
+        });
+    }
+
+    pinCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = Array.from(pinCheckboxes).every(c => c.checked);
+            const someChecked = Array.from(pinCheckboxes).some(c => c.checked);
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            updateBulkButton();
+        });
+    });
+
+    window.sendSelectedToWhatsapp = function() {
+        const checkedBoxes = document.querySelectorAll('.pin-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        let message = "🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nYour Package Activation PINs have been successfully generated!\n\n";
+
+        checkedBoxes.forEach((cb, index) => {
+            const pin = cb.getAttribute('data-pin');
+            const pkg = cb.getAttribute('data-package');
+            message += `${index + 1}. 🔑 *PIN:* ${pin} (${pkg})\n`;
+        });
+
+        message += "\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+
+        const waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
+        window.open(waUrl, '_blank');
+    };
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
