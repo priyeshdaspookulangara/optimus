@@ -28,6 +28,27 @@ if (isset($_POST['action'])) {
         $stmt->execute([$newStatus, $userId]);
         header("Location: members.php?success=status_updated");
         exit();
+    } elseif ($_POST['action'] == 'reset_password') {
+        $userId = intval($_POST['user_id'] ?? 0);
+        $password = $_POST['password'] ?? '';
+        $retypePassword = $_POST['retype_password'] ?? ($_POST['confirm_password'] ?? '');
+
+        if (empty($userId) || empty($password)) {
+            header("Location: members.php?error=" . urlencode("Password cannot be empty."));
+            exit();
+        }
+
+        if ($password !== $retypePassword) {
+            header("Location: members.php?error=" . urlencode("Password and Retype Password do not match."));
+            exit();
+        }
+
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $db->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->execute([$hashedPassword, $userId]);
+
+        header("Location: members.php?success=password_reset");
+        exit();
     } elseif ($_POST['action'] == 'clear_system') {
         // Clear all members except root (ID 1)
         $db->beginTransaction();
@@ -165,6 +186,8 @@ $members = $stmt->fetchAll();
 
 <?php if(isset($_GET['success']) && $_GET['success'] == 'system_cleared'): ?>
     <div class="alert alert-success"><strong>System Reset Complete!</strong> All members (except root user) and their associated genealogy tree, packages, investments, and transactional data have been securely deleted.</div>
+<?php elseif(isset($_GET['success']) && $_GET['success'] == 'password_reset'): ?>
+    <div class="alert alert-success">User password has been reset successfully.</div>
 <?php elseif(isset($_GET['success'])): ?>
     <div class="alert alert-success">Action completed successfully.</div>
 <?php endif; ?>
@@ -208,16 +231,21 @@ $members = $stmt->fetchAll();
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
-                            <form method="post" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
-                                <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
-                                <input type="hidden" name="action" value="update_status">
-                                <?php if($m['status'] == 'active'): ?>
-                                    <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
-                                <?php else: ?>
-                                    <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
-                                <?php endif; ?>
-                            </form>
+                            <div class="d-flex gap-1 align-items-center">
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+                                    <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
+                                    <input type="hidden" name="action" value="update_status">
+                                    <?php if($m['status'] == 'active'): ?>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm btn-outline-danger">Suspend</button>
+                                    <?php else: ?>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm btn-outline-success">Activate</button>
+                                    <?php endif; ?>
+                                </form>
+                                <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary" onclick="openResetPasswordModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')">
+                                    <i class="fa fa-key me-1"></i>Reset Password
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -226,5 +254,46 @@ $members = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+            <input type="hidden" name="action" value="reset_password">
+            <input type="hidden" name="user_id" id="reset_user_id" value="">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resetPasswordModalLabel">Reset Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Resetting password for user: <strong id="reset_username_display"></strong></p>
+                <div class="mb-3">
+                    <label for="reset_password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="reset_password" name="password" required placeholder="Enter new password">
+                </div>
+                <div class="mb-3">
+                    <label for="reset_retype_password" class="form-label">Retype Password</label>
+                    <input type="password" class="form-control" id="reset_retype_password" name="retype_password" required placeholder="Retype new password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-warning"><i class="fa fa-key me-1"></i>Reset Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openResetPasswordModal(userId, username) {
+    document.getElementById('reset_user_id').value = userId;
+    document.getElementById('reset_username_display').textContent = username;
+    document.getElementById('reset_password').value = '';
+    document.getElementById('reset_retype_password').value = '';
+    var resetModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+    resetModal.show();
+}
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
