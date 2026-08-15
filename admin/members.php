@@ -122,7 +122,8 @@ if (!empty($packageFilter)) {
 }
 
 if ($search !== '') {
-    $conditions[] = "(u.username LIKE ? OR u.email LIKE ?)";
+    $conditions[] = "(u.mid LIKE ? OR u.username LIKE ? OR u.email LIKE ?)";
+    $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
@@ -154,7 +155,7 @@ $members = $stmt->fetchAll();
     <!-- Dynamic Filters Form -->
     <form method="get" class="row g-2 align-items-center bg-light p-3 rounded border">
         <div class="col-md-3">
-            <input type="text" name="search" class="form-control" placeholder="Search username / email..." value="<?php echo htmlspecialchars($search); ?>">
+            <input type="text" name="search" class="form-control" placeholder="Search MID / username / email..." value="<?php echo htmlspecialchars($search); ?>">
         </div>
         <div class="col-md-3">
             <select name="rank_id" class="form-select">
