@@ -326,24 +326,24 @@ $members = $stmt->fetchAll();
                         </td>
                         <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-primary" onclick='openEditProfileModal(<?php echo json_encode($m, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)' title="Edit Profile">
-                                    <i class="fa fa-edit me-1"></i>Edit
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-sm text-primary p-1 border-0" onclick='openEditProfileModal(<?php echo json_encode($m, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)' title="Edit Profile">
+                                    <i class="fa fa-edit fs-6"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-warning" onclick="openResetPasswordModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="Reset Password">
-                                    <i class="fa fa-key me-1"></i>Password
+                                <button type="button" class="btn btn-sm text-warning p-1 border-0" onclick="openResetPasswordModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="Reset Password">
+                                    <i class="fa fa-key fs-6"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-info" onclick="openGenealogyModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="View Genealogy">
-                                    <i class="fa fa-sitemap me-1"></i>Genealogy
+                                <button type="button" class="btn btn-sm text-info p-1 border-0" onclick="openGenealogyModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="View Genealogy">
+                                    <i class="fa fa-sitemap fs-6"></i>
                                 </button>
                                 <form method="post" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
                                     <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
                                     <input type="hidden" name="action" value="update_status">
                                     <?php if($m['status'] == 'active'): ?>
-                                        <button type="submit" name="status" value="suspended" class="btn btn-outline-danger btn-sm" title="Suspend User">Suspend</button>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm text-danger p-1 border-0" title="Suspend User"><i class="fa fa-user-slash fs-6"></i></button>
                                     <?php else: ?>
-                                        <button type="submit" name="status" value="active" class="btn btn-outline-success btn-sm" title="Activate User">Activate</button>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm text-success p-1 border-0" title="Activate User"><i class="fa fa-user-check fs-6"></i></button>
                                     <?php endif; ?>
                                 </form>
                             </div>
@@ -453,7 +453,7 @@ $members = $stmt->fetchAll();
                 </div>
                 <div id="genealogy_content" style="display: none;">
                     <!-- User Header Info -->
-                    <div class="card mb-3 bg-light border">
+                    <div class="card mb-3 bg-light border-0 shadow-sm">
                         <div class="card-body">
                             <div class="row text-center">
                                 <div class="col-md-3">
