@@ -473,6 +473,9 @@ $members = $stmt->fetchAll();
                                     <span id="gen_info_placement"></span>
                                 </div>
                             </div>
+                            <div class="text-center mt-2">
+                                <a id="gen_info_tree_link" href="tree.php" class="btn btn-sm btn-outline-primary"><i class="fa fa-sitemap me-1"></i>Open Visual Tree Page</a>
+                            </div>
                         </div>
                     </div>
 
@@ -556,6 +559,7 @@ function openGenealogyModal(userId, username) {
 
             var posText = user.position ? (' [' + user.position.toUpperCase() + ']') : '';
             document.getElementById('gen_info_placement').textContent = user.placement_username ? (user.placement_username + ' (' + (user.placement_mid || '') + ')' + posText) : 'None';
+            document.getElementById('gen_info_tree_link').href = 'tree.php?mid=' + encodeURIComponent(user.mid || user.username);
 
             var tbody = document.getElementById('genealogy_table_body');
             tbody.innerHTML = '';
