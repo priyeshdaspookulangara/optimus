@@ -333,8 +333,11 @@ $members = $stmt->fetchAll();
                                 <button type="button" class="btn btn-sm text-warning p-1 border-0" onclick="openResetPasswordModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="Reset Password">
                                     <i class="fa fa-key fs-6"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm text-info p-1 border-0" onclick="openGenealogyModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="View Genealogy">
+                                <a href="tree.php?mid=<?php echo urlencode($m['mid'] ?? $m['username']); ?>" class="btn btn-sm text-info p-1 border-0" title="View Genealogy Tree">
                                     <i class="fa fa-sitemap fs-6"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm text-secondary p-1 border-0" onclick="openGenealogyModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="View Downlines / Team">
+                                    <i class="fa fa-users fs-6"></i>
                                 </button>
                                 <form method="post" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
