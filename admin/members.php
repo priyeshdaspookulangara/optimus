@@ -328,25 +328,25 @@ $members = $stmt->fetchAll();
                         <td>
                             <div class="d-flex gap-2 align-items-center">
                                 <button type="button" class="btn btn-sm text-primary p-1 border-0" onclick='openEditProfileModal(<?php echo json_encode($m, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)' title="Edit Profile">
-                                    <i class="fa fa-edit fs-6"></i>
+                                    <i class="fa-solid fa-user-pen fs-6"></i>
                                 </button>
                                 <button type="button" class="btn btn-sm text-warning p-1 border-0" onclick="openResetPasswordModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="Reset Password">
-                                    <i class="fa fa-key fs-6"></i>
+                                    <i class="fa-solid fa-key fs-6"></i>
                                 </button>
                                 <a href="tree.php?mid=<?php echo urlencode($m['mid'] ?? $m['username']); ?>" class="btn btn-sm text-info p-1 border-0" title="View Genealogy Tree">
-                                    <i class="fa fa-sitemap fs-6"></i>
+                                    <i class="fa-solid fa-sitemap fs-6"></i>
                                 </a>
                                 <button type="button" class="btn btn-sm text-secondary p-1 border-0" onclick="openGenealogyModal(<?php echo $m['id']; ?>, '<?php echo htmlspecialchars($m['username'], ENT_QUOTES); ?>')" title="View Downlines / Team">
-                                    <i class="fa fa-users fs-6"></i>
+                                    <i class="fa-solid fa-users fs-6"></i>
                                 </button>
                                 <form method="post" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
                                     <input type="hidden" name="user_id" value="<?php echo $m['id']; ?>">
                                     <input type="hidden" name="action" value="update_status">
                                     <?php if($m['status'] == 'active'): ?>
-                                        <button type="submit" name="status" value="suspended" class="btn btn-sm text-danger p-1 border-0" title="Suspend User"><i class="fa fa-user-slash fs-6"></i></button>
+                                        <button type="submit" name="status" value="suspended" class="btn btn-sm text-danger p-1 border-0" title="Suspend User"><i class="fa-solid fa-user-slash fs-6"></i></button>
                                     <?php else: ?>
-                                        <button type="submit" name="status" value="active" class="btn btn-sm text-success p-1 border-0" title="Activate User"><i class="fa fa-user-check fs-6"></i></button>
+                                        <button type="submit" name="status" value="active" class="btn btn-sm text-success p-1 border-0" title="Activate User"><i class="fa-solid fa-user-check fs-6"></i></button>
                                     <?php endif; ?>
                                 </form>
                             </div>
