@@ -15,6 +15,7 @@ if (empty($_SESSION['admin_csrf'])) {
 $db = Database::getInstance()->getConnection();
 $error = '';
 $success = '';
+$conflictData = null;
 
 // Rebuild Genealogy Helper Function
 function rebuildGenealogyTable($db) {
@@ -74,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $newPosition = ($_POST['position'] === '' || $_POST['position'] === null) ? null : $_POST['position'];
         $sponsorInput = trim($_POST['sponsor'] ?? '');
         $placementInput = trim($_POST['placement'] ?? '');
+        $resolveConflictAction = $_POST['resolve_conflict_action'] ?? '';
 
         $db->beginTransaction();
         try {
@@ -140,6 +142,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     }
                 }
 
+                // Check for existing user in that placement position
+                if ($placementId !== null && $newPosition !== null) {
+                    $stmtConf = $db->prepare("SELECT id, username, mid FROM users WHERE placement_id = ? AND position = ? AND id != ?");
+                    $stmtConf->execute([$placementId, $newPosition, $userId]);
+                    $conflictingUser = $stmtConf->fetch();
+
+                    if ($conflictingUser) {
+                        if ($resolveConflictAction === 'set_not_specified') {
+                            // Update conflicting occupant to position NULL (Not Specified)
+                            $stmtClearConf = $db->prepare("UPDATE users SET position = NULL WHERE id = ?");
+                            $stmtClearConf->execute([$conflictingUser['id']]);
+                        } else {
+                            // Prompt conflict modal dialog
+                            $conflictData = [
+                                'target_user' => $currentUserObj,
+                                'conflicting_user' => $conflictingUser,
+                                'new_position' => $newPosition,
+                                'sponsor_input' => $sponsorInput,
+                                'placement_input' => $placementInput
+                            ];
+                            throw new Exception("CONFLICT_DETECTED");
+                        }
+                    }
+                }
+
                 // Update users table
                 $stmtUpdate = $db->prepare("UPDATE users SET position = ?, sponsor_id = ?, placement_id = ? WHERE id = ?");
                 $stmtUpdate->execute([$newPosition, $sponsorId, $placementId, $userId]);
@@ -152,7 +179,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $success = "User genealogy and position updated successfully!";
         } catch (Exception $e) {
             $db->rollBack();
-            $error = $e->getMessage();
+            if ($e->getMessage() !== 'CONFLICT_DETECTED') {
+                $error = $e->getMessage();
+            }
         }
     }
 }
@@ -380,6 +409,51 @@ include __DIR__ . '/includes/header.php';
         </form>
     </div>
 </div>
+
+<!-- Position Conflict Dialog Modal -->
+<?php if ($conflictData): ?>
+<div class="modal fade show" id="conflictModal" tabindex="-1" aria-labelledby="conflictModalLabel" aria-modal="true" role="dialog" style="display: block; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post" class="modal-content border-warning border-2">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+            <input type="hidden" name="action" value="update_genealogy">
+            <input type="hidden" name="user_id" value="<?php echo $conflictData['target_user']['id']; ?>">
+            <input type="hidden" name="position" value="<?php echo htmlspecialchars($conflictData['new_position']); ?>">
+            <input type="hidden" name="sponsor" value="<?php echo htmlspecialchars($conflictData['sponsor_input']); ?>">
+            <input type="hidden" name="placement" value="<?php echo htmlspecialchars($conflictData['placement_input']); ?>">
+            <input type="hidden" name="resolve_conflict_action" value="set_not_specified">
+
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="conflictModalLabel"><i class="fa fa-exclamation-triangle me-2"></i>Position Already Occupied</h5>
+                <a href="genealogy.php" class="btn-close" aria-label="Close"></a>
+            </div>
+
+            <div class="modal-body">
+                <p class="mb-2">A member already exists in the <strong><?php echo strtoupper(htmlspecialchars($conflictData['new_position'])); ?></strong> position under the selected placement parent:</p>
+
+                <div class="p-3 bg-light border rounded mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold text-dark fs-6"><?php echo htmlspecialchars($conflictData['conflicting_user']['username']); ?></div>
+                            <small class="text-muted">Member ID: <?php echo htmlspecialchars($conflictData['conflicting_user']['mid'] ?? 'None'); ?></small>
+                        </div>
+                        <span class="badge bg-warning text-dark">CURRENT OCCUPANT</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary py-2 mb-0">
+                    <small><i class="fa fa-info-circle me-1"></i>Assigning <strong><?php echo htmlspecialchars($conflictData['target_user']['username']); ?></strong> to this position will change <strong><?php echo htmlspecialchars($conflictData['conflicting_user']['username']); ?></strong>'s position to <strong>NOT SPECIFIED</strong>.</small>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <a href="genealogy.php" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-warning fw-bold"><i class="fa fa-exchange-alt me-1"></i>Change Existing Occupant to "Not Specified" & Assign</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
