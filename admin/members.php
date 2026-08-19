@@ -123,11 +123,14 @@ $members = $stmt->fetchAll();
 <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3>Members List</h3>
-        <form method="post" onsubmit="return confirm('WARNING: This will permanently delete all members (except root user), their downlines, genealogy trees, and all historical transactions, investments, matching schedules, and incomes! This action is irreversible. Are you absolutely sure?');">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
-            <input type="hidden" name="action" value="clear_system">
-            <button type="submit" class="btn btn-danger"><i class="fa fa-trash-alt me-1"></i>Reset System (Clear All Except Root)</button>
-        </form>
+        <div class="d-flex gap-2">
+            <a href="sponsored_members.php" class="btn btn-primary"><i class="fa fa-user-plus me-1"></i>View Sponsored Count List</a>
+            <form method="post" onsubmit="return confirm('WARNING: This will permanently delete all members (except root user), their downlines, genealogy trees, and all historical transactions, investments, matching schedules, and incomes! This action is irreversible. Are you absolutely sure?');">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['admin_csrf']; ?>">
+                <input type="hidden" name="action" value="clear_system">
+                <button type="submit" class="btn btn-danger"><i class="fa fa-trash-alt me-1"></i>Reset System (Clear All Except Root)</button>
+            </form>
+        </div>
     </div>
 
     <!-- Dynamic Filters Form -->

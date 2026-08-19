@@ -32,6 +32,7 @@ $db = Database::getInstance()->getConnection();
         </div>
         <a href="dashboard.php" id="link-dashboard" class="<?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>"><i class="fa fa-tachometer-alt me-2"></i> Dashboard</a>
         <a href="members.php" id="link-members" class="<?php echo basename($_SERVER['PHP_SELF']) == 'members.php' ? 'active' : ''; ?>"><i class="fa fa-users me-2"></i> Members</a>
+        <a href="sponsored_members.php" id="link-sponsored-members" class="<?php echo basename($_SERVER['PHP_SELF']) == 'sponsored_members.php' ? 'active' : ''; ?>"><i class="fa fa-user-plus me-2"></i> Sponsored Members</a>
         <a href="packages.php" id="link-packages" class="<?php echo basename($_SERVER['PHP_SELF']) == 'packages.php' ? 'active' : ''; ?>"><i class="fa fa-box me-2"></i> Packages</a>
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="withdrawals.php" id="link-withdrawals" class="<?php echo basename($_SERVER['PHP_SELF']) == 'withdrawals.php' ? 'active' : ''; ?>"><i class="fa fa-money-bill-wave me-2"></i> Withdrawals</a>
