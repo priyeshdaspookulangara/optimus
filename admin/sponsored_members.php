@@ -34,7 +34,7 @@ $config = require __DIR__ . '/../includes/config.php';
 $ranksList = $config['ranks'];
 
 $search = trim($_GET['search'] ?? '');
-$sortDir = (isset($_GET['dir']) && strtolower($_GET['dir']) === 'desc') ? 'DESC' : 'ASC';
+$sortDir = (isset($_GET['dir']) && strtolower($_GET['dir']) === 'asc') ? 'ASC' : 'DESC';
 
 // Build dynamic query
 $whereClauses = [];
@@ -49,7 +49,7 @@ if (!empty($search)) {
 
 $whereSql = !empty($whereClauses) ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
-// Query members ordered by number of persons sponsored by him (default ASC)
+// Query members ordered by number of persons sponsored by him (default DESC)
 $query = "
     SELECT
         u.id,
@@ -81,7 +81,7 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h3 class="mb-1"><i class="fa fa-user-plus text-primary me-2"></i>Members Listed by Sponsored Count</h3>
-            <p class="text-muted mb-0">List of all members in ascending order based on the number of persons sponsored by them.</p>
+            <p class="text-muted mb-0">List of all members in descending order based on the number of persons sponsored by them.</p>
         </div>
         <div>
             <a href="members.php" class="btn btn-outline-secondary"><i class="fa fa-arrow-left me-1"></i>All Members Management</a>
@@ -132,8 +132,8 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
         </div>
         <div class="col-md-3">
             <select name="dir" class="form-select">
-                <option value="asc" <?php echo $sortDir === 'ASC' ? 'selected' : ''; ?>>Ascending Order</option>
                 <option value="desc" <?php echo $sortDir === 'DESC' ? 'selected' : ''; ?>>Descending Order</option>
+                <option value="asc" <?php echo $sortDir === 'ASC' ? 'selected' : ''; ?>>Ascending Order</option>
             </select>
         </div>
         <div class="col-md-2 d-flex gap-2">
