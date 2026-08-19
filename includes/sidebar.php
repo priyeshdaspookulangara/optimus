@@ -27,6 +27,7 @@
           <li class="nav-item"><a class="nav-link" href="rank.php"><i class="icon fa fa-trophy"></i><span class="item-name">Rank</span></a></li>
           <li class="nav-item"><a class="nav-link" href="propagated_incomes.php"><i class="icon fa fa-network-wired"></i><span class="item-name">Matches From Others</span></a></li>
           <li class="nav-item"><a class="nav-link" href="my_team.php"><i class="icon fa fa-users-cog"></i><span class="item-name">My Team</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="bottom_nodes.php"><i class="icon fa fa-sitemap"></i><span class="item-name">Bottom Nodes</span></a></li>
           <li class="nav-item"><a class="nav-link" href="team_ranks.php"><i class="icon fa fa-medal"></i><span class="item-name">Team Ranks</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_wallet.php"><i class="icon fa fa-credit-card"></i><span class="item-name">Withdraw Wallet</span></a></li>
           <li class="nav-item"><a class="nav-link" href="withdraw_fund.php"><i class="icon fa fa-money-bill-wave"></i><span class="item-name">Withdraw Fund</span></a></li>
