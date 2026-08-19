@@ -15,14 +15,15 @@ $ranksList = $config['ranks'] ?? [];
 $pageTitle = 'Recursive Upline Chain Search';
 include __DIR__ . '/includes/header.php';
 
-$searchMid = trim($_GET['mid'] ?? '');
+// Read query parameter: check if 'id' or 'mid' query string parameter is passed
+$searchMid = trim($_GET['id'] ?? $_GET['mid'] ?? '');
 $targetUser = null;
 $sponsorChain = [];
 $placementChain = [];
 $errorMsg = '';
 
 if ($searchMid !== '') {
-    // Find target user by MID or Username
+    // Find target user by MID, Username, or ID
     $stmt = $db->prepare("
         SELECT u.*,
                s.mid AS sponsor_mid, s.username AS sponsor_username,
@@ -133,6 +134,9 @@ if ($searchMid !== '') {
             <h3 class="mb-0"><i class="fa fa-sitemap text-primary me-2"></i>Recursive Upline Chain</h3>
             <small class="text-muted">Search any Member Code (MID) to trace their complete upline hierarchy recursively all the way up to Root.</small>
         </div>
+        <?php if ($targetUser): ?>
+            <a href="upline_chain.php" class="btn btn-outline-primary"><i class="fa fa-search me-1"></i> Search Another Member</a>
+        <?php endif; ?>
     </div>
 
     <!-- Search Form -->
@@ -140,7 +144,7 @@ if ($searchMid !== '') {
         <div class="col-md-9">
             <div class="input-group">
                 <span class="input-group-text"><i class="fa fa-search"></i></span>
-                <input type="text" name="mid" class="form-control form-control-lg" placeholder="Enter Member Code (e.g. OPT12345) or Username..." value="<?php echo htmlspecialchars($searchMid); ?>" required>
+                <input type="text" name="id" class="form-control form-control-lg" placeholder="Enter Member Code (e.g. OPT12345) or Username..." value="<?php echo htmlspecialchars($searchMid); ?>" required>
             </div>
         </div>
         <div class="col-md-3 gap-2 d-flex">
@@ -290,7 +294,7 @@ if ($searchMid !== '') {
                                                 <?php echo date('Y-m-d H:i', strtotime($u['created_at'])); ?>
                                             </td>
                                             <td>
-                                                <a href="upline_chain.php?mid=<?php echo urlencode($u['mid'] ?? $u['username']); ?>" class="btn btn-sm btn-outline-primary" title="Trace from this member">
+                                                <a href="upline_chain.php?id=<?php echo urlencode($u['mid'] ?? $u['username']); ?>" class="btn btn-sm btn-outline-primary" title="Trace from this member">
                                                     <i class="fa fa-sitemap me-1"></i> Trace Up
                                                 </a>
                                             </td>
@@ -374,7 +378,7 @@ if ($searchMid !== '') {
                                                 <?php echo date('Y-m-d H:i', strtotime($u['created_at'])); ?>
                                             </td>
                                             <td>
-                                                <a href="upline_chain.php?mid=<?php echo urlencode($u['mid'] ?? $u['username']); ?>" class="btn btn-sm btn-outline-primary" title="Trace from this member">
+                                                <a href="upline_chain.php?id=<?php echo urlencode($u['mid'] ?? $u['username']); ?>" class="btn btn-sm btn-outline-primary" title="Trace from this member">
                                                     <i class="fa fa-sitemap me-1"></i> Trace Up
                                                 </a>
                                             </td>
