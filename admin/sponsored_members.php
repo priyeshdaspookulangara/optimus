@@ -15,7 +15,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_sponsored') {
     header('Content-Type: application/json');
     $sponsorId = (int)($_GET['sponsor_id'] ?? 0);
     $stmt = $db->prepare("
-        SELECT id, mid, username, full_name, email, total_investment, status, created_at
+        SELECT id, mid, username, full_name, total_investment, created_at
         FROM users
         WHERE sponsor_id = ?
         ORDER BY created_at DESC
@@ -34,7 +34,6 @@ $config = require __DIR__ . '/../includes/config.php';
 $ranksList = $config['ranks'];
 
 $search = trim($_GET['search'] ?? '');
-$statusFilter = trim($_GET['status'] ?? '');
 $sortDir = (isset($_GET['dir']) && strtolower($_GET['dir']) === 'desc') ? 'DESC' : 'ASC';
 
 // Build dynamic query
@@ -42,16 +41,10 @@ $whereClauses = [];
 $params = [];
 
 if (!empty($search)) {
-    $whereClauses[] = "(u.username LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.mid LIKE ?)";
+    $whereClauses[] = "(u.username LIKE ? OR u.full_name LIKE ? OR u.mid LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
-    $params[] = "%$search%";
-}
-
-if (!empty($statusFilter)) {
-    $whereClauses[] = "u.status = ?";
-    $params[] = $statusFilter;
 }
 
 $whereSql = !empty($whereClauses) ? "WHERE " . implode(" AND ", $whereClauses) : "";
@@ -63,16 +56,14 @@ $query = "
         u.mid,
         u.username,
         u.full_name,
-        u.email,
         u.rank_id,
         u.total_investment,
-        u.status,
         u.created_at,
         COUNT(s.id) AS sponsored_count
     FROM users u
     LEFT JOIN users s ON s.sponsor_id = u.id
     {$whereSql}
-    GROUP BY u.id, u.mid, u.username, u.full_name, u.email, u.rank_id, u.total_investment, u.status, u.created_at
+    GROUP BY u.id, u.mid, u.username, u.full_name, u.rank_id, u.total_investment, u.created_at
     ORDER BY sponsored_count {$sortDir}, u.id ASC
 ";
 
@@ -136,18 +127,10 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
 
     <!-- Filters Form -->
     <form method="get" class="row g-2 align-items-center bg-light p-3 rounded border">
-        <div class="col-md-5">
-            <input type="text" name="search" class="form-control" placeholder="Search username, full name, email, MID..." value="<?php echo htmlspecialchars($search); ?>">
+        <div class="col-md-7">
+            <input type="text" name="search" class="form-control" placeholder="Search username, full name, MID..." value="<?php echo htmlspecialchars($search); ?>">
         </div>
         <div class="col-md-3">
-            <select name="status" class="form-select">
-                <option value="">-- All Statuses --</option>
-                <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>>Active</option>
-                <option value="inactive" <?php echo $statusFilter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                <option value="suspended" <?php echo $statusFilter === 'suspended' ? 'selected' : ''; ?>>Suspended</option>
-            </select>
-        </div>
-        <div class="col-md-2">
             <select name="dir" class="form-select">
                 <option value="asc" <?php echo $sortDir === 'ASC' ? 'selected' : ''; ?>>Ascending Order</option>
                 <option value="desc" <?php echo $sortDir === 'DESC' ? 'selected' : ''; ?>>Descending Order</option>
@@ -169,11 +152,9 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
                         <th>#</th>
                         <th>MID (Member Code)</th>
                         <th>Username / Full Name</th>
-                        <th>Email</th>
                         <th class="text-center">Persons Sponsored</th>
                         <th>Rank</th>
                         <th>Total Invested</th>
-                        <th>Status</th>
                         <th>Joined Date</th>
                         <th class="text-center">Action</th>
                     </tr>
@@ -181,7 +162,7 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
                 <tbody>
                     <?php if (empty($members)): ?>
                         <tr>
-                            <td colspan="10" class="text-center py-4 text-muted">No members found matching your search criteria.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">No members found matching your search criteria.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach($members as $index => $m): ?>
@@ -194,7 +175,6 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
                                     <small class="text-muted"><?php echo htmlspecialchars($m['full_name']); ?></small>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo htmlspecialchars($m['email']); ?></td>
                             <td class="text-center">
                                 <span class="badge rounded-pill <?php echo $m['sponsored_count'] > 0 ? 'bg-success' : 'bg-secondary'; ?>" style="font-size: 14px; padding: 6px 12px;">
                                     <i class="fa fa-user-friends me-1"></i><?php echo $m['sponsored_count']; ?>
@@ -206,11 +186,6 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
                                 </span>
                             </td>
                             <td>$<?php echo number_format($m['total_investment'], 2); ?></td>
-                            <td>
-                                <span class="badge <?php echo htmlspecialchars($m['status']) == 'active' ? 'bg-success' : ($m['status'] == 'suspended' ? 'bg-danger' : 'bg-warning'); ?>">
-                                    <?php echo htmlspecialchars(strtoupper($m['status'])); ?>
-                                </span>
-                            </td>
                             <td><?php echo date('Y-m-d', strtotime($m['created_at'])); ?></td>
                             <td class="text-center">
                                 <?php if ($m['sponsored_count'] > 0): ?>
@@ -258,9 +233,7 @@ $avgSponsored = $totalMembersCount > 0 ? round($totalSponsoredCount / $totalMemb
                                 <th>MID</th>
                                 <th>Username</th>
                                 <th>Full Name</th>
-                                <th>Email</th>
                                 <th>Total Invested</th>
-                                <th>Status</th>
                                 <th>Joined Date</th>
                             </tr>
                         </thead>
@@ -316,9 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             const midEsc = escapeHtml(member.mid || 'N/A');
                             const usernameEsc = escapeHtml(member.username || '');
                             const fullNameEsc = escapeHtml(member.full_name || '-');
-                            const emailEsc = escapeHtml(member.email || '');
-                            const statusEsc = escapeHtml((member.status || '').toUpperCase());
-                            const statusBadgeClass = member.status === 'active' ? 'bg-success' : 'bg-danger';
                             const dateEsc = escapeHtml(member.created_at ? member.created_at.substring(0, 10) : '-');
 
                             tr.innerHTML = `
@@ -326,22 +296,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td><strong class="text-primary">${midEsc}</strong></td>
                                 <td><strong>${usernameEsc}</strong></td>
                                 <td>${fullNameEsc}</td>
-                                <td>${emailEsc}</td>
                                 <td>$${parseFloat(member.total_investment || 0).toFixed(2)}</td>
-                                <td><span class="badge ${statusBadgeClass}">${statusEsc}</span></td>
                                 <td>${dateEsc}</td>
                             `;
                             tableBody.appendChild(tr);
                         });
                         contentEl.style.display = 'block';
                     } else {
-                        tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No sponsored members found.</td></tr>`;
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No sponsored members found.</td></tr>`;
                         contentEl.style.display = 'block';
                     }
                 })
                 .catch(err => {
                     loadingEl.style.display = 'none';
-                    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data.</td></tr>`;
                     contentEl.style.display = 'block';
                 });
         });
