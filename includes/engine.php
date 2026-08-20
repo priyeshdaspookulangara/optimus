@@ -97,21 +97,12 @@ class MLMEngine {
                     $status = 'active';
                 }
 
-                // Total ID Cap Check (300%)
                 $allowableROI = $this->getAllowableAmount($investment['user_id'], $roiAmount);
                 if ($allowableROI > 0) {
                     $this->logTransaction($investment['user_id'], 'ROI', $allowableROI, 0, "Daily ROI for investment ID: {$investment['id']}", null, $investment['id']);
 
                     $updateStmt = $this->db->prepare("UPDATE investments SET roi_earned = ?, total_earned = total_earned + ?, days_passed = ?, last_roi_at = ?, status = ? WHERE id = ?");
                     $updateStmt->execute([$newROIEarned, $allowableROI, $newDaysPassed, $today, $status, $investment['id']]);
-
-                    if ($allowableROI < $roiAmount) {
-                        $updateStmt = $this->db->prepare("UPDATE investments SET status = 'capped' WHERE id = ?");
-                        $updateStmt->execute([$investment['id']]);
-                    }
-                } else {
-                    $updateStmt = $this->db->prepare("UPDATE investments SET status = 'capped' WHERE id = ?");
-                    $updateStmt->execute([$investment['id']]);
                 }
 
                 $this->db->commit();
@@ -293,7 +284,7 @@ class MLMEngine {
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
 
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status and 300% ID Cap)
+                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status)
                     $stmtUplines = $this->db->prepare("
                         SELECT g.parent_id, u.username, u.status
                         FROM genealogy g
@@ -349,8 +340,6 @@ class MLMEngine {
                             break;
                         }
                     }
-                } else {
-                    // ID cap reached, do not pay today and do not increment days_passed. Payout can resume when cap is lifted.
                 }
                 $this->db->commit();
             } catch (Exception $e) {
@@ -372,16 +361,7 @@ class MLMEngine {
     }
 
     private function getAllowableAmount($userId, $amountToAdd) {
-        // Only sum income-generating types for the cap
-        $stmt = $this->db->prepare("SELECT total_investment, (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earned FROM users WHERE id = ?");
-        $stmt->execute([$userId, $userId]);
-        $user = $stmt->fetch();
-
-        $maxCap = $user['total_investment'] * $this->config['id_cap_multiplier'];
-        $remainingCap = $maxCap - $user['total_earned'];
-
-        if ($remainingCap <= 0) return 0;
-        return min($amountToAdd, $remainingCap);
+        return $amountToAdd;
     }
 
     public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
