@@ -36,6 +36,7 @@ $db = Database::getInstance()->getConnection();
         <a href="pins.php" id="link-pins" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pins.php' ? 'active' : ''; ?>"><i class="fa fa-key me-2"></i> PIN Management</a>
         <a href="withdrawals.php" id="link-withdrawals" class="<?php echo basename($_SERVER['PHP_SELF']) == 'withdrawals.php' ? 'active' : ''; ?>"><i class="fa fa-money-bill-wave me-2"></i> Withdrawals</a>
         <a href="reports.php" id="link-reports" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>"><i class="fa fa-chart-bar me-2"></i> Business Reports</a>
+        <a href="propagate.php" id="link-propagate" class="<?php echo basename($_SERVER['PHP_SELF']) == 'propagate.php' ? 'active' : ''; ?>"><i class="fa fa-sitemap me-2"></i> Rank Propagation</a>
         <a href="propagate_rank.php" id="link-propagate-rank" class="<?php echo basename($_SERVER['PHP_SELF']) == 'propagate_rank.php' ? 'active' : ''; ?>"><i class="fa fa-network-wired me-2"></i> Propagate Rank Income</a>
         <a href="reset_rank.php" id="link-reset-rank" class="<?php echo basename($_SERVER['PHP_SELF']) == 'reset_rank.php' ? 'active' : ''; ?>"><i class="fa fa-sync-alt me-2"></i> Reset Rank Income</a>
         <hr>
