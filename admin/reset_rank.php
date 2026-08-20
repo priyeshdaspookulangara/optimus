@@ -87,7 +87,7 @@ function localGetAllSponsorUplines($db, $userId) {
         SELECT g.parent_id, u.username, u.status, u.rank_id, g.level
         FROM genealogy g
         JOIN users u ON g.parent_id = u.id
-        WHERE g.user_id = ?
+        WHERE g.user_id = ? AND g.level <= 2
         ORDER BY g.level ASC
     ");
     $stmt->execute([$userId]);
@@ -250,27 +250,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                 $desc = "Slab \$" . number_format($slab, 2) . " matching payout - Day " . $day . "/" . $ns['max_days'];
                                 $stmtTx->execute([$uid, null, $dailyIncome, $dailyIncome, $desc]);
 
-                                // 2. Propagate up to active & qualified sponsor uplines
-                                $consecutiveSingleCount = 0;
+                                // 2. Propagate up to active sponsor uplines (Levels 1 and 2)
                                 foreach ($uplines as $upline) {
-                                    // Check if this parent has fewer than two direct referral branches
-                                    $stmtReferrals->execute([$upline['parent_id']]);
-                                    $refData = $stmtReferrals->fetch();
-                                    $refCount = (int)$refData['ref_count'];
-
-                                    if ($refCount <= 1) {
-                                        $consecutiveSingleCount++;
-                                    } else {
-                                        $consecutiveSingleCount = 0;
-                                    }
-
-                                    // Terminate propagation immediately on the consecutive 4th parent with no dual branches
-                                    if ($consecutiveSingleCount >= 4) {
-                                        break;
-                                    }
-
-                                    // Sponsor must hold Conferred Rank >= the matched slab's required rank to receive propagation
-                                    if ($upline['status'] === 'active' && $upline['rank_id'] >= $requiredRankId) {
+                                    if ($upline['status'] === 'active') {
                                         $pDesc = "Daily Propagated Match Income from " . $uname . " (Slab \$" . number_format($slab, 2) . ")";
                                         $stmtTx->execute([$upline['parent_id'], $uid, $dailyIncome, $dailyIncome, $pDesc]);
                                     }

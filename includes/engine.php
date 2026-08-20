@@ -283,12 +283,12 @@ class MLMEngine {
                     $stmtUpdateSched = $this->db->prepare("UPDATE matching_schedules SET days_passed = ?, status = ? WHERE id = ?");
                     $stmtUpdateSched->execute([$newDaysPassed, $status, $sched['id']]);
 
-                    // Propagate rank income up to root (the same paid amount, subject to each upline's individual active status)
+                    // Propagate rank income up to 2 levels high (subject to each upline's individual active status)
                     $stmtUplines = $this->db->prepare("
-                        SELECT g.parent_id, u.username, u.status
+                        SELECT g.parent_id, g.level, u.username, u.status
                         FROM genealogy g
                         JOIN users u ON g.parent_id = u.id
-                        WHERE g.user_id = ?
+                        WHERE g.user_id = ? AND g.level <= 2
                         ORDER BY g.level ASC
                     ");
                     $stmtUplines->execute([$userId]);
@@ -300,26 +300,7 @@ class MLMEngine {
                     $origUserObj = $stmtUser->fetch();
                     $origUsername = $origUserObj ? $origUserObj['username'] : "user ID $userId";
 
-                    $stmtReferrals = $this->db->prepare("SELECT COUNT(*) as ref_count FROM users WHERE sponsor_id = ?");
-                    $consecutiveSingleCount = 0;
-
                     foreach ($uplines as $upline) {
-                        // Check if this parent has only one direct referral (single direct referral node)
-                        $stmtReferrals->execute([$upline['parent_id']]);
-                        $refData = $stmtReferrals->fetch();
-                        $refCount = (int)$refData['ref_count'];
-
-                        if ($refCount === 1) {
-                            $consecutiveSingleCount++;
-                        } else {
-                            $consecutiveSingleCount = 0;
-                        }
-
-                        // If we already went past 3 consecutive single nodes, break immediately
-                        if ($consecutiveSingleCount > 3) {
-                            break;
-                        }
-
                         if ($upline['status'] === 'active') {
                             $uplineAllowable = $this->getAllowableAmount($upline['parent_id'], $allowable);
                             if ($uplineAllowable > 0) {
@@ -329,14 +310,11 @@ class MLMEngine {
                                     $uplineAllowable,
                                     0,
                                     "Daily Propagated Match Income from " . $origUsername . " (Slab \$" . number_format($sched['slab_amount'], 2) . ")",
-                                    $userId
+                                    $userId,
+                                    null,
+                                    $upline['level']
                                 );
                             }
-                        }
-
-                        // Stop propagating further if we just paid the 3rd consecutive single referral node
-                        if ($consecutiveSingleCount === 3) {
-                            break;
                         }
                     }
                 }
