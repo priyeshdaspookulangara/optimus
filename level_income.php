@@ -12,7 +12,7 @@ $userId = $_SESSION['user_id'];
 
 // Fetch Level Income Transactions
 $stmt = $db->prepare("
-    SELECT t.*, u.username as from_username,
+    SELECT t.*, u.username as from_username, u.mid as from_mid,
            COALESCE(i.amount, (
                SELECT inv.amount FROM investments inv
                WHERE inv.user_id = t.related_user_id AND inv.created_at <= t.created_at
@@ -66,7 +66,7 @@ include __DIR__ . '/includes/header.php';
                       <td>$<?php echo number_format((float)($t['investment_amount'] ?? 0), 2); ?></td>
                       <td class="text-success">$<?php echo number_format($t['amount'], 2); ?></td>
                       <td>
-                        <?php echo $t['related_user_id']; ?><br>
+                        <?php echo htmlspecialchars($t['from_mid'] ?? $t['related_user_id']); ?><br>
                         <?php echo htmlspecialchars($t['from_username'] ?? 'Unknown'); ?>
                       </td>
                       <td><?php echo $t['level']; ?></td>
