@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/includes/engine.php';
 
 $db = Database::getInstance()->getConnection();
@@ -7,6 +9,7 @@ $config = require __DIR__ . '/includes/config.php';
 
 $treeType = isset($_GET['type']) && $_GET['type'] === 'placement' ? 'placement' : 'sponsor';
 $searchMid = isset($_GET['mid']) ? trim($_GET['mid']) : (isset($_GET['search']) ? trim($_GET['search']) : '');
+$maxLevels = isset($_GET['levels']) ? max(1, min(10, (int)$_GET['levels'])) : 5;
 
 // Locate starting root node
 $rootUser = null;
@@ -71,7 +74,7 @@ function fetchUserNodeData($db, $userId, $config) {
     return $user;
 }
 
-function buildRecursiveTreeData($db, $userId, $treeType, $config, &$visited = []) {
+function buildRecursiveTreeData($db, $userId, $treeType, $config, &$visited = [], $currentLevel = 1, $maxLevels = 5) {
     if (isset($visited[$userId])) {
         return null; // Prevents infinite recursion in case of cyclic data
     }
@@ -80,26 +83,32 @@ function buildRecursiveTreeData($db, $userId, $treeType, $config, &$visited = []
     $node = fetchUserNodeData($db, $userId, $config);
     if (!$node) return null;
 
-    if ($treeType === 'placement') {
-        $stmt = $db->prepare("SELECT id FROM users WHERE placement_id = ? ORDER BY CASE WHEN position = 'left' THEN 1 WHEN position = 'right' THEN 2 ELSE 3 END, id ASC");
-    } else {
-        $stmt = $db->prepare("SELECT id FROM users WHERE sponsor_id = ? ORDER BY id ASC");
-    }
-    $stmt->execute([$userId]);
-    $childIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
+    $node['level'] = $currentLevel;
     $node['children'] = [];
-    foreach ($childIds as $childId) {
-        $childNode = buildRecursiveTreeData($db, $childId, $treeType, $config, $visited);
-        if ($childNode) {
-            $node['children'][] = $childNode;
+
+    // Strict limit to maxLevels depth
+    if ($currentLevel < $maxLevels) {
+        if ($treeType === 'placement') {
+            $stmt = $db->prepare("SELECT id FROM users WHERE placement_id = ? ORDER BY CASE WHEN position = 'left' THEN 1 WHEN position = 'right' THEN 2 ELSE 3 END, id ASC");
+        } else {
+            $stmt = $db->prepare("SELECT id FROM users WHERE sponsor_id = ? ORDER BY id ASC");
+        }
+        $stmt->execute([$userId]);
+        $childIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($childIds as $childId) {
+            $childNode = buildRecursiveTreeData($db, $childId, $treeType, $config, $visited, $currentLevel + 1, $maxLevels);
+            if ($childNode) {
+                $node['children'][] = $childNode;
+            }
         }
     }
 
     return $node;
 }
 
-$treeData = $rootUser ? buildRecursiveTreeData($db, $rootUser['id'], $treeType, $config) : null;
+$visitedArr = [];
+$treeData = $rootUser ? buildRecursiveTreeData($db, $rootUser['id'], $treeType, $config, $visitedArr, 1, $maxLevels) : null;
 
 function countSubtreeNodes($node) {
     if (!$node) return 0;
@@ -122,13 +131,14 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
     $usernameDisplay = htmlspecialchars($node['username']);
     $packageDisplay = htmlspecialchars($node['joining_package']);
     $rankDisplay = htmlspecialchars($node['rank_name']);
+    $levelDisplay = isset($node['level']) ? 'L' . $node['level'] : '';
     $positionDisplay = !empty($node['position']) ? ' <span class="badge bg-secondary position-badge">' . ucfirst(htmlspecialchars($node['position'])) . '</span>' : '';
     $idAttr = $isRoot ? ' id="rootNodeCard"' : '';
 
     $html = '<li>';
     $html .= '<div class="node-card"' . $idAttr . ' onclick="focusNode(\'' . htmlspecialchars($midRaw, ENT_QUOTES) . '\')" title="Click to make this user root">';
     $html .= '  <div class="card-top-bar">';
-    $html .= '    <span class="mid-badge"><i class="fa-solid fa-id-badge me-1"></i>' . $midDisplay . '</span>';
+    $html .= '    <div><span class="badge bg-dark border border-secondary text-info me-1" style="font-size: 10px;">' . $levelDisplay . '</span><span class="mid-badge"><i class="fa-solid fa-id-badge me-1"></i>' . $midDisplay . '</span></div>';
     $html .=     $positionDisplay;
     $html .= '  </div>';
     $html .= '  <div class="user-name"><i class="fa-solid fa-user me-1 text-info"></i>' . $usernameDisplay . '</div>';
@@ -444,24 +454,38 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             <i class="fa-solid fa-sitemap"></i>
             <span>Recursive Downline Tree</span>
             <span class="badge bg-primary rounded-pill px-3 py-2 ms-2" style="font-size: 12px;">
-                <i class="fa-solid fa-users me-1"></i> Subtree Members: <?php echo $totalNodes; ?>
+                <i class="fa-solid fa-users me-1"></i> Visible Members: <?php echo $totalNodes; ?>
             </span>
         </div>
 
         <form method="GET" action="printree.php" class="control-group">
             <input type="hidden" name="type" value="<?php echo htmlspecialchars($treeType); ?>">
-            <div class="input-group input-group-sm" style="width: 260px;">
+            <div class="input-group input-group-sm" style="width: 240px;">
                 <span class="input-group-text bg-dark text-secondary border-secondary"><i class="fa-solid fa-magnifying-glass"></i></span>
                 <input type="text" name="mid" class="form-control bg-dark text-white border-secondary" placeholder="Enter MID or Username..." value="<?php echo htmlspecialchars($searchMid); ?>">
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-arrow-right"></i></button>
             </div>
 
+            <!-- Depth / Levels Selector -->
+            <select name="levels" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: 105px;" onchange="this.form.submit()" title="Select Tree Depth">
+                <option value="1" <?php echo $maxLevels == 1 ? 'selected' : ''; ?>>1 Level</option>
+                <option value="2" <?php echo $maxLevels == 2 ? 'selected' : ''; ?>>2 Levels</option>
+                <option value="3" <?php echo $maxLevels == 3 ? 'selected' : ''; ?>>3 Levels</option>
+                <option value="4" <?php echo $maxLevels == 4 ? 'selected' : ''; ?>>4 Levels</option>
+                <option value="5" <?php echo $maxLevels == 5 ? 'selected' : ''; ?>>5 Levels</option>
+                <option value="6" <?php echo $maxLevels == 6 ? 'selected' : ''; ?>>6 Levels</option>
+                <option value="7" <?php echo $maxLevels == 7 ? 'selected' : ''; ?>>7 Levels</option>
+                <option value="8" <?php echo $maxLevels == 8 ? 'selected' : ''; ?>>8 Levels</option>
+                <option value="9" <?php echo $maxLevels == 9 ? 'selected' : ''; ?>>9 Levels</option>
+                <option value="10" <?php echo $maxLevels == 10 ? 'selected' : ''; ?>>10 Levels</option>
+            </select>
+
             <!-- Tree Type Toggle -->
             <div class="btn-group btn-group-sm me-2" role="group">
-                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor" class="btn <?php echo $treeType === 'sponsor' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'sponsor' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
                     <i class="fa-solid fa-diagram-next me-1"></i> Sponsor
                 </a>
-                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement" class="btn <?php echo $treeType === 'placement' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'placement' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
                     <i class="fa-solid fa-network-wired me-1"></i> Placement
                 </a>
             </div>
