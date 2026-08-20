@@ -58,6 +58,7 @@ $pageTitle = 'PIN Management';
 include __DIR__ . '/includes/header.php';
 
 $statusFilter = $_GET['status'] ?? '';
+$search = trim($_GET['search'] ?? '');
 
 // Build dynamic query
 $query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u.mid as used_by_mid, u_ass.username as assigned_to_user, u_ass.mid as assigned_to_mid
@@ -66,11 +67,23 @@ $query = "SELECT p.*, pkg.name as package_name, u.username as used_by_user, u.mi
           LEFT JOIN users u ON p.used_by = u.id
           LEFT JOIN users u_ass ON p.assigned_to = u_ass.id";
 
+$whereClauses = [];
 $params = [];
+
 if ($statusFilter === 'used') {
-    $query .= " WHERE p.status = 'used'";
+    $whereClauses[] = "p.status = 'used'";
 } elseif ($statusFilter === 'unused') {
-    $query .= " WHERE p.status = 'unused'";
+    $whereClauses[] = "p.status = 'unused'";
+}
+
+if ($search !== '') {
+    $whereClauses[] = "(p.pin_code LIKE ? OR u_ass.mid LIKE ? OR u_ass.username LIKE ? OR u.mid LIKE ? OR u.username LIKE ?)";
+    $searchTerm = "%" . $search . "%";
+    $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+}
+
+if (!empty($whereClauses)) {
+    $query .= " WHERE " . implode(" AND ", $whereClauses);
 }
 
 $query .= " ORDER BY p.created_at DESC";
@@ -90,11 +103,32 @@ $packages = $stmt->fetchAll();
     </button>
 </div>
 
-<!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<!-- Filters Bar & Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-center">
+            <?php if (!empty($statusFilter)): ?>
+                <input type="hidden" name="status" value="<?php echo htmlspecialchars($statusFilter); ?>">
+            <?php endif; ?>
+            <div class="col-md-6 col-lg-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-search"></i></span>
+                    <input type="text" name="search" class="form-control" placeholder="Search PIN, Assigned MID/Username, Used MID..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-filter me-1"></i>Search</button>
+                <?php if ($search !== ''): ?>
+                    <a href="pins.php<?php echo $statusFilter ? '?status=' . urlencode($statusFilter) : ''; ?>" class="btn btn-outline-secondary">Clear Search</a>
+                <?php endif; ?>
+            </div>
+            <div class="col-12 mt-3 d-flex gap-2">
+                <a href="pins.php<?php echo $search !== '' ? '?search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+                <a href="pins.php?status=unused<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+                <a href="pins.php?status=used<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
@@ -113,6 +147,11 @@ $packages = $stmt->fetchAll();
                     </tr>
                 </thead>
                 <tbody>
+                    <?php if (empty($pins)): ?>
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No PINs found matching your criteria.</td>
+                    </tr>
+                    <?php else: ?>
                     <?php foreach($pins as $p): ?>
                     <tr>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
@@ -140,6 +179,7 @@ $packages = $stmt->fetchAll();
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
