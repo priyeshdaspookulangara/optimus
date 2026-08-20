@@ -14,6 +14,12 @@ if (empty($_SESSION['admin_csrf'])) {
 
 $db = Database::getInstance()->getConnection();
 
+$newlyGeneratedData = null;
+if (isset($_SESSION['newly_generated_pins'])) {
+    $newlyGeneratedData = $_SESSION['newly_generated_pins'];
+    unset($_SESSION['newly_generated_pins']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'generate') {
     // Validate CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['admin_csrf']) {
@@ -35,6 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
+    $stmtPkg = $db->prepare("SELECT name FROM packages WHERE id = ?");
+    $stmtPkg->execute([$packageId]);
+    $pkgRow = $stmtPkg->fetch();
+    $packageName = $pkgRow ? $pkgRow['name'] : 'Package';
+
+    $newlyGenerated = [];
+
     $stmt = $db->prepare("INSERT INTO pins (pin_code, package_id, assigned_to) VALUES (?, ?, ?)");
     for ($i = 0; $i < $count; $i++) {
         // Format: "OPT" + unique 6 digit combination
@@ -49,7 +62,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         $stmt->execute([$pin, $packageId, $assignedToId]);
+        $newlyGenerated[] = $pin;
     }
+
+    $_SESSION['newly_generated_pins'] = [
+        'pins' => $newlyGenerated,
+        'package_name' => $packageName,
+        'assigned_to' => $assignUsername
+    ];
+
     header("Location: pins.php?success=generated");
     exit();
 }
@@ -90,19 +111,42 @@ $packages = $stmt->fetchAll();
     </button>
 </div>
 
-<!-- Filters Bar -->
-<div class="mb-3 d-flex gap-2">
-    <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-    <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-    <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+<!-- Filters & Actions Bar -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-4 d-flex gap-2">
+                <a href="pins.php" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+                <a href="pins.php?status=unused" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+                <a href="pins.php?status=used" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="fa fa-search"></i></span>
+                    <input type="text" id="pinSearchInput" class="form-control" placeholder="Search PIN, Username, or Member ID...">
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end d-flex gap-2 justify-content-md-end align-items-center">
+                <button type="button" id="btnBulkWhatsApp" class="btn btn-sm btn-success" disabled>
+                    <i class="fab fa-whatsapp me-1"></i> Send Selected (<span id="selectedCount">0</span>)
+                </button>
+                <button type="button" id="btnBulkSMS" class="btn btn-sm btn-info text-white" disabled>
+                    <i class="fa-solid fa-comment-sms me-1"></i> Send Selected
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-sm table-striped">
+            <table class="table table-sm table-striped align-middle" id="pinsTable">
                 <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAllPins">
+                        </th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -114,7 +158,19 @@ $packages = $stmt->fetchAll();
                 </thead>
                 <tbody>
                     <?php foreach($pins as $p): ?>
-                    <tr>
+                    <tr class="pin-row"
+                        data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>"
+                        data-pkg="<?php echo htmlspecialchars($p['package_name']); ?>"
+                        data-assigned="<?php echo htmlspecialchars($p['assigned_to_user'] ?? ''); ?>"
+                        data-assigned-mid="<?php echo htmlspecialchars($p['assigned_to_mid'] ?? ''); ?>"
+                        data-used="<?php echo htmlspecialchars($p['used_by_user'] ?? ''); ?>"
+                        data-used-mid="<?php echo htmlspecialchars($p['used_by_mid'] ?? ''); ?>">
+                        <td>
+                            <input type="checkbox" class="form-check-input pin-checkbox"
+                                   value="<?php echo htmlspecialchars($p['pin_code']); ?>"
+                                   data-pkg="<?php echo htmlspecialchars($p['package_name']); ?>"
+                                   data-assigned="<?php echo htmlspecialchars($p['assigned_to_user'] ?? ''); ?>">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -182,5 +238,167 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<?php if ($newlyGeneratedData): ?>
+<!-- Newly Generated PINs Modal -->
+<div class="modal fade" id="newlyGeneratedModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fa fa-circle-check me-2"></i> Newly Generated PINs (<?php echo count($newlyGeneratedData['pins']); ?>)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Package:</strong> <?php echo htmlspecialchars($newlyGeneratedData['package_name']); ?>
+                    </div>
+                    <?php if (!empty($newlyGeneratedData['assigned_to'])): ?>
+                    <div class="col-md-6">
+                        <strong>Assigned To:</strong> <?php echo htmlspecialchars($newlyGeneratedData['assigned_to']); ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Generated PIN Codes:</label>
+                    <textarea id="newlyGeneratedText" class="form-control font-monospace" rows="6" readonly><?php echo htmlspecialchars(implode("\n", $newlyGeneratedData['pins'])); ?></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <?php
+                $genWaText = "🌟 *OPTIMUS INFINITY - ACTIVATION PIN(S)* 🌟\n\nDear Partner,\n\nYour Package Activation PIN(s) have been successfully generated!\n\n📦 *PACKAGE:* " . $newlyGeneratedData['package_name'] . "\n\n🔑 *PIN CODES:*\n" . implode("\n", $newlyGeneratedData['pins']) . "\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀";
+                $genWaUrl = "https://api.whatsapp.com/send?text=" . urlencode($genWaText);
+
+                $genSmsText = "OPTIMUS INFINITY - ACTIVATION PINS\n\nPackage: " . $newlyGeneratedData['package_name'] . "\nPINs:\n" . implode("\n", $newlyGeneratedData['pins']);
+                $genSmsUrl = "sms:?body=" . urlencode($genSmsText);
+                ?>
+                <button type="button" class="btn btn-secondary" id="btnCopyGenerated"><i class="fa fa-copy me-1"></i> Copy PINs</button>
+                <a href="<?php echo $genWaUrl; ?>" target="_blank" class="btn btn-success"><i class="fab fa-whatsapp me-1"></i> Send via WhatsApp</a>
+                <a href="<?php echo $genSmsUrl; ?>" class="btn btn-info text-white"><i class="fa-solid fa-comment-sms me-1"></i> Send via SMS</a>
+                <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show newly generated modal if present
+    const newlyGeneratedModalEl = document.getElementById('newlyGeneratedModal');
+    if (newlyGeneratedModalEl) {
+        const modal = new bootstrap.Modal(newlyGeneratedModalEl);
+        modal.show();
+
+        const btnCopyGenerated = document.getElementById('btnCopyGenerated');
+        if (btnCopyGenerated) {
+            btnCopyGenerated.addEventListener('click', function() {
+                const textarea = document.getElementById('newlyGeneratedText');
+                textarea.select();
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    const originalText = btnCopyGenerated.innerHTML;
+                    btnCopyGenerated.innerHTML = '<i class="fa fa-check me-1"></i> Copied!';
+                    setTimeout(() => {
+                        btnCopyGenerated.innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+        }
+    }
+
+    // Search filter
+    const pinSearchInput = document.getElementById('pinSearchInput');
+    if (pinSearchInput) {
+        pinSearchInput.addEventListener('keyup', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#pinsTable tbody tr.pin-row');
+
+            rows.forEach(row => {
+                const pin = (row.getAttribute('data-pin') || '').toLowerCase();
+                const pkg = (row.getAttribute('data-pkg') || '').toLowerCase();
+                const assigned = (row.getAttribute('data-assigned') || '').toLowerCase();
+                const assignedMid = (row.getAttribute('data-assigned-mid') || '').toLowerCase();
+                const used = (row.getAttribute('data-used') || '').toLowerCase();
+                const usedMid = (row.getAttribute('data-used-mid') || '').toLowerCase();
+
+                if (pin.includes(query) || pkg.includes(query) || assigned.includes(query) || assignedMid.includes(query) || used.includes(query) || usedMid.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Checkbox handling
+    const selectAllPins = document.getElementById('selectAllPins');
+    const pinCheckboxes = document.querySelectorAll('.pin-checkbox');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const btnBulkWhatsApp = document.getElementById('btnBulkWhatsApp');
+    const btnBulkSMS = document.getElementById('btnBulkSMS');
+
+    function updateSelectionState() {
+        const selected = document.querySelectorAll('.pin-checkbox:checked');
+        const count = selected.length;
+
+        if (selectedCountSpan) {
+            selectedCountSpan.textContent = count;
+        }
+
+        if (btnBulkWhatsApp && btnBulkSMS) {
+            btnBulkWhatsApp.disabled = (count === 0);
+            btnBulkSMS.disabled = (count === 0);
+        }
+    }
+
+    if (selectAllPins) {
+        selectAllPins.addEventListener('change', function() {
+            const visibleCheckboxes = document.querySelectorAll('#pinsTable tbody tr:not([style*="display: none"]) .pin-checkbox');
+            visibleCheckboxes.forEach(cb => {
+                cb.checked = selectAllPins.checked;
+            });
+            updateSelectionState();
+        });
+    }
+
+    pinCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectionState);
+    });
+
+    if (btnBulkWhatsApp) {
+        btnBulkWhatsApp.addEventListener('click', function() {
+            const selected = document.querySelectorAll('.pin-checkbox:checked');
+            if (selected.length === 0) return;
+
+            let pinsList = [];
+            selected.forEach(cb => {
+                const pinCode = cb.value;
+                const pkg = cb.getAttribute('data-pkg') || '';
+                pinsList.push(`• ${pinCode} (${pkg})`);
+            });
+
+            const waText = `🌟 *OPTIMUS INFINITY - ACTIVATION PIN(S)* 🌟\n\nDear Partner,\n\nHere are your requested activation PINs:\n\n` + pinsList.join('\n') + `\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀`;
+            const waUrl = `https://api.whatsapp.com/send?text=` + encodeURIComponent(waText);
+            window.open(waUrl, '_blank');
+        });
+    }
+
+    if (btnBulkSMS) {
+        btnBulkSMS.addEventListener('click', function() {
+            const selected = document.querySelectorAll('.pin-checkbox:checked');
+            if (selected.length === 0) return;
+
+            let pinsList = [];
+            selected.forEach(cb => {
+                pinsList.push(cb.value);
+            });
+
+            const smsText = `OPTIMUS INFINITY ACTIVATION PINS:\n` + pinsList.join('\n');
+            const smsUrl = `sms:?body=` + encodeURIComponent(smsText);
+            window.location.href = smsUrl;
+        });
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
