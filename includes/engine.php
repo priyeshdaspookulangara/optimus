@@ -49,10 +49,10 @@ class MLMEngine {
             $stmt->execute([$packageAmount, $userId]);
 
             // Log Transaction
-            $this->logTransaction($userId, 'INVESTMENT', $packageAmount, 0, "Purchased package \${$packageAmount}", null, $investmentId);
+            $this->logTransaction($userId, 'INVESTMENT', $packageAmount, 0, "Purchased package \${$packageAmount}", null, $investmentId, null, null, date('Y-m-d'));
 
             // Distribute Level Income (Recursive up to 12 levels)
-            $this->distributeLevelIncome($userId, $packageAmount);
+            $this->distributeLevelIncome($userId, $packageAmount, $investmentId, date('Y-m-d'));
 
             // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
             $this->updateUplineRanks($userId);
@@ -100,7 +100,7 @@ class MLMEngine {
                 // Total ID Cap Check (300%)
                 $allowableROI = $this->getAllowableAmount($investment['user_id'], $roiAmount);
                 if ($allowableROI > 0) {
-                    $this->logTransaction($investment['user_id'], 'ROI', $allowableROI, 0, "Daily ROI for investment ID: {$investment['id']}", null, $investment['id']);
+                    $this->logTransaction($investment['user_id'], 'ROI', $allowableROI, 0, "Daily ROI for investment ID: {$investment['id']}", null, $investment['id'], null, null, $today);
 
                     $updateStmt = $this->db->prepare("UPDATE investments SET roi_earned = ?, total_earned = total_earned + ?, days_passed = ?, last_roi_at = ?, status = ? WHERE id = ?");
                     $updateStmt->execute([$newROIEarned, $allowableROI, $newDaysPassed, $today, $status, $investment['id']]);
@@ -125,7 +125,10 @@ class MLMEngine {
     /**
      * Level Income: Distribute commission up to 12 generations
      */
-    public function distributeLevelIncome($userId, $investmentAmount) {
+    public function distributeLevelIncome($userId, $investmentAmount, $investmentId = null, $roiDate = null) {
+        if ($roiDate === null) {
+            $roiDate = date('Y-m-d');
+        }
         $stmt = $this->db->prepare("SELECT parent_id, level FROM genealogy WHERE user_id = ? AND level <= 12 ORDER BY level ASC");
         $stmt->execute([$userId]);
         $parents = $stmt->fetchAll();
@@ -138,7 +141,7 @@ class MLMEngine {
 
                 $allowable = $this->getAllowableAmount($parent['parent_id'], $commission);
                 if ($allowable > 0) {
-                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, null, $level);
+                    $this->logTransaction($parent['parent_id'], 'LEVEL_INCOME', $allowable, 0, "Level {$level} income from user ID: {$userId}", $userId, $investmentId, $level, null, $roiDate);
                 }
             }
         }
@@ -384,7 +387,7 @@ class MLMEngine {
         return min($amountToAdd, $remainingCap);
     }
 
-    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null) {
+    public function logTransaction($userId, $type, $amount, $fee, $description, $relatedUserId = null, $investmentId = null, $level = null, $customNetAmount = null, $roiDate = null) {
         // Signage: Income types are positive, Expense/Debit types are negative
         $isDebit = in_array($type, ['WITHDRAWAL', 'INVESTMENT']);
 
@@ -398,8 +401,8 @@ class MLMEngine {
             $netAmount = $amount - $fee;
         }
 
-        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description]);
+        $stmt = $this->db->prepare("INSERT INTO transactions (user_id, related_user_id, investment_id, level, type, amount, fee, net_amount, description, roi_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $relatedUserId, $investmentId, $level, $type, $amount, $fee, $netAmount, $description, $roiDate]);
     }
 
     /**
@@ -480,10 +483,10 @@ class MLMEngine {
             $stmt->execute([$package['amount'], $userId]);
 
             // PIN activation is a prepaid investment, so custom net_amount = 0.00 prevents debiting user's e-wallet balance
-            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00);
+            $this->logTransaction($userId, 'INVESTMENT', $package['amount'], 0, "Package activated via PIN: {$pinCode}", null, $investmentId, null, 0.00, date('Y-m-d'));
 
             // Distribute commissions
-            $this->distributeLevelIncome($userId, $package['amount']);
+            $this->distributeLevelIncome($userId, $package['amount'], $investmentId, date('Y-m-d'));
 
             // Instantly evaluate leg business, ranks, and matching schedules for all ancestors
             $this->updateUplineRanks($userId);

@@ -12,9 +12,19 @@ $userId = $_SESSION['user_id'];
 
 // Fetch Level Income Transactions
 $stmt = $db->prepare("
-    SELECT t.*, u.username as from_username
+    SELECT t.*, u.username as from_username, u.mid as from_mid,
+           COALESCE(i.amount, (
+               SELECT inv.amount FROM investments inv
+               WHERE inv.user_id = t.related_user_id AND inv.created_at <= t.created_at
+               ORDER BY inv.created_at DESC LIMIT 1
+           ), (
+               SELECT inv.amount FROM investments inv
+               WHERE inv.user_id = t.related_user_id
+               ORDER BY inv.created_at ASC LIMIT 1
+           ), u.total_investment, 0) as investment_amount
     FROM transactions t
     LEFT JOIN users u ON t.related_user_id = u.id
+    LEFT JOIN investments i ON t.investment_id = i.id
     WHERE t.user_id = ? AND t.type = 'LEVEL_INCOME'
     ORDER BY t.created_at DESC
 ");
@@ -42,6 +52,7 @@ include __DIR__ . '/includes/header.php';
                   <tr>
                     <th>#</th>
                     <th>Date</th>
+                    <th>Investment Amount</th>
                     <th>Credit</th>
                     <th>From</th>
                     <th>Level</th>
@@ -51,10 +62,11 @@ include __DIR__ . '/includes/header.php';
                   <?php foreach($level_transactions as $index => $t): ?>
                     <tr>
                       <td><?php echo $index + 1; ?></td>
-                      <td><?php echo date('d M, Y h:i:s a', strtotime($t['created_at'])); ?></td>
+                      <td><?php echo !empty($t['roi_date']) ? date('d M, Y', strtotime($t['roi_date'])) : date('d M, Y', strtotime($t['created_at'])); ?></td>
+                      <td>$<?php echo number_format((float)($t['investment_amount'] ?? 0), 2); ?></td>
                       <td class="text-success">$<?php echo number_format($t['amount'], 2); ?></td>
                       <td>
-                        <?php echo $t['related_user_id']; ?><br>
+                        <?php echo htmlspecialchars($t['from_mid'] ?? $t['related_user_id']); ?><br>
                         <?php echo htmlspecialchars($t['from_username'] ?? 'Unknown'); ?>
                       </td>
                       <td><?php echo $t['level']; ?></td>
