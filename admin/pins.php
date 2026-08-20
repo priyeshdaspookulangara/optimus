@@ -106,7 +106,7 @@ $packages = $stmt->fetchAll();
 <!-- Filters Bar & Search -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="get" class="row g-2 align-items-center">
+        <form method="get" class="row g-2 align-items-center mb-3">
             <?php if (!empty($statusFilter)): ?>
                 <input type="hidden" name="status" value="<?php echo htmlspecialchars($statusFilter); ?>">
             <?php endif; ?>
@@ -122,10 +122,23 @@ $packages = $stmt->fetchAll();
                     <a href="pins.php<?php echo $statusFilter ? '?status=' . urlencode($statusFilter) : ''; ?>" class="btn btn-outline-secondary">Clear Search</a>
                 <?php endif; ?>
             </div>
-            <div class="col-12 mt-3 d-flex gap-2">
-                <a href="pins.php<?php echo $search !== '' ? '?search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
-                <a href="pins.php?status=unused<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
-                <a href="pins.php?status=used<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+            <div class="col-12 mt-2 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2">
+                    <a href="pins.php<?php echo $search !== '' ? '?search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === '' ? 'btn-primary' : 'btn-outline-primary'; ?>">All PINs</a>
+                    <a href="pins.php?status=unused<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'unused' ? 'btn-primary' : 'btn-outline-primary'; ?>">Unused PINs</a>
+                    <a href="pins.php?status=used<?php echo $search !== '' ? '&search=' . urlencode($search) : ''; ?>" class="btn btn-sm <?php echo $statusFilter === 'used' ? 'btn-primary' : 'btn-outline-primary'; ?>">Used PINs Only</a>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary" id="selectedCountBadge">0 Selected</span>
+                    <button type="button" class="btn btn-sm btn-success" id="btnBulkWA" onclick="shareBulkWA()" disabled>
+                        <i class="fab fa-whatsapp me-1"></i> Send Selected to WhatsApp
+                    </button>
+                    <button type="button" class="btn btn-sm btn-info text-white" id="btnBulkSMS" onclick="shareBulkSMS()" disabled>
+                        <i class="fa-solid fa-comment-sms me-1"></i> Send Selected to SMS
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -137,6 +150,7 @@ $packages = $stmt->fetchAll();
             <table class="table table-sm table-striped">
                 <thead>
                     <tr>
+                        <th width="40"><input type="checkbox" id="selectAllPins" class="form-check-input" onchange="toggleSelectAll(this)"></th>
                         <th>PIN Code</th>
                         <th>Package</th>
                         <th>Status</th>
@@ -149,11 +163,14 @@ $packages = $stmt->fetchAll();
                 <tbody>
                     <?php if (empty($pins)): ?>
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">No PINs found matching your criteria.</td>
+                        <td colspan="8" class="text-center text-muted py-4">No PINs found matching your criteria.</td>
                     </tr>
                     <?php else: ?>
                     <?php foreach($pins as $p): ?>
                     <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input pin-checkbox" data-pin="<?php echo htmlspecialchars($p['pin_code']); ?>" data-package="<?php echo htmlspecialchars($p['package_name']); ?>" onchange="updateBulkButtons()">
+                        </td>
                         <td><code><?php echo htmlspecialchars($p['pin_code']); ?></code></td>
                         <td><?php echo htmlspecialchars($p['package_name']); ?></td>
                         <td>
@@ -222,5 +239,63 @@ $packages = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<script>
+function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('.pin-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    const selected = document.querySelectorAll('.pin-checkbox:checked');
+    const count = selected.length;
+    const badge = document.getElementById('selectedCountBadge');
+    const btnWA = document.getElementById('btnBulkWA');
+    const btnSMS = document.getElementById('btnBulkSMS');
+
+    badge.textContent = count + ' Selected';
+    if (count > 0) {
+        btnWA.removeAttribute('disabled');
+        btnSMS.removeAttribute('disabled');
+    } else {
+        btnWA.setAttribute('disabled', 'disabled');
+        btnSMS.setAttribute('disabled', 'disabled');
+        document.getElementById('selectAllPins').checked = false;
+    }
+}
+
+function getSelectedPins() {
+    const selected = document.querySelectorAll('.pin-checkbox:checked');
+    const items = [];
+    selected.forEach(cb => {
+        items.push({
+            pin: cb.getAttribute('data-pin'),
+            package: cb.getAttribute('data-package')
+        });
+    });
+    return items;
+}
+
+function shareBulkWA() {
+    const pins = getSelectedPins();
+    if (pins.length === 0) return;
+
+    let pinText = pins.map((item, index) => `${index + 1}. 🔑 *PIN:* ${item.pin} (${item.package})`).join('\n');
+    let waText = `🌟 *OPTIMUS INFINITY - ACTIVATION PINS* 🌟\n\nDear Partner,\n\nHere are your requested Package Activation PINs:\n\n${pinText}\n\nThank you for choosing Optimus Infinity. Let's scale new heights together! 🚀`;
+
+    window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(waText), "_blank");
+}
+
+function shareBulkSMS() {
+    const pins = getSelectedPins();
+    if (pins.length === 0) return;
+
+    let pinText = pins.map((item, index) => `${index + 1}. PIN: ${item.pin} (${item.package})`).join('\n');
+    let smsText = `OPTIMUS INFINITY - ACTIVATION PINS\n\nDear Partner,\n\nHere are your requested Package Activation PINs:\n\n${pinText}\n\nThank you, Optimus Infinity!`;
+
+    window.location.href = "sms:?body=" + encodeURIComponent(smsText);
+}
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
