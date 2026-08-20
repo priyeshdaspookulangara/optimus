@@ -7,7 +7,6 @@ This is a robust, database-driven Multi-Level Marketing (MLM) application develo
 - **Recursive Genealogy Engine**: Handles 12-generation referral tree.
 - **ROI Engine**: 0.50% daily ROI with a max cap of 200%.
 - **Matching Engine**: Identifies Power Leg and Matching Leg for daily rank income.
-- **Total ID Cap**: 300% cap on all earnings.
 - **Withdrawal System**: Minimum $25 withdrawal with a flat $10 gas fee.
 
 ## Configuration
