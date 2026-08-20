@@ -132,21 +132,26 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
     $packageDisplay = htmlspecialchars($node['joining_package']);
     $rankDisplay = htmlspecialchars($node['rank_name']);
     $levelDisplay = isset($node['level']) ? 'L' . $node['level'] : '';
-    $positionDisplay = !empty($node['position']) ? ' <span class="badge bg-secondary position-badge">' . ucfirst(htmlspecialchars($node['position'])) . '</span>' : '';
+    $positionDisplay = !empty($node['position']) ? ' <span class="badge position-badge">' . ucfirst(htmlspecialchars($node['position'])) . '</span>' : '';
     $idAttr = $isRoot ? ' id="rootNodeCard"' : '';
 
-    $html = '<li>';
-    $html .= '<div class="node-card"' . $idAttr . ' onclick="focusNode(\'' . htmlspecialchars($midRaw, ENT_QUOTES) . '\')" title="Click to make this user root">';
-    $html .= '  <div class="card-top-bar">';
-    $html .= '    <div><span class="badge bg-dark border border-secondary text-info me-1" style="font-size: 10px;">' . $levelDisplay . '</span><span class="mid-badge"><i class="fa-solid fa-id-badge me-1"></i>' . $midDisplay . '</span></div>';
-    $html .=     $positionDisplay;
+    $hasChildren = !empty($node['children']);
+    $liClass = $hasChildren ? 'has-children' : 'leaf-node';
+
+    $html = '<li class="' . $liClass . '">';
+    $html .= '<div class="node-card-wrapper">';
+    $html .= '  <div class="node-card"' . $idAttr . ' onclick="focusNode(\'' . htmlspecialchars($midRaw, ENT_QUOTES) . '\')" title="Click to make this user root">';
+    $html .= '    <div class="card-top-bar">';
+    $html .= '      <div><span class="level-badge me-1">' . $levelDisplay . '</span><span class="mid-badge"><i class="fa-solid fa-id-badge me-1"></i>' . $midDisplay . '</span></div>';
+    $html .=       $positionDisplay;
+    $html .= '    </div>';
+    $html .= '    <div class="user-name"><i class="fa-solid fa-user me-1 text-primary"></i>' . $usernameDisplay . '</div>';
+    $html .= '    <div class="info-line"><span class="info-label"><i class="fa-solid fa-box me-1 text-warning"></i>Package:</span> <span class="info-value package-text">' . $packageDisplay . '</span></div>';
+    $html .= '    <div class="info-line"><span class="info-label"><i class="fa-solid fa-award me-1 text-success"></i>Rank:</span> <span class="info-value rank-text">' . $rankDisplay . '</span></div>';
     $html .= '  </div>';
-    $html .= '  <div class="user-name"><i class="fa-solid fa-user me-1 text-info"></i>' . $usernameDisplay . '</div>';
-    $html .= '  <div class="info-line"><span class="info-label"><i class="fa-solid fa-box me-1 text-warning"></i>Package:</span> <span class="info-value package-text">' . $packageDisplay . '</span></div>';
-    $html .= '  <div class="info-line"><span class="info-label"><i class="fa-solid fa-award me-1 text-success"></i>Rank:</span> <span class="info-value rank-text">' . $rankDisplay . '</span></div>';
     $html .= '</div>';
 
-    if (!empty($node['children'])) {
+    if ($hasChildren) {
         $html .= '<ul>';
         foreach ($node['children'] as $child) {
             $html .= renderTreeHtml($child, $treeType, false);
@@ -164,43 +169,46 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recursive Downline Tree Diagram</title>
-    <!-- Bootstrap 5 & FontAwesome -->
+    <!-- Google Fonts Poppins, Bootstrap 5 & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Global Canvas Styling: Non-responsive, infinite expansion in horizontal & vertical dimensions */
+        /* Global Canvas Styling matching Dashboard Theme */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #0d1117;
-            color: #c9d1d9;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f5f8;
+            color: #2b2b2b;
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             overflow: hidden;
         }
 
-        /* Top Toolbar */
+        /* Top Toolbar matching App Brand (#3f2259 & #cca354) */
         .toolbar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             height: 65px;
-            background-color: #161b22;
-            border-bottom: 1px solid #30363d;
+            background-color: #3f2259;
+            border-bottom: 3px solid #cca354;
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         }
 
         .toolbar-title {
             font-size: 18px;
             font-weight: 700;
-            color: #58a6ff;
+            color: #ffffff;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -214,7 +222,9 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             right: 0;
             bottom: 0;
             overflow: auto;
-            background-color: #0d1117;
+            background-color: #f4f5f8;
+            background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+            background-size: 20px 20px;
             cursor: grab;
         }
 
@@ -222,7 +232,7 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             cursor: grabbing;
         }
 
-        /* Viewport that holds the tree structure - strictly non-responsive, expanding as large as needed */
+        /* Viewport that holds the tree structure */
         .tree-viewport {
             display: inline-block;
             width: max-content;
@@ -236,7 +246,7 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             transition: transform 0.15s ease-out;
         }
 
-        /* Pure CSS Tree Architecture */
+        /* Pure CSS Tree Architecture - Strict Top-to-Bottom Levels */
         .tree {
             display: inline-block;
             width: max-content;
@@ -246,10 +256,10 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         }
 
         .tree ul {
-            padding-top: 25px;
+            padding-top: 20px;
             position: relative;
             transition: all 0.3s;
-            display: inline-flex;
+            display: flex;
             justify-content: center;
             margin: 0;
             padding-left: 0;
@@ -259,10 +269,11 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             text-align: center;
             list-style-type: none;
             position: relative;
-            padding: 25px 12px 0 12px;
+            padding: 20px 12px 0 12px;
             transition: all 0.3s;
-            display: inline-block;
-            vertical-align: top;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* Connecting Lines */
@@ -271,15 +282,15 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             position: absolute;
             top: 0;
             right: 50%;
-            border-top: 2px solid #30363d;
+            border-top: 2px solid #3f2259;
             width: 50%;
-            height: 25px;
+            height: 20px;
         }
 
         .tree li::after {
             right: auto;
             left: 50%;
-            border-left: 2px solid #30363d;
+            border-left: 2px solid #3f2259;
         }
 
         .tree li:only-child::after, .tree li:only-child::before {
@@ -295,7 +306,7 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         }
 
         .tree li:last-child::before {
-            border-right: 2px solid #30363d;
+            border-right: 2px solid #3f2259;
             border-radius: 0 6px 0 0;
         }
 
@@ -308,23 +319,41 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             position: absolute;
             top: 0;
             left: 50%;
-            border-left: 2px solid #30363d;
+            border-left: 2px solid #3f2259;
             width: 0;
-            height: 25px;
+            height: 20px;
         }
 
-        /* Node Box Styling */
+        /* Downward connector line from parent card to children ul */
+        .node-card-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .has-children > .node-card-wrapper::after {
+            content: '';
+            width: 0;
+            height: 20px;
+            border-left: 2px solid #3f2259;
+            display: block;
+        }
+
+        /* Node Card Styling - Dashboard Theme */
         .node-card {
             display: inline-block;
-            border: 2px solid #30363d;
+            border: 1px solid #dedede;
+            border-left: 4px solid #3f2259;
+            border-top: 3px solid #cca354;
             padding: 12px 16px;
             text-decoration: none;
-            color: #c9d1d9;
+            color: #2b2b2b;
             border-radius: 10px;
-            background: #161b22;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            background: #ffffff;
+            box-shadow: 0 6px 16px rgba(63,34,89,0.08);
             transition: all 0.25s ease;
-            width: 210px;
+            width: 220px;
             text-align: left;
             white-space: normal;
             cursor: pointer;
@@ -333,10 +362,10 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         }
 
         .node-card:hover {
-            background: #21262d;
-            border-color: #58a6ff;
+            background: #ffffff;
+            border-color: #cca354;
             transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(88, 166, 255, 0.25);
+            box-shadow: 0 10px 25px rgba(63,34,89,0.18);
         }
 
         .card-top-bar {
@@ -347,7 +376,7 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         }
 
         .mid-badge {
-            background: #1f6feb;
+            background: #3f2259;
             color: #ffffff;
             padding: 2px 8px;
             border-radius: 5px;
@@ -356,15 +385,26 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             letter-spacing: 0.5px;
         }
 
+        .level-badge {
+            background: #cca354;
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 10px;
+        }
+
         .position-badge {
             font-size: 10px;
             padding: 2px 6px;
+            background-color: #e9ecef;
+            color: #495057;
         }
 
         .user-name {
             font-size: 15px;
             font-weight: 700;
-            color: #f0f6fc;
+            color: #3f2259;
             margin-bottom: 8px;
             word-break: break-word;
         }
@@ -373,10 +413,11 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             font-size: 12px;
             margin-top: 4px;
             line-height: 1.4;
+            color: #495057;
         }
 
         .info-label {
-            color: #8b949e;
+            color: #6c757d;
             font-weight: 600;
         }
 
@@ -385,11 +426,13 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         }
 
         .package-text {
-            color: #f2cc60;
+            color: #3f2259;
+            font-weight: 700;
         }
 
         .rank-text {
-            color: #3fb950;
+            color: #198754;
+            font-weight: 700;
         }
 
         /* Search & Control Forms */
@@ -403,15 +446,15 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             display: flex;
             align-items: center;
             gap: 5px;
-            background: #21262d;
+            background: rgba(255,255,255,0.15);
             padding: 4px;
             border-radius: 6px;
-            border: 1px solid #30363d;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .btn-zoom {
-            background: #30363d;
-            color: #c9d1d9;
+            background: #ffffff;
+            color: #3f2259;
             border: none;
             width: 32px;
             height: 32px;
@@ -421,28 +464,41 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .btn-zoom:hover {
-            background: #58a6ff;
+            background: #cca354;
             color: #ffffff;
         }
 
-        /* Custom Scrollbar for large trees */
+        .btn-dashboard-link {
+            background: #cca354;
+            color: #ffffff;
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-dashboard-link:hover {
+            background: #b58d3f;
+            color: #ffffff;
+        }
+
+        /* Custom Scrollbar */
         .canvas-container::-webkit-scrollbar {
             width: 12px;
             height: 12px;
         }
         .canvas-container::-webkit-scrollbar-track {
-            background: #0d1117;
+            background: #e9ecef;
         }
         .canvas-container::-webkit-scrollbar-thumb {
-            background: #30363d;
+            background: #3f2259;
             border-radius: 6px;
-            border: 3px solid #0d1117;
+            border: 3px solid #e9ecef;
         }
         .canvas-container::-webkit-scrollbar-thumb:hover {
-            background: #58a6ff;
+            background: #cca354;
         }
     </style>
 </head>
@@ -451,9 +507,9 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
     <!-- Sticky Header Control Bar -->
     <div class="toolbar">
         <div class="toolbar-title">
-            <i class="fa-solid fa-sitemap"></i>
-            <span>Recursive Downline Tree</span>
-            <span class="badge bg-primary rounded-pill px-3 py-2 ms-2" style="font-size: 12px;">
+            <i class="fa-solid fa-sitemap text-warning"></i>
+            <span>Downline Tree</span>
+            <span class="badge rounded-pill px-3 py-2 ms-2" style="font-size: 12px; background: #cca354; color: #fff;">
                 <i class="fa-solid fa-users me-1"></i> Visible Members: <?php echo $totalNodes; ?>
             </span>
         </div>
@@ -461,13 +517,13 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
         <form method="GET" action="printree.php" class="control-group">
             <input type="hidden" name="type" value="<?php echo htmlspecialchars($treeType); ?>">
             <div class="input-group input-group-sm" style="width: 240px;">
-                <span class="input-group-text bg-dark text-secondary border-secondary"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" name="mid" class="form-control bg-dark text-white border-secondary" placeholder="Enter MID or Username..." value="<?php echo htmlspecialchars($searchMid); ?>">
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-arrow-right"></i></button>
+                <span class="input-group-text bg-white text-dark border-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" name="mid" class="form-control bg-white text-dark border-0" placeholder="Enter MID or Username..." value="<?php echo htmlspecialchars($searchMid); ?>">
+                <button type="submit" class="btn text-white" style="background: #cca354;"><i class="fa-solid fa-arrow-right"></i></button>
             </div>
 
             <!-- Depth / Levels Selector -->
-            <select name="levels" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: 105px;" onchange="this.form.submit()" title="Select Tree Depth">
+            <select name="levels" class="form-select form-select-sm bg-white text-dark border-0" style="width: 105px; font-weight: 600;" onchange="this.form.submit()" title="Select Tree Depth">
                 <option value="1" <?php echo $maxLevels == 1 ? 'selected' : ''; ?>>1 Level</option>
                 <option value="2" <?php echo $maxLevels == 2 ? 'selected' : ''; ?>>2 Levels</option>
                 <option value="3" <?php echo $maxLevels == 3 ? 'selected' : ''; ?>>3 Levels</option>
@@ -482,10 +538,10 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
 
             <!-- Tree Type Toggle -->
             <div class="btn-group btn-group-sm me-2" role="group">
-                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'sponsor' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'sponsor' ? 'text-white' : 'btn-outline-light'; ?>" style="<?php echo $treeType === 'sponsor' ? 'background: #cca354;' : ''; ?>">
                     <i class="fa-solid fa-diagram-next me-1"></i> Sponsor
                 </a>
-                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'placement' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement&levels=<?php echo $maxLevels; ?>" class="btn <?php echo $treeType === 'placement' ? 'text-white' : 'btn-outline-light'; ?>" style="<?php echo $treeType === 'placement' ? 'background: #cca354;' : ''; ?>">
                     <i class="fa-solid fa-network-wired me-1"></i> Placement
                 </a>
             </div>
@@ -499,9 +555,9 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
                 <button class="btn-zoom" onclick="zoomOut()" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
             </div>
             <?php if (isset($_SESSION['admin_id'])): ?>
-                <a href="admin/dashboard.php" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-shield-halved me-1"></i> Admin Panel</a>
+                <a href="admin/dashboard.php" class="btn btn-sm btn-dashboard-link"><i class="fa-solid fa-shield-halved me-1"></i> Admin Panel</a>
             <?php elseif (isset($_SESSION['user_id'])): ?>
-                <a href="dashboard.php" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-gauge me-1"></i> Dashboard</a>
+                <a href="dashboard.php" class="btn btn-sm btn-dashboard-link"><i class="fa-solid fa-gauge me-1"></i> Dashboard</a>
             <?php endif; ?>
         </div>
     </div>
@@ -519,7 +575,7 @@ function renderTreeHtml($node, $treeType, $isRoot = false) {
                 <div class="text-center text-muted mt-5">
                     <i class="fa-solid fa-circle-exclamation fa-3x mb-3 text-warning"></i>
                     <h4>No member found for the specified MID or search term.</h4>
-                    <a href="printree.php" class="btn btn-primary mt-2"><i class="fa-solid fa-house me-1"></i> Reset to Root Tree</a>
+                    <a href="printree.php" class="btn text-white mt-2" style="background: #3f2259;"><i class="fa-solid fa-house me-1"></i> Reset to Root Tree</a>
                 </div>
             <?php endif; ?>
         </div>
