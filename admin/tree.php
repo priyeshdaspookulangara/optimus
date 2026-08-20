@@ -5,4 +5,4 @@ if (!isset($_SESSION['admin_id'])) {
     exit();
 }
 
-require_once __DIR__ . '/../tree.php';
+require_once __DIR__ . '/../printree.php';

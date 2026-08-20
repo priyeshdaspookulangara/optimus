@@ -114,7 +114,7 @@ function countSubtreeNodes($node) {
 
 $totalNodes = countSubtreeNodes($treeData);
 
-function renderTreeHtml($node, $treeType) {
+function renderTreeHtml($node, $treeType, $isRoot = false) {
     if (!$node) return '';
 
     $midRaw = !empty($node['mid']) ? $node['mid'] : $node['id'];
@@ -123,9 +123,10 @@ function renderTreeHtml($node, $treeType) {
     $packageDisplay = htmlspecialchars($node['joining_package']);
     $rankDisplay = htmlspecialchars($node['rank_name']);
     $positionDisplay = !empty($node['position']) ? ' <span class="badge bg-secondary position-badge">' . ucfirst(htmlspecialchars($node['position'])) . '</span>' : '';
+    $idAttr = $isRoot ? ' id="rootNodeCard"' : '';
 
     $html = '<li>';
-    $html .= '<div class="node-card" onclick="focusNode(\'' . htmlspecialchars($midRaw, ENT_QUOTES) . '\')" title="Click to make this user root">';
+    $html .= '<div class="node-card"' . $idAttr . ' onclick="focusNode(\'' . htmlspecialchars($midRaw, ENT_QUOTES) . '\')" title="Click to make this user root">';
     $html .= '  <div class="card-top-bar">';
     $html .= '    <span class="mid-badge"><i class="fa-solid fa-id-badge me-1"></i>' . $midDisplay . '</span>';
     $html .=     $positionDisplay;
@@ -138,7 +139,7 @@ function renderTreeHtml($node, $treeType) {
     if (!empty($node['children'])) {
         $html .= '<ul>';
         foreach ($node['children'] as $child) {
-            $html .= renderTreeHtml($child, $treeType);
+            $html .= renderTreeHtml($child, $treeType, false);
         }
         $html .= '</ul>';
     }
@@ -220,22 +221,25 @@ function renderTreeHtml($node, $treeType) {
             min-height: 100%;
             padding: 60px 100px 120px 100px;
             box-sizing: border-box;
+            text-align: center;
             transform-origin: top center;
             transition: transform 0.15s ease-out;
         }
 
         /* Pure CSS Tree Architecture */
         .tree {
+            display: inline-block;
             width: max-content;
             margin: 0 auto;
             white-space: nowrap;
+            text-align: center;
         }
 
         .tree ul {
             padding-top: 25px;
             position: relative;
             transition: all 0.3s;
-            display: flex;
+            display: inline-flex;
             justify-content: center;
             margin: 0;
             padding-left: 0;
@@ -444,7 +448,7 @@ function renderTreeHtml($node, $treeType) {
             </span>
         </div>
 
-        <form method="GET" action="tree.php" class="control-group">
+        <form method="GET" action="printree.php" class="control-group">
             <input type="hidden" name="type" value="<?php echo htmlspecialchars($treeType); ?>">
             <div class="input-group input-group-sm" style="width: 260px;">
                 <span class="input-group-text bg-dark text-secondary border-secondary"><i class="fa-solid fa-magnifying-glass"></i></span>
@@ -454,10 +458,10 @@ function renderTreeHtml($node, $treeType) {
 
             <!-- Tree Type Toggle -->
             <div class="btn-group btn-group-sm me-2" role="group">
-                <a href="tree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor" class="btn <?php echo $treeType === 'sponsor' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=sponsor" class="btn <?php echo $treeType === 'sponsor' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
                     <i class="fa-solid fa-diagram-next me-1"></i> Sponsor
                 </a>
-                <a href="tree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement" class="btn <?php echo $treeType === 'placement' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
+                <a href="printree.php?mid=<?php echo urlencode($searchMid); ?>&type=placement" class="btn <?php echo $treeType === 'placement' ? 'btn-success' : 'btn-outline-secondary text-white'; ?>">
                     <i class="fa-solid fa-network-wired me-1"></i> Placement
                 </a>
             </div>
@@ -465,6 +469,7 @@ function renderTreeHtml($node, $treeType) {
 
         <div class="control-group">
             <div class="zoom-controls">
+                <button class="btn-zoom" onclick="centerOnRoot()" title="Center Root Node"><i class="fa-solid fa-crosshairs"></i></button>
                 <button class="btn-zoom" onclick="zoomIn()" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
                 <button class="btn-zoom" onclick="zoomReset()" title="Reset Zoom"><i class="fa-solid fa-rotate-left"></i></button>
                 <button class="btn-zoom" onclick="zoomOut()" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
@@ -483,14 +488,14 @@ function renderTreeHtml($node, $treeType) {
             <?php if ($treeData): ?>
                 <div class="tree">
                     <ul>
-                        <?php echo renderTreeHtml($treeData, $treeType); ?>
+                        <?php echo renderTreeHtml($treeData, $treeType, true); ?>
                     </ul>
                 </div>
             <?php else: ?>
                 <div class="text-center text-muted mt-5">
                     <i class="fa-solid fa-circle-exclamation fa-3x mb-3 text-warning"></i>
                     <h4>No member found for the specified MID or search term.</h4>
-                    <a href="tree.php" class="btn btn-primary mt-2"><i class="fa-solid fa-house me-1"></i> Reset to Root Tree</a>
+                    <a href="printree.php" class="btn btn-primary mt-2"><i class="fa-solid fa-house me-1"></i> Reset to Root Tree</a>
                 </div>
             <?php endif; ?>
         </div>
@@ -499,6 +504,7 @@ function renderTreeHtml($node, $treeType) {
     <script>
         let currentScale = 1.0;
         const viewport = document.getElementById('treeViewport');
+        const container = document.getElementById('canvasContainer');
 
         function updateZoom() {
             viewport.style.transform = `scale(${currentScale})`;
@@ -510,14 +516,31 @@ function renderTreeHtml($node, $treeType) {
         }
 
         function zoomOut() {
-            currentScale = Math.max(currentScale - 0.15, 0.3);
+            currentScale = Math.max(currentScale - 0.15, 0.2);
             updateZoom();
         }
 
         function zoomReset() {
             currentScale = 1.0;
             updateZoom();
+            centerOnRoot();
         }
+
+        function centerOnRoot() {
+            const rootCard = document.getElementById('rootNodeCard');
+            if (container && rootCard) {
+                const containerRect = container.getBoundingClientRect();
+                const rootRect = rootCard.getBoundingClientRect();
+
+                const scrollOffset = (rootRect.left + container.scrollLeft + rootCard.offsetWidth / 2) - (containerRect.width / 2);
+                container.scrollLeft = Math.max(0, scrollOffset);
+                container.scrollTop = 0;
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(centerOnRoot, 100);
+        });
 
         function focusNode(mid) {
             const urlParams = new URLSearchParams(window.location.search);
@@ -526,7 +549,6 @@ function renderTreeHtml($node, $treeType) {
         }
 
         // Click and drag panning on canvas
-        const container = document.getElementById('canvasContainer');
         let isMouseDown = false;
         let startX, startY, scrollLeft, scrollTop;
 
