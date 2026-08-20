@@ -29,6 +29,12 @@ class Database {
                 FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+            try {
+                $this->connection->exec("ALTER TABLE `transactions` ADD COLUMN `roi_date` DATE DEFAULT NULL AFTER `description`");
+            } catch (PDOException $e) {
+                // Column already exists or table not ready
+            }
+
         } catch (PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }

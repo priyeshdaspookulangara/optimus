@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS `transactions` (
   `fee` DECIMAL(15, 2) DEFAULT 0.00,
   `net_amount` DECIMAL(15, 2) NOT NULL,
   `description` TEXT,
+  `roi_date` DATE DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   FOREIGN KEY (`related_user_id`) REFERENCES `users`(`id`)
