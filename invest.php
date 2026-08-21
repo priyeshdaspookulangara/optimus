@@ -69,18 +69,18 @@ include __DIR__ . '/includes/header.php';
 
                 <div class="col-md-6">
                   <div class="card card-custom p-4">
-                    <h5 class="text-center mb-3 text-white">Purchase Package</h5>
+                    <h5 class="text-center mb-3 text-white text-muted">Purchase Package <small class="d-block text-warning" style="font-size: 11px;">(Disabled)</small></h5>
                     <form action="create_invest.php" method="post" class="deposit-form">
                       <div class="mb-3">
-                        <label for="amount" class="form-label text-white">Select Package</label>
-                        <select class="form-select" id="amount" name="amount" required>
+                        <label for="amount" class="form-label text-white-50">Select Package</label>
+                        <select class="form-select" id="amount" name="amount" disabled required>
                             <?php foreach($config['packages'] as $pkg): ?>
                                 <option value="<?php echo $pkg; ?>">$<?php echo number_format($pkg); ?></option>
                             <?php endforeach; ?>
                         </select>
                       </div>
-                      <button type="submit" class="btn btn-primary text-white w-100">
-                        <i class="fa fa-check-circle me-2"></i>Invest Now
+                      <button type="submit" class="btn btn-secondary text-white w-100" disabled>
+                        <i class="fa fa-ban me-2"></i>Disabled
                       </button>
                     </form>
 
