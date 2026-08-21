@@ -26,7 +26,7 @@ $stmt = $db->prepare("SELECT
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND COALESCE(roi_date, DATE(created_at)) = CURDATE()) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ? AND type != 'INVESTMENT') as wallet_balance,
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
+    (SELECT COALESCE(SUM(ABS(net_amount)), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI') as total_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'LEVEL_INCOME') as total_level,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'RANK_INCOME') as total_rank
@@ -306,7 +306,7 @@ include __DIR__ . '/includes/header.php';
 
                     <div class="mt-3 pt-2 border-top border-secondary text-start" style="font-size: 13px;">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="text-white-50"><i class="fa-solid fa-money-bill-transfer text-danger me-2"></i>Total Withdrawals:</span>
+                            <span class="text-white-50"><i class="fa-solid fa-money-bill-transfer text-danger me-2"></i>Total Withdrawals (incl. 5% Fee):</span>
                             <span class="fw-bold text-danger">-$<?php echo number_format($stats['total_withdrawn'], 2); ?></span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
