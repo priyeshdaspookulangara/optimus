@@ -391,8 +391,7 @@ class MLMEngine {
         if ($customNetAmount !== null) {
             $netAmount = $customNetAmount;
         } elseif ($isDebit) {
-            // For withdrawals: total deduction = amount + fee (both should be negative for balance)
-            $netAmount = -($amount + $fee);
+            $netAmount = -$amount;
         } else {
             // For income: total gain = amount - fee (e.g. tax, though usually income is net here)
             $netAmount = $amount - $fee;
@@ -423,19 +422,19 @@ class MLMEngine {
         $fee = $this->config['withdrawal']['fee'];
 
         if ($amount < $minWithdrawal) {
-            throw new Exception("Minimum withdrawal is \${$minWithdrawal}");
+            throw new Exception("Minimum withdrawal is \$" . number_format($minWithdrawal, 2));
         }
 
-        $stmt = $this->db->prepare("SELECT (SELECT SUM(net_amount) FROM transactions WHERE user_id = ?) as balance");
+        $stmt = $this->db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
+        $balance = (float)($user['balance'] ?? 0);
 
-        // Check if balance covers both the requested amount and the flat gas fee
-        if ($user['balance'] < ($amount + $fee)) {
-            throw new Exception("Insufficient balance to cover withdrawal amount and the \$" . $fee . " flat gas fee.");
+        if ($balance < $amount) {
+            throw new Exception("Insufficient wallet balance. Your available balance is \$" . number_format($balance, 2));
         }
 
-        $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
+        $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}", null, null, null, -$amount);
         return true;
     }
 
