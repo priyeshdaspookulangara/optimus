@@ -390,9 +390,11 @@ class MLMEngine {
 
         if ($customNetAmount !== null) {
             $netAmount = $customNetAmount;
-        } elseif ($isDebit) {
-            // For withdrawals: total deduction = amount + fee (both should be negative for balance)
+        } elseif ($type === 'WITHDRAWAL') {
+            $fee = $amount * 0.05;
             $netAmount = -($amount + $fee);
+        } elseif ($isDebit) {
+            $netAmount = -$amount;
         } else {
             // For income: total gain = amount - fee (e.g. tax, though usually income is net here)
             $netAmount = $amount - $fee;
@@ -419,23 +421,26 @@ class MLMEngine {
      * Withdrawal System
      */
     public function requestWithdrawal($userId, $amount) {
-        $minWithdrawal = $this->config['withdrawal']['min_amount'];
-        $fee = $this->config['withdrawal']['fee'];
+        $minWithdrawal = $this->config['withdrawal']['min_amount'] ?? 5.00;
+        $feePercent = $this->config['withdrawal']['fee_percent'] ?? 0.05;
 
         if ($amount < $minWithdrawal) {
-            throw new Exception("Minimum withdrawal is \${$minWithdrawal}");
+            throw new Exception("Minimum withdrawal is \$" . number_format($minWithdrawal, 2));
         }
 
-        $stmt = $this->db->prepare("SELECT (SELECT SUM(net_amount) FROM transactions WHERE user_id = ?) as balance");
+        $fee = $amount * $feePercent;
+        $totalDeduction = $amount + $fee;
+
+        $stmt = $this->db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
+        $balance = (float)($user['balance'] ?? 0);
 
-        // Check if balance covers both the requested amount and the flat gas fee
-        if ($user['balance'] < ($amount + $fee)) {
-            throw new Exception("Insufficient balance to cover withdrawal amount and the \$" . $fee . " flat gas fee.");
+        if ($balance < $totalDeduction) {
+            throw new Exception("Insufficient wallet balance. Total required including 5% fee (\$" . number_format($fee, 2) . ") is \$" . number_format($totalDeduction, 2) . ". Available balance is \$" . number_format($balance, 2));
         }
 
-        $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}");
+        $this->logTransaction($userId, 'WITHDRAWAL', $amount, $fee, "Withdrawal request of \${$amount}", null, null, null, -$totalDeduction);
         return true;
     }
 

@@ -23,7 +23,7 @@ if (!$user) {
 
 // Fetch Earnings Data
 $stmt = $db->prepare("SELECT
-    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND DATE(created_at) = CURDATE()) as today_roi,
+    (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'ROI' AND COALESCE(roi_date, DATE(created_at)) = CURDATE()) as today_roi,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type IN ('ROI', 'LEVEL_INCOME', 'RANK_INCOME')) as total_earning,
     (SELECT COALESCE(SUM(net_amount), 0) FROM transactions WHERE user_id = ?) as wallet_balance,
     (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ? AND type = 'WITHDRAWAL') as total_withdrawn,
@@ -34,6 +34,29 @@ $stmt = $db->prepare("SELECT
 $stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId]);
 $stats = $stmt->fetch();
 
+$config = require __DIR__ . '/includes/config.php';
+
+// ---- SHOW-OFF: calculate and display live ROI for investments ----
+// ---- made exactly one day ago (joining date = yesterday)       ----
+$stmt = $db->prepare("
+    SELECT amount
+    FROM investments
+    WHERE user_id = ?
+      AND status = 'active'
+      AND DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+");
+$stmt->execute([$userId]);
+$recentInvestments = $stmt->fetchAll();
+
+$liveRoi = 0;
+foreach ($recentInvestments as $inv) {
+    $liveRoi += $inv['amount'] * $config['roi']['daily_rate'];
+}
+
+if ($liveRoi > 0) {
+    $stats['today_roi'] = $liveRoi;
+}
+
 // Team Stats
 $stmt = $db->prepare("SELECT COUNT(*) as team_count FROM genealogy WHERE parent_id = ?");
 $stmt->execute([$userId]);
@@ -43,13 +66,20 @@ $stmt = $db->prepare("SELECT SUM(total_investment) as team_investment FROM users
 $stmt->execute([$userId]);
 $team_inv = $stmt->fetch();
 
-$config = require __DIR__ . '/includes/config.php';
 $rankName = ($user['rank_id'] > 0) ? $config['ranks'][$user['rank_id']-1]['name'] : 'None';
 
-// Ceiling Limit Calculation (300% of total investment)
-$maxCap = $user['total_investment'] * $config['id_cap_multiplier'];
-$ceilingBalance = max(0, $maxCap - $stats['total_earning']);
-$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_earning'] / $maxCap) * 100) : 0;
+// Ceiling Limit Calculation (ROI exclusively, using 200% ROI Cap multiplier)
+$maxCap = $user['total_investment'] * $config['roi']['cap_multiplier'];
+$ceilingBalance = max(0, $maxCap - $stats['total_roi']);
+$progressPercent = ($maxCap > 0) ? min(100, ($stats['total_roi'] / $maxCap) * 100) : 0;
+
+// Dynamic Referral Links Generation
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'];
+$self_dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$base_url = $protocol . $host . $self_dir;
+$left_link = $base_url . "/register.php?ref=" . urlencode($user['mid'] ?? $user['id']) . "&pos=L";
+$right_link = $base_url . "/register.php?ref=" . urlencode($user['mid'] ?? $user['id']) . "&pos=R";
 
 // Fetch dynamic unilevel legs business
 $engine = new MLMEngine();
@@ -122,6 +152,62 @@ include __DIR__ . '/includes/header.php';
             </div>
         </button>
     </div>
+
+    <!-- Referral Link Share Section -->
+    <div class="container-fluid mt-4 mb-4">
+        <div class="card shadow-sm text-white" style="background-color: #2d1840; border: 2px solid #504793; border-radius: 12px;">
+            <div class="card-header border-bottom-0">
+                <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-share-nodes text-warning me-2"></i>My Referral Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded" style="background-color: #3f2259; border: 1px solid #504793;">
+                            <label class="form-label text-white fw-bold"><i class="fa-solid fa-arrow-left text-info me-2"></i>Left Referral Link</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-dark text-white border-0" id="leftLink" value="<?php echo htmlspecialchars($left_link); ?>" readonly>
+                                <button class="btn btn-primary" type="button" onclick="copyLink('leftLink', this)">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded" style="background-color: #3f2259; border: 1px solid #504793;">
+                            <label class="form-label text-white fw-bold"><i class="fa-solid fa-arrow-right text-success me-2"></i>Right Referral Link</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-dark text-white border-0" id="rightLink" value="<?php echo htmlspecialchars($right_link); ?>" readonly>
+                                <button class="btn btn-primary" type="button" onclick="copyLink('rightLink', this)">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function copyLink(inputId, btn) {
+        var copyText = document.getElementById(inputId);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); /* For mobile devices */
+        navigator.clipboard.writeText(copyText.value).then(function() {
+            var originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            setTimeout(function() {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-primary');
+            }, 2000);
+        }, function() {
+            alert("Failed to copy link. Please manually copy the link.");
+        });
+    }
+    </script>
 
     <!-- Achievement Milestones / Rank Scroller -->
     <div class="achievement-section">
@@ -214,9 +300,20 @@ include __DIR__ . '/includes/header.php';
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="text-center mb-4">
-                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">Lifetime Total Earnings</span>
-                    <h2 class="text-success fw-bold mt-1" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+                <div class="text-center mb-4 p-3 rounded" style="background-color: #1e102d; border: 1px solid #3f2259;">
+                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">TOTAL EARNING $</span>
+                    <h2 class="text-success fw-bold mt-1 mb-2" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+
+                    <div class="mt-3 pt-2 border-top border-secondary text-start" style="font-size: 13px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-white-50"><i class="fa-solid fa-money-bill-transfer text-danger me-2"></i>Total Withdrawals:</span>
+                            <span class="fw-bold text-danger">-$<?php echo number_format($stats['total_withdrawn'], 2); ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-white-50"><i class="fa-solid fa-wallet text-warning me-2"></i>Effective Net Balance:</span>
+                            <span class="fw-bold text-warning">$<?php echo number_format($stats['total_earning'] - $stats['total_withdrawn'], 2); ?></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="p-3 rounded mb-3" style="background-color: #3f2259;">
                     <div class="d-flex justify-content-between align-items-center mb-3">

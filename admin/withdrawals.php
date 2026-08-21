@@ -69,8 +69,8 @@ $withdrawals = $stmt->fetchAll();
                         <th>Date & Time</th>
                         <th>Member (MID)</th>
                         <th>Requested Amount</th>
-                        <th>Gas Fee</th>
-                        <th>Net Amount Paid</th>
+                        <th>5% Fee</th>
+                        <th>Total Wallet Deduction</th>
                         <th>Description</th>
                     </tr>
                 </thead>
@@ -85,9 +85,9 @@ $withdrawals = $stmt->fetchAll();
                             <td>#<?php echo $w['id']; ?></td>
                             <td><?php echo date('Y-m-d H:i:s', strtotime($w['created_at'])); ?></td>
                             <td><strong><?php echo htmlspecialchars($w['username']); ?></strong> <span class="badge bg-secondary" style="font-size: 11px;"><?php echo htmlspecialchars($w['mid'] ?? 'None'); ?></span></td>
-                            <td class="text-danger">$<?php echo number_format($w['amount'], 2); ?></td>
+                            <td class="fw-bold">$<?php echo number_format($w['amount'], 2); ?></td>
                             <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
-                            <td class="fw-bold text-success">$<?php echo number_format($w['amount'] - $w['fee'], 2); ?></td>
+                            <td class="fw-bold text-danger">-$<?php echo number_format(abs($w['net_amount']), 2); ?></td>
                             <td><?php echo htmlspecialchars($w['description']); ?></td>
                         </tr>
                         <?php endforeach; ?>
