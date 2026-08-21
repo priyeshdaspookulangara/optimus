@@ -71,8 +71,23 @@ include __DIR__ . '/includes/header.php';
                 <form method="post" class="mt-4" style="max-width: 500px;">
                     <div class="mb-3">
                         <label class="form-label text-white">Amount to Withdraw ($)</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" required min="5" placeholder="Enter amount">
+                        <input type="number" step="0.01" name="amount" id="withdrawAmount" class="form-control" required min="5" placeholder="Enter amount">
                         <small class="text-info d-block mt-1">Minimum withdrawal: $5.00</small>
+                    </div>
+
+                    <div id="liveCalculationBox" class="p-3 mb-3 rounded" style="background-color: #1a2332; border: 1px solid #2d3d50; display: none;">
+                        <div class="d-flex justify-content-between mb-1" style="font-size: 13px;">
+                            <span class="text-white-50">Requested Amount:</span>
+                            <span class="fw-bold text-white" id="calcRequested">$0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1" style="font-size: 13px;">
+                            <span class="text-white-50">5% Withdrawal Fee:</span>
+                            <span class="fw-bold text-danger" id="calcFee">+$0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2 border-top border-secondary" style="font-size: 14px;">
+                            <span class="text-warning fw-bold">Total Wallet Deduction:</span>
+                            <span class="fw-bold text-warning" id="calcTotal">$0.00</span>
+                        </div>
                     </div>
 
                     <div class="alert alert-info py-2 my-3 text-dark" style="background-color: #cff4fc; border-color: #b6effb;">
@@ -85,5 +100,31 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var amountInput = document.getElementById('withdrawAmount');
+    var calcBox = document.getElementById('liveCalculationBox');
+    var calcReq = document.getElementById('calcRequested');
+    var calcFee = document.getElementById('calcFee');
+    var calcTot = document.getElementById('calcTotal');
+
+    if (amountInput) {
+        amountInput.addEventListener('input', function() {
+            var val = parseFloat(amountInput.value);
+            if (!isNaN(val) && val > 0) {
+                var fee = val * 0.05;
+                var total = val + fee;
+                calcReq.textContent = '$' + val.toFixed(2);
+                calcFee.textContent = '+$' + fee.toFixed(2);
+                calcTot.textContent = '$' + total.toFixed(2);
+                calcBox.style.display = 'block';
+            } else {
+                calcBox.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
