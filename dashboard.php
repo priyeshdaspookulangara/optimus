@@ -214,9 +214,20 @@ include __DIR__ . '/includes/header.php';
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="text-center mb-4">
-                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">Lifetime Total Earnings</span>
-                    <h2 class="text-success fw-bold mt-1" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+                <div class="text-center mb-4 p-3 rounded" style="background-color: #1e102d; border: 1px solid #3f2259;">
+                    <span class="text-uppercase text-muted d-block" style="font-size: 13px; letter-spacing: 1px;">TOTAL EARNING $</span>
+                    <h2 class="text-success fw-bold mt-1 mb-2" style="font-size: 32px;">$<?php echo number_format($stats['total_earning'], 2); ?></h2>
+
+                    <div class="mt-3 pt-2 border-top border-secondary text-start" style="font-size: 13px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-white-50"><i class="fa-solid fa-money-bill-transfer text-danger me-2"></i>Total Withdrawals:</span>
+                            <span class="fw-bold text-danger">-$<?php echo number_format($stats['total_withdrawn'], 2); ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-white-50"><i class="fa-solid fa-wallet text-warning me-2"></i>Effective Net Balance:</span>
+                            <span class="fw-bold text-warning">$<?php echo number_format($stats['total_earning'] - $stats['total_withdrawn'], 2); ?></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="p-3 rounded mb-3" style="background-color: #3f2259;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
