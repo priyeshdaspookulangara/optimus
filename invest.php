@@ -86,14 +86,14 @@ include __DIR__ . '/includes/header.php';
 
                     <hr class="bg-white my-4">
 
-                    <h5 class="text-center mb-3 text-white">Activate with PIN</h5>
+                    <h5 class="text-center mb-3 text-white">Invest with PIN</h5>
                     <form action="activate_pin.php" method="post">
                         <div class="mb-3">
                             <label class="form-label text-white">Enter PIN Code</label>
                             <input type="text" name="pin_code" class="form-control" required placeholder="XXXXXXXXXX">
                         </div>
                         <button type="submit" class="btn btn-success text-white w-100">
-                            <i class="fa fa-key me-2"></i>Activate PIN
+                            <i class="fa fa-key me-2"></i>Invest
                         </button>
                     </form>
                   </div>
