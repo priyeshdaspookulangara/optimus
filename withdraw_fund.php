@@ -12,7 +12,7 @@ $userId = $_SESSION['user_id'];
 $config = require __DIR__ . '/includes/config.php';
 
 // Fetch Wallet Balance
-$stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as wallet_balance FROM transactions WHERE user_id = ?");
+$stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as wallet_balance FROM transactions WHERE user_id = ? AND type != 'INVESTMENT'");
 $stmt->execute([$userId]);
 $wallet = $stmt->fetch();
 

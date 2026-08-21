@@ -16,7 +16,7 @@ $stmt->execute([$userId]);
 $user = $stmt->fetch();
 
 // Fetch Wallet Balance
-$stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as wallet_balance FROM transactions WHERE user_id = ?");
+$stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as wallet_balance FROM transactions WHERE user_id = ? AND type != 'INVESTMENT'");
 $stmt->execute([$userId]);
 $wallet = $stmt->fetch();
 

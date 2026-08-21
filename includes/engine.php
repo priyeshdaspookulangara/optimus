@@ -431,7 +431,7 @@ class MLMEngine {
         $fee = $amount * $feePercent;
         $totalDeduction = $amount + $fee;
 
-        $stmt = $this->db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ?");
+        $stmt = $this->db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ? AND type != 'INVESTMENT'");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
         $balance = (float)($user['balance'] ?? 0);
