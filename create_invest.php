@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db = Database::getInstance()->getConnection();
 
     // Check wallet balance
-    $stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ?");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(net_amount), 0) as balance FROM transactions WHERE user_id = ? AND type != 'INVESTMENT'");
     $stmt->execute([$userId]);
     $wallet = $stmt->fetch();
 

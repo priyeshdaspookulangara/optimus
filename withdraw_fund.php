@@ -17,8 +17,8 @@ $stmt->execute([$userId]);
 $wallet = $stmt->fetch();
 
 $totalAvailable = (float)($wallet['wallet_balance'] ?? 0);
-$deduction5 = $totalAvailable * 0.05;
-$netAfterDeduction = $totalAvailable * 0.95;
+// Maximum amount user can request such that amount + 5% fee = totalAvailable
+$maxWithdrawable = $totalAvailable > 0 ? $totalAvailable / 1.05 : 0;
 
 $minWithdrawal = 5.00;
 
@@ -51,18 +51,14 @@ include __DIR__ . '/includes/header.php';
                 <div class="row mt-3">
                     <div class="col-md-6 col-lg-5">
                         <div class="card p-3 border border-secondary" style="background-color: #0d121d; border-radius: 12px;">
-                            <h5 class="card-title text-white mb-3">Available Balance</h5>
+                            <h5 class="card-title text-white mb-3">Available Wallet Balance</h5>
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-info">Total Available:</span>
-                                <span class="fw-bold text-danger" style="color: #ff6b35 !important; font-size: 1.25rem;">$<?php echo number_format($totalAvailable, 2); ?></span>
+                                <span class="text-info">Total Available Balance:</span>
+                                <span class="fw-bold text-success" style="font-size: 1.25rem;">$<?php echo number_format($totalAvailable, 2); ?></span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2" style="border-bottom: 1px dashed #2c3e50; padding-bottom: 8px;">
-                                <span class="text-danger">5% Deduction:</span>
-                                <span class="fw-bold text-danger">-$<?php echo number_format($deduction5, 2); ?></span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center pt-1">
-                                <span class="text-warning">Net After Deduction:</span>
-                                <span class="fw-bold text-warning" style="font-size: 1.25rem;">$<?php echo number_format($netAfterDeduction, 2); ?></span>
+                            <div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px dashed #2c3e50;">
+                                <span class="text-warning">Max Withdrawable (incl. 5% fee):</span>
+                                <span class="fw-bold text-warning" style="font-size: 1.1rem;">$<?php echo number_format($maxWithdrawable, 2); ?></span>
                             </div>
                         </div>
                     </div>
