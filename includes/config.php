@@ -58,8 +58,8 @@ return [
 
     // Withdrawal Settings
     'withdrawal' => [
-        'min_amount' => 25.00,
-        'fee' => 10.00, // Flat "Gas fee"
+        'min_amount' => 5.00,
+        'fee_percent' => 0.05, // 5% deduction
     ],
 
     // Rank Income Settings

@@ -50,8 +50,8 @@ include __DIR__ . '/includes/header.php';
                     <th>#</th>
                     <th>Date & Time</th>
                     <th>Requested Amount</th>
-                    <th>Gas Fee</th>
-                    <th>Net Amount Received</th>
+                    <th>5% Fee</th>
+                    <th>Total Wallet Deduction</th>
                     <th>Description</th>
                   </tr>
                 </thead>
@@ -65,9 +65,9 @@ include __DIR__ . '/includes/header.php';
                       <tr>
                         <td><?php echo $index + 1; ?></td>
                         <td><?php echo date('d M, Y h:i:s a', strtotime($w['created_at'])); ?></td>
-                        <td class="text-danger font-weight-bold">-$<?php echo number_format($w['amount'], 2); ?></td>
+                        <td class="font-weight-bold">$<?php echo number_format($w['amount'], 2); ?></td>
                         <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
-                        <td class="text-success font-weight-bold">$<?php echo number_format($w['amount'] - $w['fee'], 2); ?></td>
+                        <td class="text-danger font-weight-bold">-$<?php echo number_format(abs($w['net_amount']), 2); ?></td>
                         <td><?php echo htmlspecialchars($w['description']); ?></td>
                       </tr>
                     <?php endforeach; ?>
