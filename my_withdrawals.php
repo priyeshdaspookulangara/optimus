@@ -56,22 +56,16 @@ include __DIR__ . '/includes/header.php';
                   </tr>
                 </thead>
                 <tbody>
-                  <?php if (empty($my_withdrawals)): ?>
+                  <?php foreach($my_withdrawals as $index => $w): ?>
                     <tr>
-                      <td colspan="6" class="text-center text-muted py-4">No withdrawals requested yet.</td>
+                      <td><?php echo $index + 1; ?></td>
+                      <td><?php echo date('d M, Y h:i:s a', strtotime($w['created_at'])); ?></td>
+                      <td class="font-weight-bold">$<?php echo number_format($w['amount'], 2); ?></td>
+                      <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
+                      <td class="text-danger font-weight-bold">-$<?php echo number_format(abs($w['net_amount']), 2); ?></td>
+                      <td><?php echo htmlspecialchars($w['description']); ?></td>
                     </tr>
-                  <?php else: ?>
-                    <?php foreach($my_withdrawals as $index => $w): ?>
-                      <tr>
-                        <td><?php echo $index + 1; ?></td>
-                        <td><?php echo date('d M, Y h:i:s a', strtotime($w['created_at'])); ?></td>
-                        <td class="font-weight-bold">$<?php echo number_format($w['amount'], 2); ?></td>
-                        <td class="text-secondary">$<?php echo number_format($w['fee'], 2); ?></td>
-                        <td class="text-danger font-weight-bold">-$<?php echo number_format(abs($w['net_amount']), 2); ?></td>
-                        <td><?php echo htmlspecialchars($w['description']); ?></td>
-                      </tr>
-                    <?php endforeach; ?>
-                  <?php endif; ?>
+                  <?php endforeach; ?>
                 </tbody>
               </table>
             </div>
