@@ -63,13 +63,13 @@ function localGetLegsBusiness($db, $userId) {
     $totalMatched = 0.00;
     $slabBreakdown = [];
 
-    // Ascending Slab Sequence ($500 -> $500,000)
+    // Ascending Sequential Slab Sequence ($500 -> $500,000) - Max 1 unit per slab tier
     $slabs = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000];
     foreach ($slabs as $slab) {
         $m = min($vPower, $vRest);
         if ($m >= $slab) {
-            $units = (int)floor($m / $slab);
-            $matchedVolume = $units * $slab;
+            $units = 1; // Sequential matching: exactly 1 unit per slab tier
+            $matchedVolume = $slab;
 
             $totalMatched += $matchedVolume;
             $vPower -= $matchedVolume;
