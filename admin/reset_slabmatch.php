@@ -110,8 +110,8 @@ $summaryStats = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reset_slabmatch') {
     $db->beginTransaction();
     try {
-        // 1. Clear all matching schedules
-        $db->exec("TRUNCATE TABLE matching_schedules");
+        // 1. Clear all matching schedules (DELETE FROM instead of TRUNCATE to avoid implicit transaction commit in MySQL)
+        $db->exec("DELETE FROM matching_schedules");
 
         // 2. Clear all RANK_INCOME transactions
         $db->exec("DELETE FROM transactions WHERE type = 'RANK_INCOME'");
