@@ -132,11 +132,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $qualifiedRankId = localCheckRankQualification($config, $matchedBusiness);
 
             // Update user's rank_id ONLY if new qualified rank is strictly greater than existing rank_id
-            if ($qualifiedRankId !== null && $qualifiedRankId > $user['rank_id']) {
-                $stmtUpdateRank = $db->prepare("UPDATE users SET rank_id = ? WHERE id = ?");
-                $stmtUpdateRank->execute([$qualifiedRankId, $userId]);
-                $user['rank_id'] = $qualifiedRankId;
-                $usersRankUpdated++;
+            if ($qualifiedRankId !== null) {
+                $stmtUpdateRank = $db->prepare("UPDATE users SET rank_id = ? WHERE id = ? AND rank_id < ?");
+                $stmtUpdateRank->execute([$qualifiedRankId, $userId, $qualifiedRankId]);
+                if ($stmtUpdateRank->rowCount() > 0) {
+                    $user['rank_id'] = $qualifiedRankId;
+                    $usersRankUpdated++;
+                }
+            }
+
+            // Propagate achieved rank to up to 2 direct sponsor uplines (Level 1 and Level 2) irrespective of their team volume/investment
+            if ($qualifiedRankId !== null) {
+                $stmtRankUplines = $db->prepare("
+                    SELECT g.parent_id, u.rank_id
+                    FROM genealogy g
+                    JOIN users u ON g.parent_id = u.id
+                    WHERE g.user_id = ? AND g.level <= 2
+                    ORDER BY g.level ASC
+                ");
+                $stmtRankUplines->execute([$userId]);
+                $rankUplines = $stmtRankUplines->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($rankUplines as $rUpline) {
+                    $stmtUpd = $db->prepare("UPDATE users SET rank_id = ? WHERE id = ? AND rank_id < ?");
+                    $stmtUpd->execute([$qualifiedRankId, $rUpline['parent_id'], $qualifiedRankId]);
+                    if ($stmtUpd->rowCount() > 0) {
+                        $usersRankUpdated++;
+                    }
+                }
             }
 
             // Create matching contracts for qualified slab units (ascending)
